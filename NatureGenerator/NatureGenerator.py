@@ -5,6 +5,16 @@ startup and shutdown failures visible in Fusion.
 """
 
 import traceback
+from pathlib import Path
+import sys
+
+
+def _bootstrap_addin_path():
+    """Ensure sibling add-in packages are importable under Fusion's loader."""
+    addin_root = str(Path(__file__).resolve().parent)
+    if addin_root not in sys.path:
+        sys.path.insert(0, addin_root)
+    return addin_root
 
 
 def _report_failure(title, details):
@@ -35,6 +45,7 @@ def _report_failure(title, details):
 def run(context):
     """Start the add-in inside Fusion 360."""
     try:
+        _bootstrap_addin_path()
         from fusion.runtime import start
 
         start(context)
@@ -47,6 +58,7 @@ def run(context):
 def stop(context):
     """Stop the add-in and release registered command resources."""
     try:
+        _bootstrap_addin_path()
         from fusion.runtime import stop
 
         stop(context)

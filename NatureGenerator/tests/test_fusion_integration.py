@@ -170,6 +170,16 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
         )
         self.assertIn("import adsk", fusion_sources)
 
+    def test_only_entry_point_modifies_sys_path(self):
+        package_root = Path(__file__).parents[1]
+        for folder in ("core", "generators", "presets", "commands", "fusion"):
+            for module in (package_root / folder).glob("*.py"):
+                self.assertNotIn("sys.path", module.read_text(encoding="utf-8"))
+        entry_source = (package_root / "NatureGenerator.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("sys.path.insert", entry_source)
+
     def test_entry_point_imports_without_autodesk_runtime(self):
         entry_path = Path(__file__).parents[1] / "NatureGenerator.py"
         spec = importlib.util.spec_from_file_location("addin_entry", str(entry_path))
@@ -177,6 +187,75 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
         spec.loader.exec_module(module)
         self.assertTrue(callable(module.run))
         self.assertTrue(callable(module.stop))
+
+    def test_entry_point_bootstrap_imports_fusion_and_is_idempotent(self):
+        entry_path = Path(__file__).parents[1] / "NatureGenerator.py"
+        addin_root = str(entry_path.resolve().parent)
+        original_path = list(sys.path)
+        saved_fusion_modules = {
+            name: module
+            for name, module in list(sys.modules.items())
+            if name == "fusion" or name.startswith("fusion.")
+        }
+        try:
+            sys.path[:] = [path for path in sys.path if path != addin_root]
+            for name in saved_fusion_modules:
+                sys.modules.pop(name, None)
+
+            spec = importlib.util.spec_from_file_location(
+                "bootstrap_addin_entry", str(entry_path)
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertNotIn(addin_root, sys.path)
+            self.assertEqual(module._bootstrap_addin_path(), addin_root)
+            imported = importlib.import_module("fusion.runtime")
+            self.assertEqual(imported.COMMAND_ID, runtime.COMMAND_ID)
+            module._bootstrap_addin_path()
+            self.assertEqual(sys.path.count(addin_root), 1)
+        finally:
+            sys.path[:] = original_path
+            for name in list(sys.modules):
+                if name == "fusion" or name.startswith("fusion."):
+                    sys.modules.pop(name, None)
+            sys.modules.update(saved_fusion_modules)
+
+    def test_run_and_stop_bootstrap_when_addin_root_is_absent(self):
+        entry_path = Path(__file__).parents[1] / "NatureGenerator.py"
+        addin_root = str(entry_path.resolve().parent)
+        original_path = list(sys.path)
+        saved_fusion_modules = {
+            name: module
+            for name, module in list(sys.modules.items())
+            if name == "fusion" or name.startswith("fusion.")
+        }
+        app, ui, _, _ = fake_fusion_ui()
+        try:
+            sys.path[:] = [path for path in sys.path if path != addin_root]
+            for name in saved_fusion_modules:
+                sys.modules.pop(name, None)
+
+            spec = importlib.util.spec_from_file_location(
+                "direct_addin_entry", str(entry_path)
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                module.run(None)
+                module.stop(None)
+
+            self.assertEqual(sys.path.count(addin_root), 1)
+            self.assertTrue(
+                any("loaded successfully" in message for message, _ in ui.messages)
+            )
+            self.assertIn("NatureGenerator stopped.", app.logs)
+        finally:
+            sys.path[:] = original_path
+            for name in list(sys.modules):
+                if name == "fusion" or name.startswith("fusion."):
+                    sys.modules.pop(name, None)
+            sys.modules.update(saved_fusion_modules)
 
     def test_entry_point_reports_and_reraises_startup_exception(self):
         entry_path = Path(__file__).parents[1] / "NatureGenerator.py"

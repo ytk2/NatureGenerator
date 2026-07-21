@@ -80,8 +80,11 @@ resources when the add-in stops.
 
 Functional Autodesk integration is confined to `fusion/`. The add-in entry
 point delegates lifecycle calls to this layer and imports `adsk` only for fatal
-startup and shutdown reporting. Presets, generators, commands, and core remain
-importable without Fusion.
+startup and shutdown reporting. Because Fusion executes the entry-point file
+directly, it also adds the directory containing `NatureGenerator.py` to
+`sys.path` once before importing sibling packages. This bootstrap is confined to
+the entry point. Presets, generators, commands, core, and Fusion modules do not
+modify the import path.
 
 ## Runtime pipeline
 

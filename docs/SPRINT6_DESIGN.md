@@ -80,6 +80,11 @@ their complete traceback so a toolbar or lifecycle failure cannot be mistaken
 for a successful load. Remove the success confirmation after real Fusion
 validation is complete; retain failure reporting.
 
+Fusion's add-in loader can execute `NatureGenerator.py` without placing its
+containing directory on `sys.path`. The entry point therefore performs one
+idempotent, `__file__`-relative path bootstrap before importing
+`fusion.runtime`. No other layer modifies Python's import path.
+
 ### 3. End-to-End Pipeline
 
 ```text
