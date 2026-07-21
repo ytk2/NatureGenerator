@@ -11,13 +11,23 @@ an STL writer, or another adapter.
 
 ### Core geometry (`core/`)
 
-Defines scalar-field contracts, voxel-grid data, and triangle-mesh data. This
-layer must not import `adsk` or depend on Fusion 360 runtime state.
+Defines scalar-field contracts, voxel-grid data, indexed triangle-mesh data, and
+STL serialization. This layer must not import `adsk` or depend on Fusion 360
+runtime state.
+
+The mesh stage includes deterministic construction and vertex welding,
+conservative cleanup, face and vertex normals, topology validation and
+statistics, plus STL, OBJ, and PLY serialization. Optimization does not alter the
+surface through smoothing or decimation.
 
 ### Generators (`generators/`)
 
 Evaluates procedural forms and extracts surfaces. Generator algorithms may use
 `core/`, but must remain independent of Fusion 360.
+
+The current `GyroidField` maps world coordinates to a periodic mathematical
+gyroid and returns `abs(g) - thickness`. The core marching tetrahedra stage can
+extract any sampled scalar field without adding generator-specific mesh logic.
 
 ### Application commands (`commands/`)
 
@@ -44,7 +54,8 @@ Scalar Field
 2. The field is sampled at regular voxel-grid points.
 3. Marching tetrahedra finds the chosen isosurface inside each voxel.
 4. The extractor emits a Fusion-independent indexed triangle mesh.
-5. An adapter creates a Fusion `MeshBody` or writes an STL representation.
+5. The Fusion adapter creates a `MeshBody`, or the core STL writer serializes
+   the mesh directly.
 
 The sampling, extraction, and mesh stages should use explicit tolerances and
 deterministic iteration. Manufacturability checks—such as minimum feature size,

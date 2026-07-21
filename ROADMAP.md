@@ -10,6 +10,7 @@
 
 - Define scalar-field and voxel-grid representations.
 - Define indexed triangle-mesh types and mesh validation.
+- Provide standard-library ASCII and binary STL serialization.
 - Add deterministic geometry unit tests.
 
 ## Phase 3: Gyroid surface generation
@@ -22,7 +23,7 @@
 
 - Add Fusion command inputs and progress reporting.
 - Convert generated meshes to Fusion `MeshBody` objects.
-- Support STL export without coupling the geometry core to Fusion APIs.
+- Connect generated core meshes to Fusion-side export workflows.
 
 ## Phase 5: Manufacturability
 
