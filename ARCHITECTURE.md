@@ -78,9 +78,10 @@ Fusion Design API database units (centimeters). `fusion.runtime` registers the
 **Generate Sponge** command, retains its event handlers, and removes its UI
 resources when the add-in stops.
 
-Every Autodesk `adsk` import is confined to `fusion/`. The add-in entry point
-delegates lifecycle calls to this layer, while presets, generators, commands,
-and core remain importable without Fusion.
+Functional Autodesk integration is confined to `fusion/`. The add-in entry
+point delegates lifecycle calls to this layer and imports `adsk` only for fatal
+startup and shutdown reporting. Presets, generators, commands, and core remain
+importable without Fusion.
 
 ## Runtime pipeline
 

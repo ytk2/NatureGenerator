@@ -54,9 +54,10 @@ A user should be able to:
 
 The Fusion Adapter converts a core `TriangleMesh` into an
 `adsk.fusion.MeshBody`. It owns all Fusion-specific object creation, command
-registration, error translation, and active-design integration. Autodesk API
-calls and imports remain isolated here so every other layer stays importable and
-testable in ordinary Python.
+registration, error translation, and active-design integration. Functional
+Autodesk API calls and imports remain isolated here; the add-in entry point uses
+`adsk` only for fatal lifecycle diagnostics. Every geometry and orchestration
+layer stays importable and testable in ordinary Python.
 
 The adapter accepts completed mesh data; it does not generate scalar fields,
 sample voxels, or implement triangulation. It converts the current
@@ -72,6 +73,12 @@ and reports a concise success or failure message.
 
 No parameter dialog is required. The command uses the Sponge preset defaults and
 keeps orchestration thin rather than duplicating runtime or adapter behavior.
+
+During initial in-Fusion validation, successful registration displays a
+temporary development-diagnostics message box. Startup failures log and display
+their complete traceback so a toolbar or lifecycle failure cannot be mistaken
+for a successful load. Remove the success confirmation after real Fusion
+validation is complete; retain failure reporting.
 
 ### 3. End-to-End Pipeline
 

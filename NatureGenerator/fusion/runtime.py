@@ -1,7 +1,7 @@
 """Fusion command registration and event lifecycle for NatureGenerator.
 
-This module is the Autodesk boundary. No module outside ``fusion/`` imports
-``adsk``.
+This module owns Autodesk command registration. Outside ``fusion/``, only the
+add-in entry point imports ``adsk`` for fatal lifecycle diagnostics.
 """
 
 import traceback
@@ -17,6 +17,33 @@ PANEL_ID = "SolidScriptsAddinsPanel"
 _handlers: List[object] = []
 
 
+class FusionRuntimeError(RuntimeError):
+    """Raised when Fusion cannot register the NatureGenerator command."""
+
+
+def _log(app, message: str) -> None:
+    app.log(message)
+
+
+def _find_panel(ui, workspace):
+    """Resolve the Add-Ins panel globally, then through the Design workspace."""
+    all_panels = getattr(ui, "allToolbarPanels", None)
+    panel = all_panels.itemById(PANEL_ID) if all_panels else None
+    if panel is None and workspace is not None:
+        panel = workspace.toolbarPanels.itemById(PANEL_ID)
+    return panel
+
+
+def _active_workspace_description(ui) -> str:
+    active = getattr(ui, "activeWorkspace", None)
+    if active is None:
+        return "active workspace unavailable"
+    return "active workspace id={!r}, name={!r}".format(
+        getattr(active, "id", "<unknown>"),
+        getattr(active, "name", "<unknown>"),
+    )
+
+
 def start(context=None) -> None:
     """Register the Generate Sponge command in Fusion's Add-Ins panel."""
 
@@ -26,9 +53,13 @@ def start(context=None) -> None:
     from fusion.mesh_body import MeshBodyBuilder
 
     app = adsk.core.Application.get()
+    if app is None:
+        raise FusionRuntimeError("Fusion application is unavailable")
+    _log(app, "NatureGenerator startup entered")
     ui = app.userInterface if app else None
     if ui is None:
-        raise RuntimeError("Fusion user interface is unavailable")
+        raise FusionRuntimeError("Fusion user interface is unavailable")
+    _log(app, "application and user interface resolved")
 
     class ExecuteHandler(adsk.core.CommandEventHandler):
         def notify(self, args):
@@ -60,24 +91,48 @@ def start(context=None) -> None:
             COMMAND_ID, COMMAND_NAME, COMMAND_DESCRIPTION
         )
     if command_definition is None:
-        raise RuntimeError("Fusion failed to create the command definition")
-
-    created_handler = CommandCreatedHandler()
-    command_definition.commandCreated.add(created_handler)
-    _handlers.append(created_handler)
+        raise FusionRuntimeError("Fusion failed to create the command definition")
+    _log(app, "command definition resolved or created")
 
     workspace = ui.workspaces.itemById(WORKSPACE_ID)
-    panel = workspace.toolbarPanels.itemById(PANEL_ID) if workspace else None
+    if workspace is None:
+        raise FusionRuntimeError(
+            "Fusion workspace {!r} is unavailable; {}".format(
+                WORKSPACE_ID, _active_workspace_description(ui)
+            )
+        )
+    _log(app, "workspace resolved")
+
+    panel = _find_panel(ui, workspace)
     if panel is None:
-        raise RuntimeError("Fusion Design Add-Ins panel is unavailable")
+        raise FusionRuntimeError(
+            "Fusion toolbar panel {!r} was not found globally or in workspace "
+            "{!r}; {}".format(
+                PANEL_ID, WORKSPACE_ID, _active_workspace_description(ui)
+            )
+        )
+    _log(app, "toolbar panel resolved")
+
     control = panel.controls.itemById(COMMAND_ID)
     if control is None:
         control = panel.controls.addCommand(command_definition)
     if control is None:
-        raise RuntimeError("Fusion failed to add the Generate Sponge control")
+        raise FusionRuntimeError("Fusion failed to add the Generate Sponge control")
     control.isPromotedByDefault = True
     control.isPromoted = True
-    app.log("NatureGenerator loaded; Generate Sponge is available.")
+    _log(app, "toolbar control resolved or created")
+
+    created_handler = CommandCreatedHandler()
+    command_definition.commandCreated.add(created_handler)
+    _handlers.append(created_handler)
+    _log(app, "event handlers retained")
+    _log(app, "NatureGenerator startup completed")
+    # Temporary development diagnostic: remove after real Fusion validation.
+    ui.messageBox(
+        "NatureGenerator loaded successfully.\n"
+        "Open Design > Utilities > Add-Ins and run Generate Sponge.",
+        "NatureGenerator Development Diagnostics",
+    )
 
 
 def stop(context=None) -> None:
@@ -89,7 +144,7 @@ def stop(context=None) -> None:
     ui = app.userInterface if app else None
     if ui is not None:
         workspace = ui.workspaces.itemById(WORKSPACE_ID)
-        panel = workspace.toolbarPanels.itemById(PANEL_ID) if workspace else None
+        panel = _find_panel(ui, workspace)
         control = panel.controls.itemById(COMMAND_ID) if panel else None
         if control is not None:
             control.deleteMe()

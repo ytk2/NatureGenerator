@@ -22,8 +22,9 @@ Nature Preset
 ```
 
 Geometry calculations live in `core/` and `generators/` and remain usable
-without Autodesk Fusion 360. Every Autodesk API import belongs in `fusion/`;
-the add-in entry point and command orchestration delegate to that boundary.
+without Autodesk Fusion 360. Functional Autodesk API integration belongs in
+`fusion/`; the add-in entry point uses `adsk` only to report fatal startup and
+shutdown diagnostics. Command orchestration delegates to the adapter boundary.
 
 ## Repository layout
 
