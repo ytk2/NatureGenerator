@@ -23,16 +23,19 @@ Fusion's Python environment. Sponge currently maps to the available `gyroid`
 generator ID; Coral, Bone, Bark, and Rock remain visibly unavailable until their
 reserved generator IDs have implementations.
 
-### Generator runtime (future work)
+### Generator runtime (`generators/`)
 
-The Generator Runtime will be the resolver and execution layer between presets
-and procedural algorithms. It will map a preset's `generator_id` to a registered
-generator implementation, apply validated parameters, sample the resulting
-scalar field, run the geometry pipeline, and return a `TriangleMesh`.
+The Generator Runtime is the resolver and execution layer between presets and
+procedural algorithms. `GeneratorFactory` maps a preset's `generator_id` through
+an explicit registration table to a `Generator` implementation. A generator
+applies parameters, samples its scalar field, runs the core geometry pipeline,
+validates the mesh, and returns an immutable `GeneratorResult` containing the
+mesh, statistics, warnings, IDs, and elapsed time.
 
-This runtime does not exist yet. Sprint 4 intentionally introduces neither a
-runtime resolver nor `GeneratorDescriptor`; current presets expose availability
-without pretending their reserved generator IDs are executable.
+`GyroidGenerator` is the only registered implementation. Sponge is executable;
+the reserved IDs used by Coral, Bone, Bark, and Rock remain unavailable. The
+runtime uses explicit registration rather than filesystem discovery and does not
+introduce `GeneratorDescriptor`.
 
 ### Scalar fields and generators (`generators/`)
 
@@ -86,8 +89,8 @@ User / Future Fusion Command
 ```
 
 1. A user or future Fusion command selects a natural form through a preset.
-2. The future Generator Runtime resolves the preset's `generator_id` and
-   validated parameter values to an implementation.
+2. The Generator Runtime resolves the preset's `generator_id` and validated
+   parameter values to an implementation.
 3. The implementation supplies a scalar field, such as `GyroidField`.
 4. The core samples the field into a regular voxel grid.
 5. Marching tetrahedra extracts a Fusion-independent indexed triangle mesh.
@@ -118,8 +121,8 @@ Fusion Adapter
 Dependencies point toward the Fusion-independent geometry core. `core/` never
 imports from presets, generators, commands, or Fusion integration. Presets
 reference generator implementations only through stable `generator_id` strings.
-The future Generator Runtime owns ID resolution, and the future Fusion Adapter
-depends on core mesh types rather than the reverse.
+The Generator Runtime owns ID resolution, and the future Fusion Adapter depends
+on core mesh types rather than the reverse.
 
 These boundaries keep mathematical geometry testable in ordinary Python and
 prevent Autodesk runtime concerns from leaking into presets or algorithms.
