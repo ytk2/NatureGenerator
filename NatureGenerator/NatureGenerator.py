@@ -1,23 +1,19 @@
 """Autodesk Fusion 360 entry point for the NatureGenerator add-in.
 
-Fusion imports are intentionally local to lifecycle functions so ordinary Python
-tools can inspect this module without requiring Autodesk's runtime.
+The entry point delegates Autodesk-specific lifecycle work to the Fusion
+Adapter layer so every ``adsk`` import remains below that boundary.
 """
 
 
 def run(context):
     """Start the add-in inside Fusion 360."""
-    import adsk.core  # type: ignore[import-not-found]
+    from fusion.runtime import start
 
-    app = adsk.core.Application.get()
-    if app:
-        app.log("NatureGenerator foundation loaded.")
+    start(context)
 
 
 def stop(context):
-    """Stop the add-in and release future command resources."""
-    import adsk.core  # type: ignore[import-not-found]
+    """Stop the add-in and release registered command resources."""
+    from fusion.runtime import stop
 
-    app = adsk.core.Application.get()
-    if app:
-        app.log("NatureGenerator foundation stopped.")
+    stop(context)

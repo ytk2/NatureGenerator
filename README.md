@@ -7,7 +7,7 @@ The project includes a Fusion-independent procedural geometry pipeline and a
 user-facing nature preset framework. The first available form is Sponge, backed
 by the configurable gyroid scalar field.
 
-## Planned geometry pipeline
+## Geometry pipeline
 
 ```text
 Nature Preset
@@ -17,12 +17,13 @@ Nature Preset
     -> Marching Tetrahedra
     -> Triangle Mesh
         -> STL Export
-        -> Future Fusion Adapter
+        -> Fusion Adapter
+            -> Fusion MeshBody
 ```
 
-Geometry calculations live in `core/` and `generators/` and must remain usable
-without Autodesk Fusion 360. Integration code that imports the Fusion API belongs
-in `fusion/` or the add-in entry point.
+Geometry calculations live in `core/` and `generators/` and remain usable
+without Autodesk Fusion 360. Every Autodesk API import belongs in `fusion/`;
+the add-in entry point and command orchestration delegate to that boundary.
 
 ## Repository layout
 
@@ -102,6 +103,29 @@ extracts a `TriangleMesh` with marching tetrahedra, validates it, and returns an
 immutable `GeneratorResult`. The finite gyroid crop normally has boundary edges,
 so that expected open-mesh condition is returned as a warning rather than being
 misrepresented as watertight.
+
+## First Fusion integration
+
+Sprint 6 adds one intentionally minimal **Generate Sponge** command to the
+Design workspace's Add-Ins panel. It selects the built-in Sponge preset, runs
+the existing Generator Runtime with preset defaults, and asks the Fusion
+Adapter to insert the resulting `TriangleMesh` as a `MeshBody` in the active
+design.
+
+```text
+Generate Sponge
+    -> PresetFactory
+    -> GeneratorFactory
+    -> TriangleMesh
+    -> Fusion Adapter
+    -> MeshBody
+```
+
+There is no parameter dialog or preview yet. The command module remains
+Fusion-independent; command registration, Autodesk event handling, and
+`MeshBody` construction are isolated in `fusion/`. See
+[`docs/SPRINT6_DESIGN.md`](docs/SPRINT6_DESIGN.md) for the Sprint scope and
+design constraints.
 
 ## Gyroid scalar field
 
@@ -191,3 +215,70 @@ write_binary(mesh, "form.stl")
 write_obj(mesh, "form.obj")
 write_ply(mesh, "form.ply")
 ```
+
+## Development Workflow
+
+NatureGenerator uses a review-driven workflow that separates product direction,
+architecture, implementation, and release decisions:
+
+```text
+Plan
+  |
+  v
+Architecture Review (ChatGPT)
+  |
+  v
+Implementation (Codex)
+  |
+  v
+Code and Design Review (ChatGPT)
+  |
+  v
+Commit
+  |
+  v
+Draft Pull Request
+  |
+  v
+Final Review
+  |
+  v
+Merge to main
+  |
+  v
+Version Tag
+```
+
+### Roles
+
+- **Product Owner:** Defines goals, priorities, user value, and approves major
+  direction.
+- **ChatGPT:** Helps define architecture, Sprint scope, APIs, and review criteria,
+  then reviews the implementation and documentation.
+- **Codex:** Inspects the repository, implements changes, runs tests, prepares
+  commits, and creates draft pull requests.
+
+### Sprint Definition of Done
+
+- Sprint goal and exclusions are documented.
+- Architecture impact is reviewed.
+- Implementation is complete.
+- The full test suite passes.
+- Compilation and `git diff --check` pass.
+- Documentation is updated.
+- No unintended dependencies or generated artifacts are added.
+- The draft pull request is reviewed.
+- Changes are merged to `main`.
+- A version tag is created for a meaningful milestone.
+
+### Branch and release conventions
+
+- Create feature branches from the latest `main`.
+- Use descriptive names such as `feature/generator-runtime`,
+  `feature/fusion-adapter`, and `feature/fusion-command`.
+- Never implement directly on `main`.
+- Use draft pull requests during development.
+- Use annotated semantic-version tags such as `v0.1.0`, `v0.2.0`, and `v0.3.0`.
+- Only tag merged commits on `main`.
+- Do not tag every small documentation or maintenance change; reserve tags for
+  meaningful milestones.

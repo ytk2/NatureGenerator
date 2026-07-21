@@ -62,22 +62,30 @@ surface through smoothing or decimation.
 
 ### Application commands (`commands/`)
 
-Future commands will coordinate user intent without knowing algorithm classes.
-They will obtain a `NaturePreset` through `PresetFactory`, then ask the Generator
-Runtime to execute it and hand the resulting mesh to an exporter or adapter.
+Commands coordinate user intent without knowing algorithm classes or Autodesk
+objects. `generate_sponge.py` obtains the Sponge `NaturePreset` through
+`PresetFactory`, asks the Generator Runtime to execute it, and passes the
+resulting mesh to an injected adapter callable. This keeps orchestration thin
+and testable outside Fusion.
 
-### Fusion adapter (`fusion/`, future work)
+### Fusion adapter (`fusion/`)
 
-The Fusion Adapter will convert a core `TriangleMesh` into a Fusion `MeshBody`
-and own Fusion-specific validation and lifecycle behavior. The adapter is not
-implemented yet. Autodesk `adsk` imports must remain outside `presets/`,
-`generators/`, and `core/`; they belong only in this adapter, future Fusion
-commands, and the add-in entry point.
+The Fusion Adapter converts a core `TriangleMesh` into a Fusion `MeshBody` and
+owns Fusion-specific validation and lifecycle behavior. `MeshBodyBuilder`
+flattens indexed mesh data for Fusion and inserts it into the active design's
+root component. The adapter converts the core's millimeter-based coordinates to
+Fusion Design API database units (centimeters). `fusion.runtime` registers the
+**Generate Sponge** command, retains its event handlers, and removes its UI
+resources when the add-in stops.
 
-## Planned pipeline
+Every Autodesk `adsk` import is confined to `fusion/`. The add-in entry point
+delegates lifecycle calls to this layer, while presets, generators, commands,
+and core remain importable without Fusion.
+
+## Runtime pipeline
 
 ```text
-User / Future Fusion Command
+User / Fusion Command
     -> Nature Preset
     -> Generator Runtime
     -> Scalar Field
@@ -85,7 +93,8 @@ User / Future Fusion Command
     -> Marching Tetrahedra
     -> Triangle Mesh
         -> STL Export
-        -> Future Fusion Adapter
+        -> Fusion Adapter
+            -> Fusion MeshBody
 ```
 
 1. A user or future Fusion command selects a natural form through a preset.
@@ -94,8 +103,8 @@ User / Future Fusion Command
 3. The implementation supplies a scalar field, such as `GyroidField`.
 4. The core samples the field into a regular voxel grid.
 5. Marching tetrahedra extracts a Fusion-independent indexed triangle mesh.
-6. The mesh can be validated, optimized, and exported to STL today; the future
-   Fusion Adapter will convert it to a Fusion `MeshBody`.
+6. The mesh can be validated, optimized, exported to STL, or passed to the
+   Fusion Adapter for insertion as a Fusion `MeshBody`.
 
 The sampling, extraction, and mesh stages should use explicit tolerances and
 deterministic iteration. Manufacturability checks—such as minimum feature size,
@@ -105,7 +114,9 @@ they do not become implicit side effects of surface extraction.
 ## Dependency direction
 
 ```text
-Future Fusion UI
+Fusion UI lifecycle
+    -> Fusion Adapter runtime
+    -> Generate Sponge command
     -> PresetFactory
     -> NaturePreset
 
@@ -121,8 +132,9 @@ Fusion Adapter
 Dependencies point toward the Fusion-independent geometry core. `core/` never
 imports from presets, generators, commands, or Fusion integration. Presets
 reference generator implementations only through stable `generator_id` strings.
-The Generator Runtime owns ID resolution, and the future Fusion Adapter depends
-on core mesh types rather than the reverse.
+The Generator Runtime owns ID resolution, and the Fusion Adapter depends on core
+mesh types rather than the reverse. Autodesk dependencies stop at the
+`fusion/` boundary.
 
 These boundaries keep mathematical geometry testable in ordinary Python and
 prevent Autodesk runtime concerns from leaking into presets or algorithms.
