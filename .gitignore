@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Build and generated geometry artifacts
+build/
+dist/
+*.egg-info/
+*.f3d
+*.stl
+*.3mf
+
+# Local logs and secrets
+*.log
+.env
+.env.*
