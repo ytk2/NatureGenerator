@@ -3,17 +3,21 @@
 NatureGenerator is a Python add-in for Autodesk Fusion 360 that will generate
 manufacturable procedural forms inspired by nature.
 
-The project currently includes its first procedural scalar field, a configurable
-gyroid sheet. Mesh generation is intentionally not implemented yet.
+The project includes a Fusion-independent procedural geometry pipeline and a
+user-facing nature preset framework. The first available form is Sponge, backed
+by the configurable gyroid scalar field.
 
 ## Planned geometry pipeline
 
 ```text
-Scalar Field
+Nature Preset
+    -> Generator Runtime
+    -> Scalar Field
     -> Voxel Grid
     -> Marching Tetrahedra
     -> Triangle Mesh
-    -> Fusion MeshBody / STL
+        -> STL Export
+        -> Future Fusion Adapter
 ```
 
 Geometry calculations live in `core/` and `generators/` and must remain usable
@@ -28,6 +32,7 @@ in `fusion/` or the add-in entry point.
 - `core/`: Fusion-independent geometry primitives, sampled grids, meshes, and
   STL serialization.
 - `generators/`: procedural form generation algorithms.
+- `presets/`: user-facing natural-form definitions and availability metadata.
 - `fusion/`: adapters between core meshes and Fusion 360.
 - `examples/`: small usage examples.
 - `tests/`: dependency-free automated tests.
@@ -39,12 +44,39 @@ NatureGenerator currently requires no third-party Python packages. Run the
 foundation tests from the repository root with:
 
 ```bash
-python3 -m unittest discover -s NatureGenerator/tests
+PYTHONPATH=NatureGenerator python3 -m unittest discover -s NatureGenerator/tests
 ```
 
 For Fusion 360 installation and contribution guidance, see
 [`CONTRIBUTING.md`](CONTRIBUTING.md). The planned milestones are documented in
 [`ROADMAP.md`](ROADMAP.md).
+
+## Nature presets
+
+Commands and future UI code select a `NaturePreset` instead of importing or
+naming mathematical algorithm classes. A preset contains immutable presentation
+metadata, parameter defaults, a stable generator ID, and an explicit availability
+status. It never samples a field or extracts a mesh.
+
+```python
+from presets import PresetFactory
+
+for preset in PresetFactory.list_all():
+    print(preset.display_name, preset.available)
+
+sponge = PresetFactory.get("sponge")
+```
+
+Built-ins are registered explicitly for predictable Fusion behavior; the
+framework does not scan directories or dynamically import arbitrary files.
+
+| Preset | Category | Generator ID | Status |
+| --- | --- | --- | --- |
+| Coral | Aquatic | `gray_scott` | Unavailable — generator not implemented |
+| Sponge | Aquatic | `gyroid` | Available |
+| Bone | Biological | `cellular` | Unavailable — generator not implemented |
+| Bark | Botanical | `noise` | Unavailable — generator not implemented |
+| Rock | Geological | `voronoi` | Unavailable — generator not implemented |
 
 ## Gyroid scalar field
 

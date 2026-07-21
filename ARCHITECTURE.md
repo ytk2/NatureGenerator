@@ -9,10 +9,47 @@ an STL writer, or another adapter.
 
 ## Layer boundaries
 
+### Nature presets (`presets/`)
+
+Defines the stable user-facing vocabulary of natural forms. Each immutable
+`NaturePreset` contains display metadata, default parameters, availability, and
+a stable `generator_id`. Presets reference generators only through that string;
+they must not import generator implementations, sample scalar fields, or extract
+meshes.
+
+`PresetFactory` is the command/UI entry point. It uses explicit built-in
+registration rather than filesystem discovery, keeping startup deterministic in
+Fusion's Python environment. Sponge currently maps to the available `gyroid`
+generator ID; Coral, Bone, Bark, and Rock remain visibly unavailable until their
+reserved generator IDs have implementations.
+
+### Generator runtime (future work)
+
+The Generator Runtime will be the resolver and execution layer between presets
+and procedural algorithms. It will map a preset's `generator_id` to a registered
+generator implementation, apply validated parameters, sample the resulting
+scalar field, run the geometry pipeline, and return a `TriangleMesh`.
+
+This runtime does not exist yet. Sprint 4 intentionally introduces neither a
+runtime resolver nor `GeneratorDescriptor`; current presets expose availability
+without pretending their reserved generator IDs are executable.
+
+### Scalar fields and generators (`generators/`)
+
+A scalar field is the mathematical implicit representation of a form. It maps a
+three-dimensional point to a scalar value that can be sampled and polygonized.
+`GyroidField` is the current implementation and returns `abs(g) - thickness` for
+a periodic gyroid sheet.
+
+Generator implementations may depend on the scalar-field contract and geometry
+core, but must remain independent of Fusion 360. They do not contain user-facing
+preset metadata.
+
 ### Core geometry (`core/`)
 
-Defines scalar-field contracts, voxel-grid data, indexed triangle-mesh data, and
-STL serialization. This layer must not import `adsk` or depend on Fusion 360
+Owns scalar-field contracts, voxel sampling, marching-tetrahedra isosurface
+extraction, indexed `TriangleMesh` data, optimization, validation, statistics,
+and mesh exporters. This layer must not import `adsk` or depend on Fusion 360
 runtime state.
 
 The mesh stage includes deterministic construction and vertex welding,
@@ -20,42 +57,42 @@ conservative cleanup, face and vertex normals, topology validation and
 statistics, plus STL, OBJ, and PLY serialization. Optimization does not alter the
 surface through smoothing or decimation.
 
-### Generators (`generators/`)
-
-Evaluates procedural forms and extracts surfaces. Generator algorithms may use
-`core/`, but must remain independent of Fusion 360.
-
-The current `GyroidField` maps world coordinates to a periodic mathematical
-gyroid and returns `abs(g) - thickness`. The core marching tetrahedra stage can
-extract any sampled scalar field without adding generator-specific mesh logic.
-
 ### Application commands (`commands/`)
 
-Coordinates user intent and generation workflows. Commands pass user parameters
-to generators and hand the resulting mesh to an output adapter.
+Future commands will coordinate user intent without knowing algorithm classes.
+They will obtain a `NaturePreset` through `PresetFactory`, then ask the Generator
+Runtime to execute it and hand the resulting mesh to an exporter or adapter.
 
-### Fusion integration (`fusion/`)
+### Fusion adapter (`fusion/`, future work)
 
-Owns every conversion to Fusion 360 objects, including `MeshBody` creation and
-Fusion-specific validation. Imports of Autodesk's `adsk` modules are confined to
-this layer and the add-in entry point.
+The Fusion Adapter will convert a core `TriangleMesh` into a Fusion `MeshBody`
+and own Fusion-specific validation and lifecycle behavior. The adapter is not
+implemented yet. Autodesk `adsk` imports must remain outside `presets/`,
+`generators/`, and `core/`; they belong only in this adapter, future Fusion
+commands, and the add-in entry point.
 
 ## Planned pipeline
 
 ```text
-Scalar Field
+User / Future Fusion Command
+    -> Nature Preset
+    -> Generator Runtime
+    -> Scalar Field
     -> Voxel Grid
     -> Marching Tetrahedra
     -> Triangle Mesh
-    -> Fusion MeshBody / STL
+        -> STL Export
+        -> Future Fusion Adapter
 ```
 
-1. A scalar field maps each point in space to a value.
-2. The field is sampled at regular voxel-grid points.
-3. Marching tetrahedra finds the chosen isosurface inside each voxel.
-4. The extractor emits a Fusion-independent indexed triangle mesh.
-5. The Fusion adapter creates a `MeshBody`, or the core STL writer serializes
-   the mesh directly.
+1. A user or future Fusion command selects a natural form through a preset.
+2. The future Generator Runtime resolves the preset's `generator_id` and
+   validated parameter values to an implementation.
+3. The implementation supplies a scalar field, such as `GyroidField`.
+4. The core samples the field into a regular voxel grid.
+5. Marching tetrahedra extracts a Fusion-independent indexed triangle mesh.
+6. The mesh can be validated, optimized, and exported to STL today; the future
+   Fusion Adapter will convert it to a Fusion `MeshBody`.
 
 The sampling, extraction, and mesh stages should use explicit tolerances and
 deterministic iteration. Manufacturability checks—such as minimum feature size,
@@ -65,9 +102,24 @@ they do not become implicit side effects of surface extraction.
 ## Dependency direction
 
 ```text
-NatureGenerator.py -> commands -> generators -> core
-                            \-> fusion -------> core
+Future Fusion UI
+    -> PresetFactory
+    -> NaturePreset
+
+Generator Runtime
+    -> Generator implementation
+    -> ScalarField
+    -> core
+
+Fusion Adapter
+    -> core
 ```
 
-Dependencies point inward toward plain-Python geometry types. `core/` never
-imports from the other project packages.
+Dependencies point toward the Fusion-independent geometry core. `core/` never
+imports from presets, generators, commands, or Fusion integration. Presets
+reference generator implementations only through stable `generator_id` strings.
+The future Generator Runtime owns ID resolution, and the future Fusion Adapter
+depends on core mesh types rather than the reverse.
+
+These boundaries keep mathematical geometry testable in ordinary Python and
+prevent Autodesk runtime concerns from leaking into presets or algorithms.
