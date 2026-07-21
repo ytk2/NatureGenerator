@@ -16,9 +16,9 @@ class FoundationTests(unittest.TestCase):
         self.assertEqual(data["autodeskProduct"], "Fusion360")
         self.assertEqual(data["type"], "addin")
 
-    def test_core_and_generators_do_not_import_fusion_api(self):
+    def test_geometry_and_presets_do_not_import_fusion_api(self):
         package_root = Path(__file__).parents[1]
-        for folder in ("core", "generators"):
+        for folder in ("core", "generators", "presets"):
             for module in (package_root / folder).glob("*.py"):
                 self.assertNotIn("import adsk", module.read_text(encoding="utf-8"))
 
