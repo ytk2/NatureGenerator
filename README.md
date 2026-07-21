@@ -78,6 +78,31 @@ framework does not scan directories or dynamically import arbitrary files.
 | Bark | Botanical | `noise` | Unavailable — generator not implemented |
 | Rock | Geological | `voronoi` | Unavailable — generator not implemented |
 
+## Generator runtime
+
+`GeneratorFactory` is the execution boundary between user-facing presets and
+algorithm implementations. It resolves an available preset's stable
+`generator_id` through an explicit registry and returns a fresh `Generator`.
+There is no filesystem discovery or algorithm selection chain.
+
+```python
+from generators import GeneratorFactory
+from presets import PresetFactory
+
+preset = PresetFactory.get("sponge")
+result = GeneratorFactory.generate(preset)
+
+print(result.statistics.face_count)
+print(result.elapsed_time)
+print(result.warnings)
+```
+
+The current `GyroidGenerator` constructs `GyroidField`, samples a `VoxelGrid`,
+extracts a `TriangleMesh` with marching tetrahedra, validates it, and returns an
+immutable `GeneratorResult`. The finite gyroid crop normally has boundary edges,
+so that expected open-mesh condition is returned as a warning rather than being
+misrepresented as watertight.
+
 ## Gyroid scalar field
 
 `GyroidField` evaluates the dimensionless gyroid function after mapping one
