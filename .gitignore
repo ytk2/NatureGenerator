@@ -24,6 +24,8 @@ dist/
 *.f3d
 *.stl
 *.3mf
+*.obj
+*.ply
 
 # Local logs and secrets
 *.log
