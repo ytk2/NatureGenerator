@@ -44,6 +44,27 @@ class PreviewControllerTests(unittest.TestCase):
         self.assertEqual(capped.resolution, 17)
         self.assertEqual(capped.parameter_overrides, self.request.parameter_overrides)
 
+    def test_adaptive_preview_resolution_is_deterministic_and_bounded(self):
+        candidates = (17, 21, 25)
+        expected = ((17, 17), (25, 21), (41, 25))
+        parameters = {"size": 45.0, "roughness": 0.62, "seed": 23}
+        for requested, preview in expected:
+            with self.subTest(requested=requested):
+                source = GenerationRequest("rock", parameters, requested)
+                first = preview_request(source, 17, candidates)
+                repeated = preview_request(source, 17, candidates)
+                self.assertEqual(first, repeated)
+                self.assertEqual(first.resolution, preview)
+                self.assertLessEqual(first.resolution, source.resolution)
+                self.assertEqual(first.parameter_overrides, source.parameter_overrides)
+
+    def test_invalid_adaptive_preview_candidates_are_rejected(self):
+        source = GenerationRequest("rock", {"seed": 1}, 41)
+        for candidates in ((21, 17), (17, 17), (17, 0), (17, 21.0)):
+            with self.subTest(candidates=candidates):
+                with self.assertRaises((TypeError, ValueError)):
+                    preview_request(source, 17, candidates)
+
     def test_same_request_reuses_and_changed_request_replaces_preview(self):
         controller = PreviewController()
         generated = []

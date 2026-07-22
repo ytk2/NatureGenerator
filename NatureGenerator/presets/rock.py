@@ -32,6 +32,7 @@ ROCK_PRESET = NaturePreset(
         "resolution": ParameterMetadata(
             "Resolution", "integer", 17, minimum=9, maximum=41,
             description="Voxel samples per axis.",
+            preview_resolutions=(17, 21, 25),
         ),
     },
     available=True,
