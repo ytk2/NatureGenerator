@@ -5,7 +5,7 @@ installer, so setup uses Fusion's **Scripts and Add-Ins** dialog.
 
 ## Use the stable release
 
-For normal use, download or check out the stable `v0.9.0` source. Keep the
+For normal use, download or check out the stable `v0.10.0` source. Keep the
 `NatureGenerator` directory together so that it contains
 `NatureGenerator.py`, `NatureGenerator.manifest`, `commands/`, `generators/`,
 and the other package directories.
@@ -15,19 +15,31 @@ and the other package directories.
    location.
 3. Select NatureGenerator and choose **Run**. Enable run-on-startup if desired.
 4. Open **Generate Nature** in the Design workspace Add-Ins panel.
-5. Select Sponge, Coral, Rock, or Bark, adjust the displayed preset parameters,
-   and generate a MeshBody.
+5. Select Sponge, Coral, Rock, Bark, or Root, adjust the displayed preset
+   parameters, and generate a MeshBody.
 
 Higher Resolution values increase mesh density and pure-Python run time. Seeds
 make supported procedural variations repeatable. Parameter ranges shown in the
 dialog are part of each preset's metadata.
 
-Root is included in stable v0.9.0.
+Root and explicit Preview are included in stable v0.10.0.
 
-Sprint 12 development adds a **Preview** button. Preview bodies use the temporary
+The **Preview** button creates bodies with the temporary
 name `NatureGenerator Preview — <Preset>`. Preview again replaces the temporary
 body; OK finalizes current inputs, while Cancel or closing the dialog removes
 the command's preview. Automatic preview is not supported.
+
+Sprint 13 development adds a **Variant** dropdown. Choose a named configuration
+to fill the current preset's inputs, then Preview or OK explicitly. Editing any
+value selects Custom. Values are retained separately when switching presets.
+Variants are curated input bundles rather than separate generators; geometry
+depends on the displayed normalized values. User-created or saved Variants are
+not included in Sprint 13.
+
+The Variant workflow passed real Autodesk Fusion acceptance on macOS. The
+dropdown appeared once, choices followed the selected Preset, named values fed
+Preview, replacement worked, edits selected Custom, and OK/Cancel remained
+functional without recursive events or duplicate controls.
 
 This explicit workflow passed real Autodesk Fusion acceptance on macOS. The
 observed Sponge preview used resolution 17, produced 5,684 vertices and 10,944
@@ -51,7 +63,7 @@ To recover the current stable baseline:
 
 ```bash
 git fetch origin --tags
-git checkout v0.9.0
+git checkout v0.10.0
 ```
 
 That checkout is detached and is suitable for inspection or recovery. Create a

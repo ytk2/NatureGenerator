@@ -2,9 +2,9 @@
 
 ## Current Stable Baseline
 
-**v0.9.0 — Root Generator and Public Project Foundation**
+**v0.10.0 — Interactive Preview Foundation**
 
-The immutable `v0.9.0` Git tag is the released source baseline. This roadmap is
+The immutable `v0.10.0` Git tag is the released source baseline. This roadmap is
 current main-branch documentation describing that baseline and future
 candidates; it is not part of the historical tagged commit unless viewed from
 that tag.
@@ -20,25 +20,27 @@ Completed:
 - Real Fusion acceptance test
 
 All future feature branches should be created from the latest `main` after
-v0.9.0 unless a maintenance branch explicitly targets an earlier release.
+v0.10.0 unless a maintenance branch explicitly targets an earlier release.
 
 See the [v0.5.0 baseline checklist](docs/V0.5.0_BASELINE.md) and
 [release history](docs/RELEASES.md) for verified capabilities and limitations.
 
 ## Committed Next Sprint
 
-**Sprint 12 — Interactive Preview Foundation**
+**Sprint 13 — Generator Variants**
 
-In development on `feature/interactive-preview` and explicitly unreleased:
+In development on `feature/generator-variants` and explicitly unreleased:
 
-- add explicit, reversible preview MeshBodies
-- replace previews safely and regenerate final output after preview rollback
-- clean owned preview geometry on Destroy and add-in stop
-- retain synchronous, generator-independent execution without unsafe threads
-- real Fusion acceptance passed for preview display, replacement, OK, and Cancel
+- add immutable curated variants for every executable preset
+- add one generic Variant dropdown with Custom behavior
+- preserve per-preset edited values across preset switching
+- invalidate previews without adding automatic generation
+- preserve all generator algorithms and deterministic defaults
+- real Fusion acceptance passed for filtering, application, Custom editing,
+  Preview replacement, Preset switching, OK, and Cancel
 
-See [SPRINT12_DESIGN.md](docs/SPRINT12_DESIGN.md) for state, ownership,
-architecture decisions, and Fusion acceptance checks.
+See [SPRINT13_DESIGN.md](docs/SPRINT13_DESIGN.md) for the data model, registry,
+application, switching, preview invalidation, and compatibility decisions.
 
 ## Candidate Future Work
 
