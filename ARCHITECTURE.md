@@ -1,5 +1,11 @@
 # Architecture
 
+The current stable product baseline is the immutable `v0.5.0` release tag.
+This file is current main-branch documentation describing that architecture;
+later documentation edits do not alter the tagged commit. See the
+[baseline checklist](docs/V0.5.0_BASELINE.md) and
+[release history](docs/RELEASES.md) for validated capabilities and limitations.
+
 ## Design goals
 
 NatureGenerator separates procedural geometry from Autodesk Fusion 360 so that

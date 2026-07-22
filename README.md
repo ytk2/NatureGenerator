@@ -1,11 +1,22 @@
 # NatureGenerator
 
-NatureGenerator is a Python add-in for Autodesk Fusion 360 that will generate
-manufacturable procedural forms inspired by nature.
+> Generate manufacturable natural forms directly inside Autodesk Fusion.
+
+NatureGenerator v0.5.0 is an interactive Fusion add-in that currently generates
+the Sponge preset. Cell Size, Thickness, and Resolution are adjustable through
+a Fusion-native command dialog.
+
+![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
+
+**Stable baseline:**
+[v0.5.0 — Interactive Generation Command](docs/V0.5.0_BASELINE.md)
+
+[Release history](docs/RELEASES.md) · [Roadmap](ROADMAP.md) ·
+[Architecture](ARCHITECTURE.md) · [Documentation index](docs/README.md)
 
 The project includes a Fusion-independent procedural geometry pipeline and a
-user-facing nature preset framework. The first available form is Sponge, backed
-by the configurable gyroid scalar field.
+user-facing nature preset framework. Sponge is backed by the configurable
+gyroid scalar field.
 
 ## Geometry pipeline
 
