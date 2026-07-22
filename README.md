@@ -2,13 +2,13 @@
 
 > Generate manufacturable natural geometry directly inside Autodesk Fusion.
 
-NatureGenerator v0.8.0 is the stable Bark Generator release. Sponge, Coral,
-Rock, and Bark are executable. Sprint 11 adds the unreleased Root generator and
-must complete real Fusion acceptance before release.
+NatureGenerator v0.9.0 is the stable Root Generator and Public Project
+Foundation release. Sponge, Coral, Rock, Bark, and Root are executable. Sprint
+12 adds an unreleased explicit interactive-preview foundation.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
 
-**Stable baseline:** `v0.8.0 — Bark Generator`
+**Stable baseline:** `v0.9.0 — Root Generator and Public Project Foundation`
 
 [Getting started](docs/GETTING_STARTED.md) · [Gallery](docs/GALLERY.md) ·
 [Vision](VISION.md) · [Architecture](ARCHITECTURE.md) · [Roadmap](ROADMAP.md) ·
@@ -94,7 +94,7 @@ framework does not scan directories or dynamically import arbitrary files.
 | Sponge | Aquatic | `gyroid` | Available |
 | Bone | Biological | `cellular` | Unavailable — generator not implemented |
 | Bark | Botanical | `bark` | Available |
-| Root | Botanical | `root` | Unreleased Sprint 11 development |
+| Root | Botanical | `root` | Available |
 | Rock | Geological | `rock` | Available |
 
 ## Generator runtime
@@ -130,7 +130,7 @@ branch capsules. Its surface stays inside the sampled domain and must pass
 watertight validation. `GeneratorFactory.create_for_preset(preset_id)` resolves
 both forms through explicit preset and generator registration. The
 request-oriented `SpongeGenerator`, `CoralGenerator`, `RockGenerator`, and
-`BarkGenerator`, and unreleased `RootGenerator` each return a
+`BarkGenerator`, and `RootGenerator` each return a
 `TriangleMesh`; the factory preserves the public immutable `GeneratorResult`
 API and delegates Sponge geometry to the unchanged `GyroidGenerator` pipeline.
 
@@ -140,7 +140,7 @@ callers and uses the original resolution of 17 samples per axis.
 ## Interactive Fusion generation
 
 The **Generate Nature** command appears in the Design workspace's Add-Ins panel.
-Its dialog selects Sponge, Coral, Rock, Bark, or unreleased Root and builds each
+Its dialog selects Sponge, Coral, Rock, Bark, or Root and builds each
 form's inputs from immutable preset parameter metadata before it runs the
 Generator Runtime and inserts the resulting `TriangleMesh` as a `MeshBody` in
 the active design.
@@ -172,8 +172,7 @@ The dialog exposes each preset's metadata-defined inputs:
   and Seed:** dimensions and repeatable staged branching controls. Root
   resolution is constrained to 37–41, with a default of 37.
 
-Sponge, Coral, Rock, and Bark are executable in v0.8.0. Root is executable only
-on the unreleased Sprint 11 development branch. Bone
+Sponge, Coral, Rock, Bark, and Root are executable in v0.9.0. Bone
 appears as Coming Soon and produces no geometry when selected. Cancel also creates
 no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
@@ -193,12 +192,31 @@ Root passed real Autodesk Fusion acceptance on macOS: all nine metadata-driven
 inputs displayed, `NatureGenerator Root` MeshBodies were created, and parameter
 changes produced different geometry. Observed runs produced 6,568 vertices and
 13,136 faces in approximately 2.498 seconds, and 7,452 vertices and 14,900 faces
-in approximately 3.941 seconds. Root remains unreleased until merge and an
-explicit release tag.
+in approximately 3.941 seconds. Root is included in stable v0.9.0.
 
 Root v1 has a dominant primary root and lateral branches, but can resemble a
 simplified branching pipe or stylized root rather than a botanically realistic
 root system. It does not claim botanical simulation or species reproduction.
+
+### Unreleased interactive preview
+
+Sprint 12 adds an explicit **Preview** button. It inserts a temporary body named
+`NatureGenerator Preview — <Preset>`. Pressing Preview again replaces the body;
+OK lets Fusion abort the preview transaction and regenerates the current final
+request; Cancel, command close, and add-in stop remove owned preview
+geometry. Final bodies keep the established `NatureGenerator <Preset>` name.
+
+Preview resolution is capped generically at the preset's default Resolution, so
+a high-resolution final request can produce a lower-density preview. There is
+no automatic/live preview, background execution, progress, or mid-generation
+cancellation. See [Sprint 12 design](docs/SPRINT12_DESIGN.md).
+
+Real Fusion acceptance on macOS verified viewport and Browser preview display,
+replacement after parameter changes, OK finalization, Cancel cleanup, and the
+absence of orphaned bodies or duplicate controls. The observed Sponge preview
+at resolution 17 contained 5,684 vertices and 10,944 faces and completed in
+approximately 0.25–0.27 seconds. Sprint 12 remains unreleased until merge and
+tagging.
 
 Bark v1 is intentionally a closed procedural trunk segment with directional
 grooves. Its current visual character is closer to an irregular or twisted

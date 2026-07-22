@@ -5,7 +5,7 @@ installer, so setup uses Fusion's **Scripts and Add-Ins** dialog.
 
 ## Use the stable release
 
-For normal use, download or check out the stable `v0.8.0` source. Keep the
+For normal use, download or check out the stable `v0.9.0` source. Keep the
 `NatureGenerator` directory together so that it contains
 `NatureGenerator.py`, `NatureGenerator.manifest`, `commands/`, `generators/`,
 and the other package directories.
@@ -22,8 +22,17 @@ Higher Resolution values increase mesh density and pure-Python run time. Seeds
 make supported procedural variations repeatable. Parameter ranges shown in the
 dialog are part of each preset's metadata.
 
-Root appears only on the unreleased Sprint 11 development branch and still
-requires real Fusion acceptance before release.
+Root is included in stable v0.9.0.
+
+Sprint 12 development adds a **Preview** button. Preview bodies use the temporary
+name `NatureGenerator Preview — <Preset>`. Preview again replaces the temporary
+body; OK finalizes current inputs, while Cancel or closing the dialog removes
+the command's preview. Automatic preview is not supported.
+
+This explicit workflow passed real Autodesk Fusion acceptance on macOS. The
+observed Sponge preview used resolution 17, produced 5,684 vertices and 10,944
+faces, and completed in approximately 0.25–0.27 seconds. These measurements are
+examples rather than performance guarantees.
 
 ## Developer checkout
 
@@ -38,11 +47,11 @@ Point Fusion at the checkout's `NatureGenerator` add-in directory. Restart or
 stop and run the add-in after changing Python files. Development branches may
 contain unreleased presets and should not be treated as stable installations.
 
-To recover the released Bark baseline:
+To recover the current stable baseline:
 
 ```bash
 git fetch origin --tags
-git checkout v0.8.0
+git checkout v0.9.0
 ```
 
 That checkout is detached and is suitable for inspection or recovery. Create a
@@ -58,6 +67,10 @@ new branch before making changes.
   Fusion if an earlier development run left UI state behind.
 - If generation is slow, return Resolution to the preset default before
   changing other parameters.
+- If Fusion or the host process terminates before cleanup can run, reopen the
+  design and manually remove any body whose name begins
+  `NatureGenerator Preview —`. Do not remove finalized NatureGenerator bodies
+  unless intended.
 - Do not install third-party Python packages into Fusion for this project; the
   runtime uses the standard library only.
 

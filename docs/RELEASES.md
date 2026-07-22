@@ -4,13 +4,27 @@ This history is maintained on the current development branch. Release tags are
 immutable recovery points; later documentation updates describe those releases
 without becoming part of their tagged commits.
 
-## Unreleased — Sprint 11 Root Generator and Public Project Foundation
+## Unreleased — Sprint 12 Interactive Preview Foundation
+
+Development on `feature/interactive-preview` adds an explicit Preview button,
+temporary preview-body ownership, deterministic request reuse, safe replacement,
+transactional preview insertion, final regeneration, and Destroy/stop cleanup.
+Preview resolution is capped at each preset's existing default Resolution.
+Automatic preview and background generation are intentionally not included.
+
+Real Fusion acceptance on macOS verified the explicit Preview button, viewport
+and Browser display, replacement after Cell Size changes, OK finalization,
+Cancel cleanup, and absence of orphaned bodies or duplicate controls. The
+observed Sponge preview at resolution 17 contained 5,684 vertices and 10,944
+faces and completed in approximately 0.25–0.27 seconds.
+
+## v0.9.0 — Root Generator and Public Project Foundation
 
 Development on `feature/root-generator` adds a deterministic connected Root
 system with Length, Root Radius, Branch Count, Branching, Spread, Taper,
 Gravity, Seed, and Resolution controls. It also establishes public vision,
-getting-started, gallery, and release-process documentation. Root has not yet
-completed real Fusion acceptance and is not part of v0.8.0.
+getting-started, gallery, and release-process documentation. Root completed real
+Fusion acceptance and is part of v0.9.0.
 
 Real Fusion acceptance on macOS verified all nine Root inputs, creation of
 `NatureGenerator Root` MeshBodies, parameter-dependent geometry, and clean

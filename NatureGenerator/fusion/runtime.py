@@ -15,12 +15,14 @@ LEGACY_COMMAND_ID = "NatureGeneratorGenerateSponge"
 WORKSPACE_ID = "FusionSolidEnvironment"
 PANEL_ID = "SolidScriptsAddinsPanel"
 PRESET_INPUT_ID = "naturePreset"
+PREVIEW_INPUT_ID = "naturePreview"
 CELL_SIZE_INPUT_ID = "parameter_sponge_cell_size"
 THICKNESS_INPUT_ID = "parameter_sponge_thickness"
 RESOLUTION_INPUT_ID = "parameter_sponge_resolution"
 
 _handlers: List[object] = []
 _command_handler_groups: List[List[object]] = []
+_preview_controllers: List[object] = []
 _started = False
 
 
@@ -126,9 +128,11 @@ def start(context=None) -> None:
 
     from commands.generate_nature import generate_nature
     from fusion.mesh_body import MeshBodyBuilder
+    from fusion.preview import PreviewController, preview_request
     from generators import (
         DEFAULT_RESOLUTION,
         GeneratorError,
+        GeneratorFactory,
         GenerationRequest,
     )
     from presets import PresetFactory
@@ -147,40 +151,48 @@ def start(context=None) -> None:
         _log(app, "NatureGenerator startup already completed")
         return
 
+    def read_request(preset_input, preset_ids, parameter_inputs):
+        try:
+            selected = preset_input.selectedItem
+            if selected is None:
+                raise ValueError("select a nature preset")
+            preset_id = preset_ids[selected.name]
+            preset = PresetFactory.get(preset_id)
+            if not preset.available:
+                raise ValueError("preset {!r} is unavailable: {}".format(
+                    preset_id, preset.unavailable_reason))
+            values = {
+                parameter_id: _read_parameter(
+                    parameter_inputs[(preset_id, parameter_id)], metadata
+                )
+                for parameter_id, metadata in preset.parameter_metadata.items()
+            }
+            resolution = values.pop("resolution", DEFAULT_RESOLUTION)
+            request = GenerationRequest(preset_id, values, resolution)
+        except Exception as error:
+            raise
+        return preset, request
+
     class ExecuteHandler(adsk.core.CommandEventHandler):
         def __init__(
             self,
             preset_input,
             preset_ids,
             parameter_inputs,
+            controller,
         ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
             self._parameter_inputs = parameter_inputs
+            self._controller = controller
 
         def notify(self, args):
             try:
-                selected = self._preset_input.selectedItem
-                if selected is None:
-                    raise ValueError("select a nature preset")
-                preset_id = self._preset_ids[selected.name]
-                preset = PresetFactory.get(preset_id)
-                if not preset.available:
-                    raise ValueError("preset {!r} is unavailable: {}".format(
-                        preset_id, preset.unavailable_reason))
-                values = {
-                    parameter_id: _read_parameter(
-                        self._parameter_inputs[(preset_id, parameter_id)], metadata
-                    )
-                    for parameter_id, metadata in preset.parameter_metadata.items()
-                }
-                resolution = values.pop("resolution", DEFAULT_RESOLUTION)
-                request = GenerationRequest(
-                    preset_id=preset_id,
-                    parameter_overrides=values,
-                    resolution=resolution,
+                preset, request = read_request(
+                    self._preset_input, self._preset_ids, self._parameter_inputs
                 )
+                self._controller.cleanup()
                 result, body = generate_nature(request, MeshBodyBuilder().build)
                 app.log(
                     "NatureGenerator created {!r}: {} vertices, {} faces, {:.3f}s".format(
@@ -191,9 +203,11 @@ def start(context=None) -> None:
                     )
                 )
             except (GeneratorError, KeyError, TypeError, ValueError) as error:
+                self._controller.cleanup()
                 app.log("Generate Nature rejected: {}".format(error))
                 ui.messageBox(str(error), "Generate Nature")
             except Exception:
+                self._controller.cleanup()
                 details = traceback.format_exc()
                 app.log(details)
                 ui.messageBox(
@@ -201,18 +215,112 @@ def start(context=None) -> None:
                     "NatureGenerator",
                 )
 
+    class PreviewTrigger:
+        def __init__(self):
+            self.pending = False
+
     class InputChangedHandler(adsk.core.InputChangedEventHandler):
-        def __init__(self, preset_input, preset_ids, parameter_inputs):
+        def __init__(
+            self, preset_input, preset_ids, parameter_inputs, preview_input,
+            controller, trigger,
+        ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
             self._parameter_inputs = parameter_inputs
+            self._preview_input = preview_input
+            self._controller = controller
+            self._trigger = trigger
 
         def notify(self, args):
-            selected = self._preset_input.selectedItem
-            selected_id = self._preset_ids[selected.name] if selected else None
-            for (preset_id, _), input_value in self._parameter_inputs.items():
-                input_value.isVisible = preset_id == selected_id
+            try:
+                changed = getattr(args, "input", None)
+                changed_id = getattr(changed, "id", None)
+                if changed_id == PREVIEW_INPUT_ID:
+                    self._trigger.pending = True
+                    return
+
+                self._controller.mark_dirty()
+                selected = self._preset_input.selectedItem
+                selected_id = self._preset_ids[selected.name] if selected else None
+                for (preset_id, _), input_value in self._parameter_inputs.items():
+                    input_value.isVisible = preset_id == selected_id
+            except Exception:
+                details = traceback.format_exc()
+                app.log(details)
+                ui.messageBox(
+                    "Preview failed: {}".format(details.strip().splitlines()[-1]),
+                    "Preview Error",
+                )
+
+    class ExecutePreviewHandler(adsk.core.CommandEventHandler):
+        def __init__(
+            self, preset_input, preset_ids, parameter_inputs, controller,
+            trigger,
+        ):
+            super().__init__()
+            self._preset_input = preset_input
+            self._preset_ids = preset_ids
+            self._parameter_inputs = parameter_inputs
+            self._controller = controller
+            self._trigger = trigger
+
+        def notify(self, args):
+            if not self._trigger.pending:
+                return
+            self._trigger.pending = False
+            if hasattr(args, "isValidResult"):
+                args.isValidResult = False
+            try:
+                preset, request = read_request(
+                    self._preset_input, self._preset_ids,
+                    self._parameter_inputs,
+                )
+                metadata = preset.parameter_metadata.get("resolution")
+                cap = (
+                    int(metadata.default_value)
+                    if metadata is not None else request.resolution
+                )
+                actual_request = preview_request(request, cap)
+                temporary_name = "NatureGenerator Preview — {}".format(
+                    preset.display_name
+                )
+
+                def generate_preview_request(pending_request):
+                    return GeneratorFactory.generate_request(pending_request)
+
+                def insert_preview(generated):
+                    if not generated.mesh.vertices or not generated.mesh.faces:
+                        raise ValueError("preview mesh must be non-empty")
+                    return MeshBodyBuilder().build(generated.mesh, temporary_name)
+
+                replacing = self._controller.body is not None
+                app.log("Preview started: preset={!r}, resolution={}".format(
+                    preset.display_name, actual_request.resolution
+                ))
+                result, body, created = self._controller.generate_preview(
+                    request,
+                    actual_request,
+                    generate_preview_request,
+                    insert_preview,
+                )
+                app.log(
+                    "Preview {}: {!r}, {} vertices, {} faces, "
+                    "{:.3f}s at resolution {}".format(
+                        "replaced" if replacing else "created", body.name,
+                        result.statistics.vertex_count,
+                        result.statistics.face_count,
+                        result.elapsed_time, actual_request.resolution,
+                    )
+                )
+            except Exception:
+                details = traceback.format_exc()
+                app.log("Preview failed")
+                app.log(details)
+                ui.messageBox(
+                    "Preview failed: {}".format(details.strip().splitlines()[-1]),
+                    "Preview Error",
+                )
 
     class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         def __init__(self, preset_input, preset_ids, parameter_inputs):
@@ -238,11 +346,15 @@ def start(context=None) -> None:
                 args.areInputsValid = False
 
     class DestroyHandler(adsk.core.CommandEventHandler):
-        def __init__(self, retained):
+        def __init__(self, retained, controller):
             super().__init__()
             self._retained = retained
+            self._controller = controller
 
         def notify(self, args):
+            self._controller.cleanup()
+            if self._controller in _preview_controllers:
+                _preview_controllers.remove(self._controller)
             if self._retained in _command_handler_groups:
                 _command_handler_groups.remove(self._retained)
 
@@ -277,26 +389,40 @@ def start(context=None) -> None:
             for (preset_id, _), input_value in parameter_inputs.items():
                 input_value.isVisible = preset_id == sponge.preset_id
 
+            preview_input = inputs.addBoolValueInput(
+                PREVIEW_INPUT_ID, "Preview", False, "", False
+            )
+            controller = PreviewController(app.log)
+            _preview_controllers.append(controller)
+            preview_trigger = PreviewTrigger()
+
             retained = []
             execute_handler = ExecuteHandler(
                 preset_input,
                 preset_ids,
                 parameter_inputs,
+                controller,
             )
             input_changed_handler = InputChangedHandler(
-                preset_input, preset_ids, parameter_inputs
+                preset_input, preset_ids, parameter_inputs, preview_input,
+                controller, preview_trigger,
+            )
+            execute_preview_handler = ExecutePreviewHandler(
+                preset_input, preset_ids, parameter_inputs, controller,
+                preview_trigger,
             )
             validate_handler = ValidateInputsHandler(
                 preset_input, preset_ids, parameter_inputs
             )
-            destroy_handler = DestroyHandler(retained)
+            destroy_handler = DestroyHandler(retained, controller)
             command.execute.add(execute_handler)
             command.inputChanged.add(input_changed_handler)
+            command.executePreview.add(execute_preview_handler)
             command.validateInputs.add(validate_handler)
             command.destroy.add(destroy_handler)
             retained.extend((
-                execute_handler, input_changed_handler, validate_handler,
-                destroy_handler,
+                execute_handler, input_changed_handler, execute_preview_handler,
+                validate_handler, destroy_handler,
             ))
             _command_handler_groups.append(retained)
 
@@ -353,6 +479,10 @@ def stop(context=None) -> None:
     import adsk.core  # type: ignore[import-not-found]
 
     global _started
+
+    for controller in tuple(_preview_controllers):
+        controller.cleanup()
+    _preview_controllers.clear()
 
     app = adsk.core.Application.get()
     ui = app.userInterface if app else None
