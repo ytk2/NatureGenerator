@@ -6,6 +6,7 @@ from typing import Any, Mapping, Optional
 from presets.preset import NaturePreset
 
 from .result import GeneratorResult
+from .request import DEFAULT_RESOLUTION
 
 
 class GeneratorError(Exception):
@@ -28,6 +29,10 @@ class UnavailablePresetError(GeneratorError):
     """Raised when execution is requested for an unavailable preset."""
 
 
+class UnknownPresetError(GeneratorError, LookupError):
+    """Raised when a generation request names an unknown preset."""
+
+
 class Generator(ABC):
     """Interface for executing a preset into a complete result."""
 
@@ -41,5 +46,6 @@ class Generator(ABC):
         self,
         preset: NaturePreset,
         parameters: Optional[Mapping[str, Any]] = None,
+        resolution: int = DEFAULT_RESOLUTION,
     ) -> GeneratorResult:
-        """Execute *preset* with optional parameter overrides."""
+        """Execute *preset* with overrides and samples-per-axis resolution."""

@@ -1,1 +1,1 @@
-"""Fusion command orchestration for NatureGenerator."""
+"""Fusion-independent command orchestration for NatureGenerator."""

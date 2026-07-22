@@ -21,11 +21,17 @@
 
 ## Phase 4: Fusion 360 integration
 
-- Add Fusion command inputs and progress reporting.
 - Convert generated meshes to Fusion `MeshBody` objects.
 - Connect generated core meshes to Fusion-side export workflows.
 
-## Phase 5: Manufacturability
+## Phase 5: Interactive generation
+
+- Add a preset-driven Generate Nature command.
+- Add cell-size, thickness, and safe resolution inputs.
+- Preserve a Fusion-independent request and runtime boundary.
+- Add preview and progress feedback in later focused Sprints.
+
+## Phase 6: Manufacturability
 
 - Add wall-thickness and minimum-feature controls.
 - Add build-volume and mesh-quality checks.

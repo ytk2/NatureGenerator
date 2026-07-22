@@ -7,10 +7,11 @@ from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from commands.generate_sponge import generate_sponge
+from commands.generate_nature import generate_nature
 from core.mesh import TriangleMesh
 from fusion.mesh_body import MeshBodyBuilder, triangle_mesh_data
 from fusion import runtime
+from generators import DEFAULT_RESOLUTION, GenerationRequest, UnavailablePresetError
 
 
 class FakeEvent:
@@ -32,24 +33,90 @@ class FakeCollection:
 
 
 class FakeControls(FakeCollection):
+    def __init__(self, items=None):
+        super().__init__(items)
+        self.add_count = 0
+
     def addCommand(self, definition):
-        control = SimpleNamespace(
-            isPromoted=False,
-            isPromotedByDefault=False,
-            deleteMe=lambda: None,
-        )
+        self.add_count += 1
+        control = SimpleNamespace(isPromoted=False, isPromotedByDefault=False)
+        control.deleteMe = lambda: self.items.pop(runtime.COMMAND_ID, None)
         self.items[runtime.COMMAND_ID] = control
         return control
 
 
 class FakeCommandDefinitions(FakeCollection):
+    def __init__(self, items=None):
+        super().__init__(items)
+        self.add_count = 0
+
     def addButtonDefinition(self, command_id, name, description):
-        definition = SimpleNamespace(
-            commandCreated=FakeEvent(),
-            deleteMe=lambda: None,
-        )
+        self.add_count += 1
+        definition = SimpleNamespace(commandCreated=FakeEvent())
+        definition.deleteMe = lambda: self.items.pop(command_id, None)
         self.items[command_id] = definition
         return definition
+
+
+class FakeListItems:
+    def __init__(self, dropdown):
+        self.dropdown = dropdown
+        self.items = []
+
+    def add(self, name, is_selected, icon):
+        item = SimpleNamespace(name=name, isSelected=is_selected)
+        self.items.append(item)
+        if is_selected:
+            self.dropdown.selectedItem = item
+        return item
+
+
+class FakeCommandInputs:
+    def __init__(self):
+        self.items = {}
+
+    def addDropDownCommandInput(self, input_id, name, style):
+        result = SimpleNamespace(id=input_id, name=name, selectedItem=None)
+        result.listItems = FakeListItems(result)
+        self.items[input_id] = result
+        return result
+
+    def addValueInput(self, input_id, name, unit, initial):
+        result = SimpleNamespace(
+            id=input_id, name=name, unit=unit, value=initial.value
+        )
+        self.items[input_id] = result
+        return result
+
+    def addFloatSpinnerCommandInput(
+        self, input_id, name, unit, minimum, maximum, step, initial
+    ):
+        result = SimpleNamespace(
+            id=input_id,
+            name=name,
+            unit=unit,
+            minimumValue=minimum,
+            maximumValue=maximum,
+            spinStep=step,
+            value=initial,
+        )
+        self.items[input_id] = result
+        return result
+
+    def addIntegerSpinnerCommandInput(
+        self, input_id, name, minimum, maximum, step, initial
+    ):
+        result = self.addFloatSpinnerCommandInput(
+            input_id, name, "", minimum, maximum, step, initial
+        )
+        return result
+
+
+class FakeCommand:
+    def __init__(self):
+        self.commandInputs = FakeCommandInputs()
+        self.execute = FakeEvent()
+        self.destroy = FakeEvent()
 
 
 def fake_adsk_modules(app):
@@ -58,6 +125,12 @@ def fake_adsk_modules(app):
     core.Application = SimpleNamespace(get=lambda: app)
     core.CommandEventHandler = object
     core.CommandCreatedEventHandler = object
+    core.DropDownStyles = SimpleNamespace(TextListDropDownStyle="text-list")
+    core.ValueInput = SimpleNamespace(
+        createByString=lambda expression: SimpleNamespace(
+            value=float(expression.split()[0]) / 10.0
+        )
+    )
     adsk.core = core
     return {"adsk": adsk, "adsk.core": core}
 
@@ -87,7 +160,7 @@ def fake_fusion_ui(global_panel=True, workspace_panel=True):
     return app, ui, workspace, panel
 
 
-class GenerateSpongeCommandTests(unittest.TestCase):
+class GenerateNatureCommandTests(unittest.TestCase):
     def test_command_runs_runtime_and_passes_mesh_to_adapter(self):
         received = []
         sentinel_body = object()
@@ -96,7 +169,10 @@ class GenerateSpongeCommandTests(unittest.TestCase):
             received.append((mesh, name))
             return sentinel_body
 
-        result, body = generate_sponge(insert_mesh)
+        request = GenerationRequest(
+            "sponge", {"cell_size": 10.0, "thickness": 0.2}, 17
+        )
+        result, body = generate_nature(request, insert_mesh)
 
         self.assertIs(body, sentinel_body)
         self.assertEqual(result.preset_id, "sponge")
@@ -105,7 +181,19 @@ class GenerateSpongeCommandTests(unittest.TestCase):
 
     def test_command_rejects_missing_mesh_body(self):
         with self.assertRaisesRegex(RuntimeError, "did not return"):
-            generate_sponge(lambda mesh, name: None)
+            generate_nature(
+                GenerationRequest("sponge", {}, DEFAULT_RESOLUTION),
+                lambda mesh, name: None,
+            )
+
+    def test_unavailable_preset_never_calls_adapter(self):
+        calls = []
+        with self.assertRaises(UnavailablePresetError):
+            generate_nature(
+                GenerationRequest("coral", {}, DEFAULT_RESOLUTION),
+                lambda mesh, name: calls.append(mesh),
+            )
+        self.assertEqual(calls, [])
 
 
 class MeshBodyAdapterTests(unittest.TestCase):
@@ -246,9 +334,8 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
                 module.stop(None)
 
             self.assertEqual(sys.path.count(addin_root), 1)
-            self.assertTrue(
-                any("loaded successfully" in message for message, _ in ui.messages)
-            )
+            self.assertEqual(ui.messages, [])
+            self.assertIn("NatureGenerator startup completed", app.logs)
             self.assertIn("NatureGenerator stopped.", app.logs)
         finally:
             sys.path[:] = original_path
@@ -309,9 +396,13 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
 class FusionRuntimeStartupTests(unittest.TestCase):
     def setUp(self):
         runtime._handlers.clear()
+        runtime._command_handler_groups.clear()
+        runtime._started = False
 
     def tearDown(self):
         runtime._handlers.clear()
+        runtime._command_handler_groups.clear()
+        runtime._started = False
 
     def _start(self, global_panel=True, workspace_panel=True):
         app, ui, workspace, panel = fake_fusion_ui(
@@ -349,7 +440,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertIn("active workspace", message)
         self.assertIn("Design", message)
 
-    def test_successful_registration_logs_checkpoints_and_confirms(self):
+    def test_successful_registration_logs_checkpoints(self):
         app, ui, workspace, panel = self._start()
         self.assertEqual(
             app.logs,
@@ -368,16 +459,135 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         control = panel.controls.items[runtime.COMMAND_ID]
         self.assertTrue(control.isPromoted)
         self.assertTrue(control.isPromotedByDefault)
-        self.assertEqual(
-            ui.messages,
-            [
-                (
-                    "NatureGenerator loaded successfully.\n"
-                    "Open Design > Utilities > Add-Ins and run Generate Sponge.",
-                    "NatureGenerator Development Diagnostics",
-                )
-            ],
+        self.assertEqual(ui.messages, [])
+
+    def test_command_creation_populates_interactive_inputs(self):
+        app, ui, workspace, panel = self._start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
         )
+
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        labels = [item.name for item in preset_input.listItems.items]
+        self.assertIn("Sponge", labels)
+        for name in ("Coral", "Bone", "Bark", "Rock"):
+            self.assertIn("{} — Coming Soon".format(name), labels)
+        self.assertEqual(preset_input.selectedItem.name, "Sponge")
+        self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].unit, "mm")
+        self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].value, 1.0)
+        self.assertEqual(inputs[runtime.THICKNESS_INPUT_ID].unit, "")
+        self.assertEqual(inputs[runtime.THICKNESS_INPUT_ID].value, 0.2)
+        self.assertEqual(
+            inputs[runtime.RESOLUTION_INPUT_ID].value, DEFAULT_RESOLUTION
+        )
+        self.assertEqual(len(command.execute.handlers), 1)
+        self.assertEqual(len(command.destroy.handlers), 1)
+
+    def test_command_execute_builds_request_from_input_values(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=10, face_count=20),
+            elapsed_time=0.25,
+        )
+        body = SimpleNamespace(name="NatureGenerator Sponge")
+
+        def execute_request(request, inserter):
+            captured.append(request)
+            return result, body
+
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch("commands.generate_nature.generate_nature", execute_request):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        inputs[runtime.CELL_SIZE_INPUT_ID].value = 1.2
+        inputs[runtime.THICKNESS_INPUT_ID].value = 0.3
+        inputs[runtime.RESOLUTION_INPUT_ID].value = 19
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].preset_id, "sponge")
+        self.assertEqual(captured[0].parameter_overrides["cell_size"], 12.0)
+        self.assertEqual(captured[0].parameter_overrides["thickness"], 0.3)
+        self.assertEqual(captured[0].resolution, 19)
+
+    def test_cancel_creates_no_geometry_and_releases_command_handlers(self):
+        calls = []
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, inserter: calls.append(request),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+
+        self.assertEqual(calls, [])
+        self.assertEqual(len(runtime._command_handler_groups), 1)
+        command.destroy.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(calls, [])
+        self.assertEqual(runtime._command_handler_groups, [])
+
+    def test_unavailable_selection_is_non_destructive(self):
+        app, ui, workspace, panel = self._start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item
+            for item in preset_input.listItems.items
+            if item.name.startswith("Coral")
+        )
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+
+        self.assertEqual(len(ui.messages), 1)
+        self.assertIn("unavailable", ui.messages[0][0])
+        self.assertEqual(ui.messages[0][1], "Generate Nature")
+
+    def test_invalid_cell_size_is_reported_without_geometry(self):
+        app, ui, workspace, panel = self._start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        command.commandInputs.items[runtime.CELL_SIZE_INPUT_ID].value = 0.0
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+
+        self.assertEqual(len(ui.messages), 1)
+        self.assertIn("cell_size", ui.messages[0][0])
+        self.assertEqual(ui.messages[0][1], "Generate Nature")
+
+    def test_repeated_start_stop_does_not_duplicate_ui_or_handlers(self):
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch.dict(sys.modules, fake_adsk_modules(app)):
+            runtime.start()
+            runtime.start()
+            self.assertEqual(ui.commandDefinitions.add_count, 1)
+            self.assertEqual(panel.controls.add_count, 1)
+            self.assertEqual(len(runtime._handlers), 1)
+            runtime.stop()
+            self.assertNotIn(runtime.COMMAND_ID, ui.commandDefinitions.items)
+            self.assertNotIn(runtime.COMMAND_ID, panel.controls.items)
+            self.assertEqual(runtime._handlers, [])
+            runtime.start()
+            self.assertEqual(ui.commandDefinitions.add_count, 2)
+            self.assertEqual(panel.controls.add_count, 2)
 
 
 if __name__ == "__main__":

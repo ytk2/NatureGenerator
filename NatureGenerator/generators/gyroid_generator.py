@@ -17,12 +17,12 @@ from .generator import (
 )
 from .gyroid import GyroidField
 from .result import GeneratorResult
+from .request import DEFAULT_RESOLUTION, validate_resolution
 
 
 class GyroidGenerator(Generator):
     """Generate a finite sampled gyroid sheet from preset parameters."""
 
-    _SHAPE = (17, 17, 17)
     _PARAMETER_IDS = frozenset(("cell_size", "thickness"))
 
     @property
@@ -33,10 +33,15 @@ class GyroidGenerator(Generator):
         self,
         preset: NaturePreset,
         parameters: Optional[Mapping[str, Any]] = None,
+        resolution: int = DEFAULT_RESOLUTION,
     ) -> GeneratorResult:
         """Run field construction, sampling, extraction, and validation."""
 
         started = perf_counter()
+        try:
+            resolution = validate_resolution(resolution)
+        except (TypeError, ValueError) as error:
+            raise InvalidGeneratorParameters(str(error)) from error
         if not isinstance(preset, NaturePreset):
             raise TypeError("preset must be a NaturePreset")
         if not preset.available:
@@ -82,7 +87,8 @@ class GyroidGenerator(Generator):
         minimum = (-half_extent, -half_extent, -half_extent)
         maximum = (half_extent, half_extent, half_extent)
         try:
-            grid = VoxelGrid.sample(field, minimum, maximum, self._SHAPE)
+            shape = (resolution, resolution, resolution)
+            grid = VoxelGrid.sample(field, minimum, maximum, shape)
             mesh = extract_isosurface(grid)
         except (TypeError, ValueError, ArithmeticError) as error:
             raise MeshExtractionError(

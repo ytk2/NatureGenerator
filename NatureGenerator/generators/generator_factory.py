@@ -4,14 +4,17 @@ import re
 from typing import Any, Callable, Dict, Mapping, Optional
 
 from presets.preset import NaturePreset
+from presets import PresetFactory
 
 from .generator import (
     Generator,
     UnavailablePresetError,
     UnknownGeneratorError,
+    UnknownPresetError,
 )
 from .gyroid_generator import GyroidGenerator
 from .result import GeneratorResult
+from .request import DEFAULT_RESOLUTION, GenerationRequest
 
 
 GeneratorConstructor = Callable[[], Generator]
@@ -79,4 +82,30 @@ class GeneratorFactory:
                     preset.preset_id, preset.unavailable_reason
                 )
             )
-        return cls.create(preset.generator_id).generate(preset, parameters)
+        return cls.create(preset.generator_id).generate(
+            preset, parameters, DEFAULT_RESOLUTION
+        )
+
+    @classmethod
+    def generate_request(cls, request: GenerationRequest) -> GeneratorResult:
+        """Resolve and execute a complete Fusion-independent request."""
+
+        if not isinstance(request, GenerationRequest):
+            raise TypeError("request must be a GenerationRequest")
+        try:
+            preset = PresetFactory.get(request.preset_id)
+        except KeyError as error:
+            raise UnknownPresetError(
+                "unknown preset_id: {!r}".format(request.preset_id)
+            ) from error
+        if not preset.available:
+            raise UnavailablePresetError(
+                "preset {!r} is unavailable: {}".format(
+                    preset.preset_id, preset.unavailable_reason
+                )
+            )
+        return cls.create(preset.generator_id).generate(
+            preset,
+            request.parameter_overrides,
+            request.resolution,
+        )

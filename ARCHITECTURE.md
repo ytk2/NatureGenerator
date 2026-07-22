@@ -27,8 +27,10 @@ reserved generator IDs have implementations.
 
 The Generator Runtime is the resolver and execution layer between presets and
 procedural algorithms. `GeneratorFactory` maps a preset's `generator_id` through
-an explicit registration table to a `Generator` implementation. A generator
-applies parameters, samples its scalar field, runs the core geometry pipeline,
+an explicit registration table to a `Generator` implementation.
+`GenerationRequest` carries a preset ID, immutable parameter overrides, and
+samples-per-axis resolution without Fusion types. A generator applies that
+configuration, samples its scalar field, runs the core geometry pipeline,
 validates the mesh, and returns an immutable `GeneratorResult` containing the
 mesh, statistics, warnings, IDs, and elapsed time.
 
@@ -63,10 +65,9 @@ surface through smoothing or decimation.
 ### Application commands (`commands/`)
 
 Commands coordinate user intent without knowing algorithm classes or Autodesk
-objects. `generate_sponge.py` obtains the Sponge `NaturePreset` through
-`PresetFactory`, asks the Generator Runtime to execute it, and passes the
-resulting mesh to an injected adapter callable. This keeps orchestration thin
-and testable outside Fusion.
+objects. `generate_nature.py` accepts a `GenerationRequest`, asks the Generator
+Runtime to execute it, and passes the resulting mesh to an injected adapter
+callable. This keeps orchestration thin and testable outside Fusion.
 
 ### Fusion adapter (`fusion/`)
 
@@ -75,8 +76,9 @@ owns Fusion-specific validation and lifecycle behavior. `MeshBodyBuilder`
 flattens indexed mesh data for Fusion and inserts it into the active design's
 root component. The adapter converts the core's millimeter-based coordinates to
 Fusion Design API database units (centimeters). `fusion.runtime` registers the
-**Generate Sponge** command, retains its event handlers, and removes its UI
-resources when the add-in stops.
+interactive **Generate Nature** command, builds its inputs from `PresetFactory`,
+retains handlers for the required command lifetime, and removes its UI resources
+when the add-in stops.
 
 Functional Autodesk integration is confined to `fusion/`. The add-in entry
 point delegates lifecycle calls to this layer and imports `adsk` only for fatal
@@ -90,6 +92,7 @@ modify the import path.
 
 ```text
 User / Fusion Command
+    -> Generation Request
     -> Nature Preset
     -> Generator Runtime
     -> Scalar Field
@@ -101,9 +104,10 @@ User / Fusion Command
             -> Fusion MeshBody
 ```
 
-1. A user or future Fusion command selects a natural form through a preset.
+1. A user or Fusion command creates an immutable request identifying a preset,
+   parameter overrides, and sampling resolution.
 2. The Generator Runtime resolves the preset's `generator_id` and validated
-   parameter values to an implementation.
+   request values to an implementation.
 3. The implementation supplies a scalar field, such as `GyroidField`.
 4. The core samples the field into a regular voxel grid.
 5. Marching tetrahedra extracts a Fusion-independent indexed triangle mesh.
@@ -120,7 +124,8 @@ they do not become implicit side effects of surface extraction.
 ```text
 Fusion UI lifecycle
     -> Fusion Adapter runtime
-    -> Generate Sponge command
+    -> Generate Nature command
+    -> GenerationRequest
     -> PresetFactory
     -> NaturePreset
 
