@@ -23,6 +23,7 @@ from .request import DEFAULT_RESOLUTION, GenerationRequest
 from .result import GeneratorResult
 from .sponge_generator import SpongeGenerator
 from .rock_generator import RockGenerator
+from .root_generator import RootGenerator
 
 
 GeneratorConstructor = Callable[[], Generator]
@@ -60,6 +61,7 @@ class GeneratorFactory:
             cls.register_preset("coral", CoralGenerator)
             cls.register_preset("rock", RockGenerator)
             cls.register_preset("bark", BarkGenerator)
+            cls.register_preset("root", RootGenerator)
             cls._builtins_registered = True
 
     @classmethod

@@ -19,6 +19,8 @@ from generators import (
     CoralGenerator,
     BarkGenerator,
     RockGenerator,
+    RootGenerator,
+    build_root_skeleton,
     SpongeGenerator,
     GyroidGenerator,
     InvalidGeneratorParameters,
@@ -51,6 +53,7 @@ class GeneratorFactoryTests(unittest.TestCase):
             ("coral", CoralGenerator),
             ("rock", RockGenerator),
             ("bark", BarkGenerator),
+            ("root", RootGenerator),
         ):
             generator = GeneratorFactory.create_for_preset(preset_id)
             self.assertIsInstance(generator, expected_type)
@@ -435,6 +438,129 @@ class BarkGeneratorTests(unittest.TestCase):
                 self._generate()
 
 
+class RootSkeletonTests(unittest.TestCase):
+    _DEFAULTS = (100.0, 8.0, 5, 0.45, 0.65, 0.65, 0.70, 11)
+
+    def test_skeleton_is_deterministic_seeded_and_bounded(self):
+        first = build_root_skeleton(*self._DEFAULTS)
+        repeated = build_root_skeleton(*self._DEFAULTS)
+        changed = build_root_skeleton(*self._DEFAULTS[:-1], 12)
+        self.assertEqual(first, repeated)
+        self.assertNotEqual(first, changed)
+        self.assertEqual(sum(item.depth == 0 for item in first), 4)
+        self.assertLessEqual(len(first), 28)
+        self.assertTrue(all(item.start != item.end for item in first))
+        self.assertTrue(all(
+            item.start_radius > 0.0 and item.end_radius > 0.0 for item in first
+        ))
+
+    def test_branch_count_branching_taper_gravity_and_spread_affect_skeleton(self):
+        few = build_root_skeleton(100, 8, 1, 0, 0.65, 0.65, 0.7, 11)
+        many = build_root_skeleton(100, 8, 8, 1, 0.65, 0.65, 0.7, 11)
+        low_taper = build_root_skeleton(100, 8, 5, .45, .65, .2, .7, 11)
+        high_taper = build_root_skeleton(100, 8, 5, .45, .65, .85, .7, 11)
+        low_gravity = build_root_skeleton(100, 8, 5, .45, .65, .65, 0, 11)
+        high_gravity = build_root_skeleton(100, 8, 5, .45, .65, .65, 1, 11)
+        narrow = build_root_skeleton(100, 8, 5, .45, .1, .65, .7, 11)
+        wide = build_root_skeleton(100, 8, 5, .45, 1, .65, .7, 11)
+        self.assertGreater(len(many), len(few))
+        self.assertLess(
+            min(item.end_radius for item in high_taper),
+            min(item.end_radius for item in low_taper),
+        )
+        self.assertLess(
+            sum(item.end[2] for item in high_gravity if item.depth > 0),
+            sum(item.end[2] for item in low_gravity if item.depth > 0),
+        )
+        self.assertGreater(
+            max(math.hypot(item.end[0], item.end[1]) for item in wide),
+            max(math.hypot(item.end[0], item.end[1]) for item in narrow),
+        )
+
+
+class RootGeneratorTests(unittest.TestCase):
+    def _generate(self, overrides=None, resolution=37):
+        return GeneratorFactory.generate_request(GenerationRequest(
+            "root", {} if overrides is None else overrides, resolution
+        ))
+
+    def test_deterministic_mesh_seed_variation_and_digest(self):
+        first = self._generate()
+        repeated = self._generate()
+        changed = self._generate({"seed": 12})
+        self.assertEqual(first.mesh.vertices, repeated.mesh.vertices)
+        self.assertEqual(first.mesh.faces, repeated.mesh.faces)
+        self.assertNotEqual(first.mesh.vertices, changed.mesh.vertices)
+        digest = hashlib.sha256(
+            repr((first.mesh.vertices, first.mesh.faces)).encode("ascii")
+        ).hexdigest()
+        self.assertEqual(
+            digest,
+            "889e8603de8b33404d6d1939cfb53dfd3bd9d1fa0abf7f21e2b7efe7de1e8b59",
+        )
+
+    def test_parameters_and_resolution_affect_geometry(self):
+        short = self._generate({"length": 60.0})
+        long = self._generate({"length": 160.0, "root_radius": 16.0})
+        thin = self._generate({"root_radius": 8.0})
+        thick = self._generate({"root_radius": 16.0})
+        few = self._generate({"branch_count": 1, "branching": 0.0})
+        many = self._generate({"branch_count": 8, "branching": 1.0})
+        tapered = self._generate({"taper": 0.85})
+        gravity = self._generate({"gravity": 1.0})
+        dense = self._generate(resolution=41)
+        self.assertLess(abs(short.statistics.bounds[0][2]), abs(long.statistics.bounds[0][2]))
+        self.assertLess(thin.statistics.bounds[1][0], thick.statistics.bounds[1][0])
+        self.assertNotEqual(few.mesh.vertices, many.mesh.vertices)
+        self.assertNotEqual(tapered.mesh.vertices, thin.mesh.vertices)
+        self.assertNotEqual(gravity.mesh.vertices, thin.mesh.vertices)
+        self.assertGreater(dense.statistics.face_count, thin.statistics.face_count)
+
+    def test_output_is_closed_finite_single_component_without_boundary_contact(self):
+        result = self._generate({
+            "length": 180.0, "root_radius": 14.4,
+            "branch_count": 8, "branching": 1.0, "spread": 1.0,
+            "gravity": 0.0, "seed": 2147483647,
+        }, 37)
+        stats = result.statistics
+        self.assertTrue(stats.is_manifold)
+        self.assertTrue(stats.is_watertight)
+        self.assertEqual(stats.connected_component_count, 1)
+        self.assertEqual(stats.degenerate_face_count, 0)
+        self.assertTrue(all(
+            math.isfinite(value) for vertex in result.mesh.vertices for value in vertex
+        ))
+        skeleton = build_root_skeleton(
+            180, 14.4, 8, 1, 1, .65, 0, 2147483647
+        )
+        points = tuple(point for item in skeleton for point in (item.start, item.end)) + ((0, 0, 0),)
+        margin = max(14.4 * 1.8, 180 * .08)
+        minimum = tuple(min(point[a] for point in points) - margin for a in range(3))
+        maximum = tuple(max(point[a] for point in points) + margin for a in range(3))
+        self.assertTrue(all(
+            minimum[a] < vertex[a] < maximum[a]
+            for vertex in result.mesh.vertices for a in range(3)
+        ))
+
+    def test_invalid_and_empty_generation_fail_clearly(self):
+        for overrides in (
+            {"length": 0.0}, {"root_radius": 0.0}, {"branch_count": 9},
+            {"branching": 1.1}, {"spread": 0.0}, {"taper": 0.9},
+            {"gravity": -0.1}, {"seed": 1.5},
+            {"length": 40.0, "root_radius": 20.0},
+            {"length": 180.0, "root_radius": 4.0}, {"unknown": 1},
+        ):
+            with self.assertRaises(InvalidGeneratorParameters):
+                self._generate(overrides)
+        with self.assertRaises(InvalidGeneratorParameters):
+            self._generate(resolution=25)
+        with patch(
+            "generators.root_generator.extract_isosurface",
+            return_value=TriangleMesh((), ()),
+        ):
+            with self.assertRaisesRegex(MeshExtractionError, "no triangles"):
+                self._generate()
+
 class GeneratorRuntimeDependencyTests(unittest.TestCase):
     def test_runtime_has_no_fusion_numpy_or_dynamic_discovery_imports(self):
         generator_root = Path(__file__).parents[1] / "generators"
@@ -445,6 +571,7 @@ class GeneratorRuntimeDependencyTests(unittest.TestCase):
             "coral_generator.py",
             "bark_generator.py",
             "value_noise.py",
+            "root_generator.py",
             "sponge_generator.py",
             "result.py",
             "request.py",

@@ -58,9 +58,13 @@ def _built_in_presets() -> Tuple[NaturePreset, ...]:
     from .bone import BONE_PRESET
     from .coral import CORAL_PRESET
     from .rock import ROCK_PRESET
+    from .root import ROOT_PRESET
     from .sponge import SPONGE_PRESET
 
-    return (CORAL_PRESET, BONE_PRESET, BARK_PRESET, SPONGE_PRESET, ROCK_PRESET)
+    return (
+        CORAL_PRESET, BONE_PRESET, BARK_PRESET, SPONGE_PRESET, ROCK_PRESET,
+        ROOT_PRESET,
+    )
 
 
 class PresetFactory:
