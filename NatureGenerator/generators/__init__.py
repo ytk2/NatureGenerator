@@ -2,6 +2,7 @@
 
 from .generator import (
     Generator,
+    MeshGenerator,
     GeneratorError,
     InvalidGeneratorParameters,
     MeshExtractionError,
@@ -10,6 +11,8 @@ from .generator import (
     UnknownPresetError,
 )
 from .generator_factory import GeneratorFactory
+from .coral_generator import CoralGenerator
+from .sponge_generator import SpongeGenerator
 from .gyroid import GyroidField
 from .gyroid_generator import GyroidGenerator
 from .result import GeneratorResult
@@ -22,6 +25,9 @@ from .request import (
 
 __all__ = [
     "Generator",
+    "CoralGenerator",
+    "MeshGenerator",
+    "SpongeGenerator",
     "GeneratorError",
     "GeneratorFactory",
     "GeneratorResult",

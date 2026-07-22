@@ -190,7 +190,7 @@ class GenerateNatureCommandTests(unittest.TestCase):
         calls = []
         with self.assertRaises(UnavailablePresetError):
             generate_nature(
-                GenerationRequest("coral", {}, DEFAULT_RESOLUTION),
+                GenerationRequest("bone", {}, DEFAULT_RESOLUTION),
                 lambda mesh, name: calls.append(mesh),
             )
         self.assertEqual(calls, [])
@@ -473,8 +473,10 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         preset_input = inputs[runtime.PRESET_INPUT_ID]
         labels = [item.name for item in preset_input.listItems.items]
         self.assertIn("Sponge", labels)
-        for name in ("Coral", "Bone", "Bark", "Rock"):
+        self.assertIn("Coral", labels)
+        for name in ("Bone", "Bark", "Rock"):
             self.assertIn("{} — Coming Soon".format(name), labels)
+        self.assertNotIn("Coral — Coming Soon", labels)
         self.assertEqual(preset_input.selectedItem.name, "Sponge")
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].unit, "mm")
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].value, 1.0)
@@ -551,13 +553,45 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         preset_input.selectedItem = next(
             item
             for item in preset_input.listItems.items
-            if item.name.startswith("Coral")
+            if item.name.startswith("Bone")
         )
         command.execute.handlers[0].notify(SimpleNamespace(command=command))
 
         self.assertEqual(len(ui.messages), 1)
         self.assertIn("unavailable", ui.messages[0][0])
         self.assertEqual(ui.messages[0][1], "Generate Nature")
+
+    def test_coral_selection_builds_a_coral_request(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=10, face_count=20),
+            elapsed_time=0.25,
+        )
+        body = SimpleNamespace(name="NatureGenerator Coral")
+
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, inserter: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Coral"
+        )
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].preset_id, "coral")
+        self.assertEqual(
+            set(captured[0].parameter_overrides), {"cell_size", "thickness"}
+        )
 
     def test_invalid_cell_size_is_reported_without_geometry(self):
         app, ui, workspace, panel = self._start()

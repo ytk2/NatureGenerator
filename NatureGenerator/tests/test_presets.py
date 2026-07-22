@@ -69,11 +69,19 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(preset.parameter_metadata, {"scale": scale_metadata})
 
     def test_unavailable_presets_are_explicit(self):
-        for preset_id in ("coral", "bone", "bark", "rock"):
+        for preset_id in ("bone", "bark", "rock"):
             preset = PresetFactory.get(preset_id)
             self.assertFalse(preset.available)
             self.assertTrue(preset.unavailable_reason)
             self.assertNotEqual(preset.generator_id, "gyroid")
+
+    def test_coral_maps_to_available_coral_generator(self):
+        coral = PresetFactory.get("coral")
+        self.assertTrue(coral.available)
+        self.assertEqual(coral.generator_id, "coral")
+        self.assertEqual(
+            set(coral.default_parameters), {"cell_size", "thickness"}
+        )
 
     def test_stable_ids_reject_display_text(self):
         with self.assertRaises(ValueError):

@@ -25,25 +25,28 @@ meshes.
 
 `PresetFactory` is the command/UI entry point. It uses explicit built-in
 registration rather than filesystem discovery, keeping startup deterministic in
-Fusion's Python environment. Sponge currently maps to the available `gyroid`
-generator ID; Coral, Bone, Bark, and Rock remain visibly unavailable until their
-reserved generator IDs have implementations.
+Fusion's Python environment. Sponge maps to the available `gyroid` generator
+ID. Sprint 8 development makes Coral available through the `coral` generator
+ID; Bone, Bark, and Rock remain visibly unavailable until their reserved
+generator IDs have implementations.
 
 ### Generator runtime (`generators/`)
 
 The Generator Runtime is the resolver and execution layer between presets and
-procedural algorithms. `GeneratorFactory` maps a preset's `generator_id` through
-an explicit registration table to a `Generator` implementation.
+procedural algorithms. `GeneratorFactory` maps a request's preset ID through an
+explicit registration table to a `MeshGenerator`, then checks that the
+implementation ID matches the preset's stable `generator_id`.
 `GenerationRequest` carries a preset ID, immutable parameter overrides, and
-samples-per-axis resolution without Fusion types. A generator applies that
-configuration, samples its scalar field, runs the core geometry pipeline,
-validates the mesh, and returns an immutable `GeneratorResult` containing the
-mesh, statistics, warnings, IDs, and elapsed time.
+samples-per-axis resolution without Fusion types. A `MeshGenerator` implements
+`generate(request) -> TriangleMesh`. The factory validates that mesh and returns
+an immutable `GeneratorResult` containing the mesh, statistics, warnings, IDs,
+and elapsed time.
 
-`GyroidGenerator` is the only registered implementation. Sponge is executable;
-the reserved IDs used by Coral, Bone, Bark, and Rock remain unavailable. The
-runtime uses explicit registration rather than filesystem discovery and does not
-introduce `GeneratorDescriptor`.
+`SpongeGenerator` delegates to the unchanged `GyroidGenerator` pipeline, while
+`CoralGenerator` produces a closed branching implicit solid. The legacy
+generator-ID factory and public result-returning entry points remain compatible.
+The runtime uses explicit registration rather than filesystem discovery and
+does not introduce `GeneratorDescriptor`.
 
 ### Scalar fields and generators (`generators/`)
 
@@ -112,8 +115,8 @@ User / Fusion Command
 
 1. A user or Fusion command creates an immutable request identifying a preset,
    parameter overrides, and sampling resolution.
-2. The Generator Runtime resolves the preset's `generator_id` and validated
-   request values to an implementation.
+2. The Generator Runtime resolves the preset ID to a registered mesh generator
+   and verifies its stable `generator_id` against the preset metadata.
 3. The implementation supplies a scalar field, such as `GyroidField`.
 4. The core samples the field into a regular voxel grid.
 5. Marching tetrahedra extracts a Fusion-independent indexed triangle mesh.

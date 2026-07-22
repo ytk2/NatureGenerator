@@ -27,8 +27,19 @@ See the [v0.5.0 baseline checklist](docs/V0.5.0_BASELINE.md) and
 
 ## Committed Next Sprint
 
-No next Sprint has been selected. Selecting one of the candidates below requires
-an explicit scope and architecture review.
+**Sprint 8 — First Multi-Generator Architecture**
+
+In development on `feature/multi-generator`:
+
+- complete explicit preset-to-generator resolution
+- add an available, watertight Coral generator
+- preserve Sponge and the public Generator Runtime API
+- route Fusion preset selection without concrete-generator command logic
+- record successful real-Fusion acceptance for Sponge/Coral routing and Coral
+  MeshBody creation
+
+See [SPRINT8_DESIGN.md](docs/SPRINT8_DESIGN.md) for scope, exclusions,
+architecture decisions, Definition of Done, and Fusion acceptance checks.
 
 ## Candidate Future Work
 
@@ -38,7 +49,7 @@ an explicit scope and architecture review.
 - Live or deferred preview
 - Progress and cancellation support
 - Additional generators and presets:
-  - Coral / Gray-Scott
+  - richer Coral models, including possible Gray-Scott growth
   - Rock / Voronoi and Noise
   - Bark / Noise
   - Bone / Cellular or Voronoi
