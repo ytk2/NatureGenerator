@@ -4,12 +4,28 @@ This history is maintained on the current development branch. Release tags are
 immutable recovery points; later documentation updates describe those releases
 without becoming part of their tagged commits.
 
-## Unreleased — Sprint 10 Bark Generator
+## Unreleased — Sprint 11 Root Generator and Public Project Foundation
 
-Development on `feature/bark-generator` adds a deterministic closed Bark trunk
-with Diameter, Height, Bark Depth, Groove Scale, Twist, Seed, and Resolution
-controls. Real Fusion acceptance has passed; it remains unreleased until merge
-and an explicit release tag.
+Development on `feature/root-generator` adds a deterministic connected Root
+system with Length, Root Radius, Branch Count, Branching, Spread, Taper,
+Gravity, Seed, and Resolution controls. It also establishes public vision,
+getting-started, gallery, and release-process documentation. Root has not yet
+completed real Fusion acceptance and is not part of v0.8.0.
+
+Real Fusion acceptance on macOS verified all nine Root inputs, creation of
+`NatureGenerator Root` MeshBodies, parameter-dependent geometry, and clean
+command startup without duplicate controls. Observed runs produced 6,568
+vertices and 13,136 faces in approximately 2.498 seconds, and 7,452 vertices and
+14,900 faces in approximately 3.941 seconds. These runs do not represent an
+exhaustive test of every parameter combination.
+
+Root v1 is structurally successful but can resemble a simplified branching
+pipe or stylized root rather than a botanically realistic root system. Natural
+branching angles, hierarchical thickness, finer terminal roots, ground
+interaction, and space-colonization growth remain future work. No botanical
+simulation or species reproduction is claimed.
+
+## v0.8.0 — Bark Generator
 
 Real Fusion acceptance on macOS verified Bark preset inputs, MeshBody creation,
 parameter effects, Bark Depth rejection, and command lifecycle behavior. Bark

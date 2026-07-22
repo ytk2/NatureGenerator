@@ -2,7 +2,13 @@
 
 ## Product and releases
 
+- [GETTING_STARTED.md](GETTING_STARTED.md) — stable installation, first run,
+  developer checkout, and troubleshooting.
+- [GALLERY.md](GALLERY.md) — evidence-based generator gallery and capture list.
+- [VISION.md](../VISION.md) — product problem, principles, and long-term scope.
 - [RELEASES.md](RELEASES.md) — release history and validated capabilities.
+- [RELEASING.md](RELEASING.md) — review, Fusion acceptance, tagging, and
+  rollback policy.
 - [V0.5.0_BASELINE.md](V0.5.0_BASELINE.md) — the stable v0.5.0 recovery
   point, acceptance test, architecture boundaries, limitations, and
   development-start instructions.
@@ -21,6 +27,7 @@
 - [SPRINT8_DESIGN.md](SPRINT8_DESIGN.md)
 - [SPRINT9_DESIGN.md](SPRINT9_DESIGN.md)
 - [SPRINT10_DESIGN.md](SPRINT10_DESIGN.md)
+- [SPRINT11_DESIGN.md](SPRINT11_DESIGN.md)
 
 Sprint design documents record the goal, scope, exclusions, architecture
 decisions, and Definition of Done for that Sprint.

@@ -1,23 +1,27 @@
 # NatureGenerator
 
-> Generate manufacturable natural forms directly inside Autodesk Fusion.
+> Generate manufacturable natural geometry directly inside Autodesk Fusion.
 
-NatureGenerator v0.7.0 is the stable Rock Generator baseline. Sprint 10
-development adds deterministic Bark generation alongside the executable
-Sponge, Coral, and Rock forms.
+NatureGenerator v0.8.0 is the stable Bark Generator release. Sponge, Coral,
+Rock, and Bark are executable. Sprint 11 adds the unreleased Root generator and
+must complete real Fusion acceptance before release.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
 
-**Stable baseline:** `v0.7.0 — Rock Generator`
+**Stable baseline:** `v0.8.0 — Bark Generator`
 
-[Release history](docs/RELEASES.md) · [Roadmap](ROADMAP.md) ·
-[Architecture](ARCHITECTURE.md) · [Documentation index](docs/README.md)
+[Getting started](docs/GETTING_STARTED.md) · [Gallery](docs/GALLERY.md) ·
+[Vision](VISION.md) · [Architecture](ARCHITECTURE.md) · [Roadmap](ROADMAP.md) ·
+[Releases](docs/RELEASES.md) · [Releasing](docs/RELEASING.md) ·
+[Contributing](CONTRIBUTING.md)
 
 The project includes a Fusion-independent procedural geometry pipeline and a
 user-facing nature preset framework. Sponge is backed by the configurable
 gyroid scalar field, Coral uses a closed branching implicit solid, and Rock
-uses a deformed ellipsoid with dependency-free value noise. Sprint 10 Bark uses
-a closed finite cylinder with directional, anisotropic surface variation.
+uses a deformed ellipsoid with dependency-free value noise. Bark uses a closed
+finite cylinder with directional, anisotropic surface variation. Unreleased
+Root uses a bounded deterministic skeleton and a union of tapered segment
+fields.
 
 ## Geometry pipeline
 
@@ -86,11 +90,12 @@ framework does not scan directories or dynamically import arbitrary files.
 
 | Preset | Category | Generator ID | Status |
 | --- | --- | --- | --- |
-| Coral | Aquatic | `coral` | Available in Sprint 8 development |
+| Coral | Aquatic | `coral` | Available |
 | Sponge | Aquatic | `gyroid` | Available |
 | Bone | Biological | `cellular` | Unavailable — generator not implemented |
-| Bark | Botanical | `bark` | Available in Sprint 10 development |
-| Rock | Geological | `rock` | Available in Sprint 9 development |
+| Bark | Botanical | `bark` | Available |
+| Root | Botanical | `root` | Unreleased Sprint 11 development |
+| Rock | Geological | `rock` | Available |
 
 ## Generator runtime
 
@@ -125,7 +130,7 @@ branch capsules. Its surface stays inside the sampled domain and must pass
 watertight validation. `GeneratorFactory.create_for_preset(preset_id)` resolves
 both forms through explicit preset and generator registration. The
 request-oriented `SpongeGenerator`, `CoralGenerator`, `RockGenerator`, and
-`BarkGenerator` each return a
+`BarkGenerator`, and unreleased `RootGenerator` each return a
 `TriangleMesh`; the factory preserves the public immutable `GeneratorResult`
 API and delegates Sponge geometry to the unchanged `GyroidGenerator` pipeline.
 
@@ -135,10 +140,10 @@ callers and uses the original resolution of 17 samples per axis.
 ## Interactive Fusion generation
 
 The **Generate Nature** command appears in the Design workspace's Add-Ins panel.
-Its dialog selects Sponge, Coral, Rock, or Bark and builds each form's inputs from
-immutable preset parameter metadata before it
-runs the Generator Runtime and inserts the resulting `TriangleMesh` as a
-`MeshBody` in the active design.
+Its dialog selects Sponge, Coral, Rock, Bark, or unreleased Root and builds each
+form's inputs from immutable preset parameter metadata before it runs the
+Generator Runtime and inserts the resulting `TriangleMesh` as a `MeshBody` in
+the active design.
 
 ```text
 Generate Nature
@@ -163,8 +168,12 @@ The dialog exposes each preset's metadata-defined inputs:
 - **Bark Diameter, Height, Bark Depth, Groove Scale, Twist, and Seed:** trunk
   dimensions and repeatable directional ridge controls. Bark resolution is
   constrained to 29–41, with a default of 33.
+- **Root Length, Root Radius, Branch Count, Branching, Spread, Taper, Gravity,
+  and Seed:** dimensions and repeatable staged branching controls. Root
+  resolution is constrained to 37–41, with a default of 37.
 
-Sponge, Coral, Rock, and Bark are executable on the Sprint 10 branch. Bone
+Sponge, Coral, Rock, and Bark are executable in v0.8.0. Root is executable only
+on the unreleased Sprint 11 development branch. Bone
 appears as Coming Soon and produces no geometry when selected. Cancel also creates
 no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
@@ -177,6 +186,19 @@ See [`docs/SPRINT9_DESIGN.md`](docs/SPRINT9_DESIGN.md) for Rock's field,
 sampling-margin, and preset-driven UI decisions.
 See [`docs/SPRINT10_DESIGN.md`](docs/SPRINT10_DESIGN.md) for Bark's exact capped
 cylinder field, anisotropic value-noise construction, bounds, and limitations.
+See [`docs/SPRINT11_DESIGN.md`](docs/SPRINT11_DESIGN.md) for Root's bounded
+skeleton, tapered implicit union, topology safeguards, and acceptance plan.
+
+Root passed real Autodesk Fusion acceptance on macOS: all nine metadata-driven
+inputs displayed, `NatureGenerator Root` MeshBodies were created, and parameter
+changes produced different geometry. Observed runs produced 6,568 vertices and
+13,136 faces in approximately 2.498 seconds, and 7,452 vertices and 14,900 faces
+in approximately 3.941 seconds. Root remains unreleased until merge and an
+explicit release tag.
+
+Root v1 has a dominant primary root and lateral branches, but can resemble a
+simplified branching pipe or stylized root rather than a botanically realistic
+root system. It does not claim botanical simulation or species reproduction.
 
 Bark v1 is intentionally a closed procedural trunk segment with directional
 grooves. Its current visual character is closer to an irregular or twisted

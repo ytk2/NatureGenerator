@@ -24,3 +24,8 @@ After copying them, these optional README references can be enabled:
 ![Generated Sponge MeshBody](docs/images/v0.5.0-generate-nature-result.png)
 ![Generate Nature under Utilities](docs/images/v0.5.0-utilities-menu.png)
 ```
+
+The public [generator gallery](../GALLERY.md) also records the canonical
+`sponge.png`, `coral.png`, `rock.png`, `bark.png`, and unreleased `root.png`
+captures still needed. Add only real Fusion captures after acceptance; do not
+create placeholders.
