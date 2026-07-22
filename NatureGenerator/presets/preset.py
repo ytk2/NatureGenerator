@@ -7,7 +7,7 @@ from types import MappingProxyType
 from typing import Any, Mapping, Optional
 
 
-_PARAMETER_TYPES = {"bool", "float", "int", "str"}
+_PARAMETER_TYPES = {"bool", "float", "int", "integer", "length", "str"}
 
 
 def _nonempty_text(value: str, name: str) -> str:
@@ -55,6 +55,10 @@ class ParameterMetadata:
             "float": isinstance(default_value, (int, float))
             and not isinstance(default_value, bool),
             "int": isinstance(default_value, int) and not isinstance(default_value, bool),
+            "integer": isinstance(default_value, int)
+            and not isinstance(default_value, bool),
+            "length": isinstance(default_value, (int, float))
+            and not isinstance(default_value, bool),
             "str": isinstance(default_value, str),
         }[value_type]
         if not valid_default:
@@ -71,7 +75,7 @@ class ParameterMetadata:
                 raise TypeError("{} must be a finite number or None".format(name))
         if minimum is not None and maximum is not None and minimum > maximum:
             raise ValueError("minimum cannot exceed maximum")
-        if value_type in ("float", "int"):
+        if value_type in ("float", "int", "integer", "length"):
             if minimum is not None and default_value < minimum:
                 raise ValueError("default_value cannot be below minimum")
             if maximum is not None and default_value > maximum:

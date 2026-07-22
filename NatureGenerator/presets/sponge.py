@@ -9,11 +9,15 @@ SPONGE_PRESET = NaturePreset(
     category="aquatic",
     description="Continuous porous sheet structure inspired by natural sponges.",
     generator_id="gyroid",
-    default_parameters={"cell_size": 10.0, "thickness": 0.2},
+    default_parameters={
+        "cell_size": 10.0,
+        "thickness": 0.2,
+        "resolution": 17,
+    },
     parameter_metadata={
         "cell_size": ParameterMetadata(
             "Cell Size",
-            "float",
+            "length",
             10.0,
             minimum=1.0,
             maximum=100.0,
@@ -26,8 +30,12 @@ SPONGE_PRESET = NaturePreset(
             0.2,
             minimum=0.0,
             maximum=1.0,
-            unit="field value",
+            unit="",
             description="Half-band around the mathematical gyroid surface.",
+        ),
+        "resolution": ParameterMetadata(
+            "Resolution", "integer", 17, minimum=9, maximum=41,
+            description="Voxel samples per axis.",
         ),
     },
     available=True,

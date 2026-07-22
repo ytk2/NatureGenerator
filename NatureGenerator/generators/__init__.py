@@ -13,6 +13,7 @@ from .generator import (
 from .generator_factory import GeneratorFactory
 from .coral_generator import CoralGenerator
 from .sponge_generator import SpongeGenerator
+from .rock_generator import RockGenerator
 from .gyroid import GyroidField
 from .gyroid_generator import GyroidGenerator
 from .result import GeneratorResult
@@ -28,6 +29,7 @@ __all__ = [
     "CoralGenerator",
     "MeshGenerator",
     "SpongeGenerator",
+    "RockGenerator",
     "GeneratorError",
     "GeneratorFactory",
     "GeneratorResult",

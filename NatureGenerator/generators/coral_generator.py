@@ -102,6 +102,7 @@ class CoralGenerator(MeshGenerator):
         preset = PresetFactory.get(self.preset_id)
 
         configured = dict(preset.default_parameters)
+        configured.pop("resolution", None)
         configured.update(request.parameter_overrides)
         unknown = set(configured) - self._PARAMETER_IDS
         missing = self._PARAMETER_IDS - set(configured)

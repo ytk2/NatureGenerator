@@ -69,7 +69,7 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(preset.parameter_metadata, {"scale": scale_metadata})
 
     def test_unavailable_presets_are_explicit(self):
-        for preset_id in ("bone", "bark", "rock"):
+        for preset_id in ("bone", "bark"):
             preset = PresetFactory.get(preset_id)
             self.assertFalse(preset.available)
             self.assertTrue(preset.unavailable_reason)
@@ -80,8 +80,24 @@ class NaturePresetTests(unittest.TestCase):
         self.assertTrue(coral.available)
         self.assertEqual(coral.generator_id, "coral")
         self.assertEqual(
-            set(coral.default_parameters), {"cell_size", "thickness"}
+            set(coral.default_parameters), {"cell_size", "thickness", "resolution"}
         )
+
+    def test_rock_is_available_with_stable_metadata(self):
+        rock = PresetFactory.get("rock")
+        self.assertTrue(rock.available)
+        self.assertEqual(rock.preset_id, "rock")
+        self.assertEqual(rock.generator_id, "rock")
+        self.assertEqual(
+            tuple(rock.parameter_metadata),
+            ("size", "roughness", "seed", "resolution"),
+        )
+        self.assertEqual(rock.parameter_metadata["size"].value_type, "length")
+        self.assertEqual(rock.parameter_metadata["size"].unit, "mm")
+        self.assertGreater(rock.parameter_metadata["size"].minimum, 0)
+        self.assertEqual(rock.parameter_metadata["seed"].value_type, "integer")
+        self.assertEqual(rock.parameter_metadata["resolution"].minimum, 9)
+        self.assertEqual(rock.parameter_metadata["resolution"].maximum, 41)
 
     def test_stable_ids_reject_display_text(self):
         with self.assertRaises(ValueError):
@@ -101,7 +117,9 @@ class NaturePresetTests(unittest.TestCase):
         self.assertTrue(sponge.available)
         self.assertEqual(sponge.generator_id, "gyroid")
 
-        field = GyroidField(**dict(sponge.default_parameters))
+        parameters = dict(sponge.default_parameters)
+        parameters.pop("resolution")
+        field = GyroidField(**parameters)
         self.assertEqual(field.cell_size, 10.0)
         self.assertEqual(field.thickness, 0.2)
         self.assertEqual(field.sample(0.0, 0.0, 0.0), -0.2)

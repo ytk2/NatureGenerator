@@ -9,11 +9,15 @@ CORAL_PRESET = NaturePreset(
     category="aquatic",
     description="Closed branching growth inspired by coral colonies.",
     generator_id="coral",
-    default_parameters={"cell_size": 14.0, "thickness": 0.35},
+    default_parameters={
+        "cell_size": 14.0,
+        "thickness": 0.35,
+        "resolution": 17,
+    },
     parameter_metadata={
         "cell_size": ParameterMetadata(
             "Cell Size",
-            "float",
+            "length",
             14.0,
             minimum=1.0,
             maximum=100.0,
@@ -26,8 +30,12 @@ CORAL_PRESET = NaturePreset(
             0.35,
             minimum=0.0,
             maximum=1.0,
-            unit="relative",
+            unit="",
             description="Relative radius of the connected coral branches.",
+        ),
+        "resolution": ParameterMetadata(
+            "Resolution", "integer", 17, minimum=9, maximum=41,
+            description="Voxel samples per axis.",
         ),
     },
     available=True,

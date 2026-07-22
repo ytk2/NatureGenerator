@@ -58,6 +58,7 @@ class GyroidGenerator(Generator):
             )
 
         configured = dict(preset.default_parameters)
+        configured.pop("resolution", None)
         if parameters is not None:
             if not isinstance(parameters, Mapping):
                 raise InvalidGeneratorParameters("parameter overrides must be a mapping")
