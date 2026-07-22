@@ -26,9 +26,10 @@ meshes.
 `PresetFactory` is the command/UI entry point. It uses explicit built-in
 registration rather than filesystem discovery, keeping startup deterministic in
 Fusion's Python environment. Sponge maps to the available `gyroid` generator
-ID. Sprint 8 development makes Coral available through the `coral` generator
-ID; Bone, Bark, and Rock remain visibly unavailable until their reserved
-generator IDs have implementations.
+ID. Coral and Rock are available through the `coral` and `rock` generator IDs;
+Bone and Bark remain visibly unavailable until their reserved generator IDs
+have implementations. Executable presets describe all Fusion inputs through
+ordered parameter metadata.
 
 ### Generator runtime (`generators/`)
 
@@ -43,7 +44,8 @@ an immutable `GeneratorResult` containing the mesh, statistics, warnings, IDs,
 and elapsed time.
 
 `SpongeGenerator` delegates to the unchanged `GyroidGenerator` pipeline, while
-`CoralGenerator` produces a closed branching implicit solid. The legacy
+`CoralGenerator` produces a closed branching implicit solid and `RockGenerator`
+produces a closed deformed ellipsoid with deterministic value noise. The legacy
 generator-ID factory and public result-returning entry points remain compatible.
 The runtime uses explicit registration rather than filesystem discovery and
 does not introduce `GeneratorDescriptor`.

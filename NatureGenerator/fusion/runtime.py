@@ -15,9 +15,9 @@ LEGACY_COMMAND_ID = "NatureGeneratorGenerateSponge"
 WORKSPACE_ID = "FusionSolidEnvironment"
 PANEL_ID = "SolidScriptsAddinsPanel"
 PRESET_INPUT_ID = "naturePreset"
-CELL_SIZE_INPUT_ID = "cellSize"
-THICKNESS_INPUT_ID = "thickness"
-RESOLUTION_INPUT_ID = "resolution"
+CELL_SIZE_INPUT_ID = "parameter_sponge_cell_size"
+THICKNESS_INPUT_ID = "parameter_sponge_thickness"
+RESOLUTION_INPUT_ID = "parameter_sponge_resolution"
 
 _handlers: List[object] = []
 _command_handler_groups: List[List[object]] = []
@@ -57,6 +57,59 @@ def _preset_label(preset) -> str:
     return "{} — Coming Soon".format(preset.display_name)
 
 
+def _parameter_input_id(preset_id: str, parameter_id: str) -> str:
+    return "parameter_{}_{}".format(preset_id, parameter_id)
+
+
+def _create_parameter_input(inputs, adsk_core, preset, parameter_id, metadata):
+    """Create one Fusion input by metadata type, without preset branching."""
+
+    input_id = _parameter_input_id(preset.preset_id, parameter_id)
+    if metadata.value_type == "length":
+        created = inputs.addValueInput(
+            input_id,
+            metadata.display_name,
+            metadata.unit,
+            adsk_core.ValueInput.createByString(
+                "{} {}".format(metadata.default_value, metadata.unit)
+            ),
+        )
+    elif metadata.value_type == "float":
+        step = max(0.01, (float(metadata.maximum) - float(metadata.minimum)) / 100.0)
+        created = inputs.addFloatSpinnerCommandInput(
+            input_id, metadata.display_name, metadata.unit,
+            float(metadata.minimum), float(metadata.maximum), step,
+            float(metadata.default_value),
+        )
+    elif metadata.value_type in ("integer", "int"):
+        step = 2 if parameter_id == "resolution" else 1
+        created = inputs.addIntegerSpinnerCommandInput(
+            input_id, metadata.display_name,
+            int(metadata.minimum), int(metadata.maximum), step,
+            int(metadata.default_value),
+        )
+    else:
+        raise ValueError("unsupported parameter type: {}".format(metadata.value_type))
+    created.isVisible = False
+    return created
+
+
+def _read_parameter(input_value, metadata):
+    value = input_value.value
+    # Fusion exposes ValueCommandInput lengths in internal centimetres.
+    if metadata.value_type == "length" and metadata.unit == "mm":
+        value *= 10.0
+    if metadata.value_type in ("integer", "int"):
+        value = int(value)
+    if metadata.minimum is not None and value < metadata.minimum:
+        raise ValueError("{} must be at least {}".format(
+            metadata.display_name, metadata.minimum))
+    if metadata.maximum is not None and value > metadata.maximum:
+        raise ValueError("{} must be at most {}".format(
+            metadata.display_name, metadata.maximum))
+    return value
+
+
 def _delete_command(ui, panel, command_id: str) -> None:
     control = panel.controls.itemById(command_id) if panel else None
     if control is not None:
@@ -77,8 +130,6 @@ def start(context=None) -> None:
         DEFAULT_RESOLUTION,
         GeneratorError,
         GenerationRequest,
-        MAX_RESOLUTION,
-        MIN_RESOLUTION,
     )
     from presets import PresetFactory
 
@@ -101,16 +152,12 @@ def start(context=None) -> None:
             self,
             preset_input,
             preset_ids,
-            cell_size_input,
-            thickness_input,
-            resolution_input,
+            parameter_inputs,
         ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
-            self._cell_size_input = cell_size_input
-            self._thickness_input = thickness_input
-            self._resolution_input = resolution_input
+            self._parameter_inputs = parameter_inputs
 
         def notify(self, args):
             try:
@@ -118,13 +165,21 @@ def start(context=None) -> None:
                 if selected is None:
                     raise ValueError("select a nature preset")
                 preset_id = self._preset_ids[selected.name]
+                preset = PresetFactory.get(preset_id)
+                if not preset.available:
+                    raise ValueError("preset {!r} is unavailable: {}".format(
+                        preset_id, preset.unavailable_reason))
+                values = {
+                    parameter_id: _read_parameter(
+                        self._parameter_inputs[(preset_id, parameter_id)], metadata
+                    )
+                    for parameter_id, metadata in preset.parameter_metadata.items()
+                }
+                resolution = values.pop("resolution", DEFAULT_RESOLUTION)
                 request = GenerationRequest(
                     preset_id=preset_id,
-                    parameter_overrides={
-                        "cell_size": self._cell_size_input.value * 10.0,
-                        "thickness": self._thickness_input.value,
-                    },
-                    resolution=self._resolution_input.value,
+                    parameter_overrides=values,
+                    resolution=resolution,
                 )
                 result, body = generate_nature(request, MeshBodyBuilder().build)
                 app.log(
@@ -145,6 +200,42 @@ def start(context=None) -> None:
                     "Generate Nature failed.\n\n{}".format(details),
                     "NatureGenerator",
                 )
+
+    class InputChangedHandler(adsk.core.InputChangedEventHandler):
+        def __init__(self, preset_input, preset_ids, parameter_inputs):
+            super().__init__()
+            self._preset_input = preset_input
+            self._preset_ids = preset_ids
+            self._parameter_inputs = parameter_inputs
+
+        def notify(self, args):
+            selected = self._preset_input.selectedItem
+            selected_id = self._preset_ids[selected.name] if selected else None
+            for (preset_id, _), input_value in self._parameter_inputs.items():
+                input_value.isVisible = preset_id == selected_id
+
+    class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
+        def __init__(self, preset_input, preset_ids, parameter_inputs):
+            super().__init__()
+            self._preset_input = preset_input
+            self._preset_ids = preset_ids
+            self._parameter_inputs = parameter_inputs
+
+        def notify(self, args):
+            try:
+                selected = self._preset_input.selectedItem
+                preset = PresetFactory.get(self._preset_ids[selected.name])
+                if not preset.available:
+                    args.areInputsValid = False
+                    return
+                for parameter_id, metadata in preset.parameter_metadata.items():
+                    _read_parameter(
+                        self._parameter_inputs[(preset.preset_id, parameter_id)],
+                        metadata,
+                    )
+                args.areInputsValid = True
+            except (KeyError, TypeError, ValueError, AttributeError):
+                args.areInputsValid = False
 
     class DestroyHandler(adsk.core.CommandEventHandler):
         def __init__(self, retained):
@@ -173,47 +264,40 @@ def start(context=None) -> None:
                     label, preset.preset_id == sponge.preset_id, ""
                 )
                 preset_ids[label] = preset.preset_id
-
-            cell_metadata = sponge.parameter_metadata["cell_size"]
-            cell_size_input = inputs.addValueInput(
-                CELL_SIZE_INPUT_ID,
-                "Cell Size",
-                "mm",
-                adsk.core.ValueInput.createByString(
-                    "{} mm".format(cell_metadata.default_value)
-                ),
-            )
-            thickness_metadata = sponge.parameter_metadata["thickness"]
-            thickness_input = inputs.addFloatSpinnerCommandInput(
-                THICKNESS_INPUT_ID,
-                "Thickness",
-                "",
-                float(thickness_metadata.minimum),
-                float(thickness_metadata.maximum),
-                0.01,
-                float(thickness_metadata.default_value),
-            )
-            resolution_input = inputs.addIntegerSpinnerCommandInput(
-                RESOLUTION_INPUT_ID,
-                "Resolution",
-                MIN_RESOLUTION,
-                MAX_RESOLUTION,
-                2,
-                DEFAULT_RESOLUTION,
-            )
+            parameter_inputs = {}
+            for preset in presets:
+                if not preset.available:
+                    continue
+                for parameter_id, metadata in preset.parameter_metadata.items():
+                    parameter_inputs[(preset.preset_id, parameter_id)] = (
+                        _create_parameter_input(
+                            inputs, adsk.core, preset, parameter_id, metadata
+                        )
+                    )
+            for (preset_id, _), input_value in parameter_inputs.items():
+                input_value.isVisible = preset_id == sponge.preset_id
 
             retained = []
             execute_handler = ExecuteHandler(
                 preset_input,
                 preset_ids,
-                cell_size_input,
-                thickness_input,
-                resolution_input,
+                parameter_inputs,
+            )
+            input_changed_handler = InputChangedHandler(
+                preset_input, preset_ids, parameter_inputs
+            )
+            validate_handler = ValidateInputsHandler(
+                preset_input, preset_ids, parameter_inputs
             )
             destroy_handler = DestroyHandler(retained)
             command.execute.add(execute_handler)
+            command.inputChanged.add(input_changed_handler)
+            command.validateInputs.add(validate_handler)
             command.destroy.add(destroy_handler)
-            retained.extend((execute_handler, destroy_handler))
+            retained.extend((
+                execute_handler, input_changed_handler, validate_handler,
+                destroy_handler,
+            ))
             _command_handler_groups.append(retained)
 
     command_definition = ui.commandDefinitions.itemById(COMMAND_ID)

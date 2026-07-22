@@ -116,6 +116,8 @@ class FakeCommand:
     def __init__(self):
         self.commandInputs = FakeCommandInputs()
         self.execute = FakeEvent()
+        self.inputChanged = FakeEvent()
+        self.validateInputs = FakeEvent()
         self.destroy = FakeEvent()
 
 
@@ -125,6 +127,8 @@ def fake_adsk_modules(app):
     core.Application = SimpleNamespace(get=lambda: app)
     core.CommandEventHandler = object
     core.CommandCreatedEventHandler = object
+    core.InputChangedEventHandler = object
+    core.ValidateInputsEventHandler = object
     core.DropDownStyles = SimpleNamespace(TextListDropDownStyle="text-list")
     core.ValueInput = SimpleNamespace(
         createByString=lambda expression: SimpleNamespace(
@@ -247,6 +251,12 @@ class MeshBodyAdapterTests(unittest.TestCase):
 
 
 class FusionDependencyBoundaryTests(unittest.TestCase):
+    def test_command_and_fusion_layers_do_not_reference_concrete_rock_generator(self):
+        package_root = Path(__file__).parents[1]
+        for folder in ("commands", "fusion"):
+            for module in (package_root / folder).glob("*.py"):
+                self.assertNotIn("RockGenerator", module.read_text(encoding="utf-8"))
+
     def test_geometry_runtime_presets_and_commands_have_no_adsk_imports(self):
         package_root = Path(__file__).parents[1]
         for folder in ("core", "generators", "presets", "commands"):
@@ -474,8 +484,9 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         labels = [item.name for item in preset_input.listItems.items]
         self.assertIn("Sponge", labels)
         self.assertIn("Coral", labels)
-        for name in ("Bone", "Bark", "Rock"):
+        for name in ("Bone", "Bark"):
             self.assertIn("{} — Coming Soon".format(name), labels)
+        self.assertIn("Rock", labels)
         self.assertNotIn("Coral — Coming Soon", labels)
         self.assertEqual(preset_input.selectedItem.name, "Sponge")
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].unit, "mm")
@@ -486,7 +497,56 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             inputs[runtime.RESOLUTION_INPUT_ID].value, DEFAULT_RESOLUTION
         )
         self.assertEqual(len(command.execute.handlers), 1)
+        self.assertEqual(len(command.inputChanged.handlers), 1)
+        self.assertEqual(len(command.validateInputs.handlers), 1)
         self.assertEqual(len(command.destroy.handlers), 1)
+
+    def test_preset_switching_updates_visible_metadata_inputs(self):
+        app, ui, workspace, panel = self._start()
+        definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
+        command = FakeCommand()
+        definition.commandCreated.handlers[0].notify(SimpleNamespace(command=command))
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+
+        rock_item = next(item for item in preset_input.listItems.items if item.name == "Rock")
+        preset_input.selectedItem = rock_item
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+
+        rock_ids = {
+            runtime._parameter_input_id("rock", key)
+            for key in ("size", "roughness", "seed", "resolution")
+        }
+        self.assertTrue(all(command.commandInputs.items[key].isVisible for key in rock_ids))
+        self.assertFalse(command.commandInputs.items[runtime.CELL_SIZE_INPUT_ID].isVisible)
+        self.assertEqual(command.commandInputs.items[
+            runtime._parameter_input_id("rock", "size")].name, "Size")
+
+    def test_rock_selection_builds_metadata_driven_request(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=10, face_count=20), elapsed_time=0.25
+        )
+        body = SimpleNamespace(name="NatureGenerator Rock")
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, inserter: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+
+        self.assertEqual(captured[0].preset_id, "rock")
+        self.assertEqual(set(captured[0].parameter_overrides), {"size", "roughness", "seed"})
+        self.assertEqual(captured[0].resolution, DEFAULT_RESOLUTION)
 
     def test_command_execute_builds_request_from_input_values(self):
         captured = []
@@ -604,8 +664,19 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         command.execute.handlers[0].notify(SimpleNamespace(command=command))
 
         self.assertEqual(len(ui.messages), 1)
-        self.assertIn("cell_size", ui.messages[0][0])
+        self.assertIn("Cell Size", ui.messages[0][0])
         self.assertEqual(ui.messages[0][1], "Generate Nature")
+
+    def test_invalid_values_disable_execution_validation(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        command.commandInputs.items[runtime.CELL_SIZE_INPUT_ID].value = 0.0
+        args = SimpleNamespace(areInputsValid=True)
+        command.validateInputs.handlers[0].notify(args)
+        self.assertFalse(args.areInputsValid)
 
     def test_repeated_start_stop_does_not_duplicate_ui_or_handlers(self):
         app, ui, workspace, panel = fake_fusion_ui()

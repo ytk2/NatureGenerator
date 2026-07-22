@@ -7,28 +7,32 @@ ROCK_PRESET = NaturePreset(
     preset_id="rock",
     display_name="Rock",
     category="geological",
-    description="Irregular fractured mass inspired by weathered rock.",
-    generator_id="voronoi",
-    default_parameters={"feature_size": 20.0, "irregularity": 0.7},
+    description="A rounded asymmetric stone with layered natural surface variation.",
+    generator_id="rock",
+    default_parameters={
+        "size": 40.0,
+        "roughness": 0.35,
+        "seed": 1,
+        "resolution": 17,
+    },
     parameter_metadata={
-        "feature_size": ParameterMetadata(
-            "Feature Size",
-            "float",
-            20.0,
-            minimum=2.0,
-            maximum=100.0,
+        "size": ParameterMetadata(
+            "Size", "length", 40.0, minimum=10.0, maximum=120.0,
             unit="mm",
-            description="Nominal spacing of future fractured regions.",
+            description="Nominal maximum diameter of the stone.",
         ),
-        "irregularity": ParameterMetadata(
-            "Irregularity",
-            "float",
-            0.7,
-            minimum=0.0,
-            maximum=1.0,
-            description="Reserved variation in region size and shape.",
+        "roughness": ParameterMetadata(
+            "Roughness", "float", 0.35, minimum=0.0, maximum=0.70,
+            description="Amount of broad and fine surface variation.",
+        ),
+        "seed": ParameterMetadata(
+            "Seed", "integer", 1, minimum=0, maximum=2147483647,
+            description="Deterministic variation key.",
+        ),
+        "resolution": ParameterMetadata(
+            "Resolution", "integer", 17, minimum=9, maximum=41,
+            description="Voxel samples per axis.",
         ),
     },
-    available=False,
-    unavailable_reason="The voronoi generator is not implemented yet.",
+    available=True,
 )

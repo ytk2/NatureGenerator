@@ -21,6 +21,7 @@ from .gyroid_generator import GyroidGenerator
 from .request import DEFAULT_RESOLUTION, GenerationRequest
 from .result import GeneratorResult
 from .sponge_generator import SpongeGenerator
+from .rock_generator import RockGenerator
 
 
 GeneratorConstructor = Callable[[], Generator]
@@ -56,6 +57,7 @@ class GeneratorFactory:
             cls.register("gyroid", GyroidGenerator)
             cls.register_preset("sponge", SpongeGenerator)
             cls.register_preset("coral", CoralGenerator)
+            cls.register_preset("rock", RockGenerator)
             cls._builtins_registered = True
 
     @classmethod
@@ -113,11 +115,13 @@ class GeneratorFactory:
         except KeyError:
             registered = None
         if registered == preset:
+            supplied = {} if parameters is None else dict(parameters)
+            resolution = supplied.pop("resolution", DEFAULT_RESOLUTION)
             return cls.generate_request(
                 GenerationRequest(
                     preset.preset_id,
-                    {} if parameters is None else parameters,
-                    DEFAULT_RESOLUTION,
+                    supplied,
+                    resolution,
                 )
             )
         return cls.create(preset.generator_id).generate(

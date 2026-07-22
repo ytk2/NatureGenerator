@@ -50,7 +50,6 @@ architecture decisions, Definition of Done, and Fusion acceptance checks.
 - Progress and cancellation support
 - Additional generators and presets:
   - richer Coral models, including possible Gray-Scott growth
-  - Rock / Voronoi and Noise
   - Bark / Noise
   - Bone / Cellular or Voronoi
 - Smoothing and mesh optimization
@@ -65,6 +64,7 @@ architecture decisions, Definition of Done, and Fusion acceptance checks.
 - Gyroid field and Sponge runtime
 - User-facing Nature Preset framework
 - Interactive Fusion command and MeshBody insertion
+- Deterministic watertight Rock generator and preset-driven Fusion inputs
 
 This roadmap is directional. Each phase should remain small enough to review and
 should add tests before expanding the public API.

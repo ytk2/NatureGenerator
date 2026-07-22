@@ -2,7 +2,9 @@
 
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+import math
 import unittest
+from unittest.mock import patch
 
 from core.mesh import TriangleMesh
 from generators import (
@@ -14,6 +16,7 @@ from generators import (
     GeneratorResult,
     GenerationRequest,
     CoralGenerator,
+    RockGenerator,
     SpongeGenerator,
     GyroidGenerator,
     InvalidGeneratorParameters,
@@ -44,6 +47,7 @@ class GeneratorFactoryTests(unittest.TestCase):
         for preset_id, expected_type in (
             ("sponge", SpongeGenerator),
             ("coral", CoralGenerator),
+            ("rock", RockGenerator),
         ):
             generator = GeneratorFactory.create_for_preset(preset_id)
             self.assertIsInstance(generator, expected_type)
@@ -259,6 +263,55 @@ class CoralGeneratorTests(unittest.TestCase):
                 GeneratorFactory.generate_request(
                     GenerationRequest("coral", overrides, DEFAULT_RESOLUTION)
                 )
+
+
+class RockGeneratorTests(unittest.TestCase):
+    def _generate(self, overrides=None, resolution=17):
+        return GeneratorFactory.generate_request(
+            GenerationRequest("rock", {} if overrides is None else overrides, resolution)
+        )
+
+    def test_deterministic_and_seed_changes_geometry(self):
+        first = self._generate({"seed": 123})
+        repeated = self._generate({"seed": 123})
+        different = self._generate({"seed": 124})
+        self.assertEqual(first.mesh.vertices, repeated.mesh.vertices)
+        self.assertEqual(first.mesh.faces, repeated.mesh.faces)
+        self.assertNotEqual(first.mesh.vertices, different.mesh.vertices)
+
+    def test_parameters_change_shape_scale_and_density(self):
+        smooth = self._generate({"roughness": 0.0})
+        rough = self._generate({"roughness": 0.7})
+        small = self._generate({"size": 20.0})
+        large = self._generate({"size": 80.0})
+        dense = self._generate(resolution=25)
+        self.assertNotEqual(smooth.mesh.vertices, rough.mesh.vertices)
+        self.assertLess(small.statistics.bounds[1][0], large.statistics.bounds[1][0])
+        self.assertGreater(dense.statistics.face_count, smooth.statistics.face_count)
+
+    def test_output_is_single_watertight_finite_non_degenerate_component(self):
+        result = self._generate({"seed": 987, "roughness": 0.7}, 21)
+        stats = result.statistics
+        self.assertTrue(stats.is_manifold)
+        self.assertTrue(stats.is_watertight)
+        self.assertEqual(stats.connected_component_count, 1)
+        self.assertEqual(stats.degenerate_face_count, 0)
+        self.assertTrue(all(math.isfinite(value) for vertex in result.mesh.vertices for value in vertex))
+        extent = 40.0 * 0.72
+        self.assertTrue(all(abs(value) < extent for vertex in result.mesh.vertices for value in vertex))
+
+    def test_invalid_parameters_are_rejected(self):
+        for overrides in (
+            {"size": 0.0}, {"roughness": -0.1}, {"roughness": 0.71},
+            {"seed": 1.5}, {"seed": -1}, {"unknown": 1},
+        ):
+            with self.assertRaises(InvalidGeneratorParameters):
+                self._generate(overrides)
+
+    def test_empty_extraction_is_reported(self):
+        with patch("generators.rock_generator.extract_isosurface", return_value=TriangleMesh((), ())):
+            with self.assertRaisesRegex(MeshExtractionError, "no triangles"):
+                self._generate()
 
 
 class GeneratorRuntimeDependencyTests(unittest.TestCase):
