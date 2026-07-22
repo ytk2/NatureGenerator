@@ -111,14 +111,32 @@ class FakeCommandInputs:
         )
         return result
 
+    def addBoolValueInput(self, input_id, name, is_checkbox, resource, initial):
+        result = SimpleNamespace(
+            id=input_id, name=name, value=initial, isCheckBox=is_checkbox
+        )
+        self.items[input_id] = result
+        return result
+
 
 class FakeCommand:
     def __init__(self):
         self.commandInputs = FakeCommandInputs()
         self.execute = FakeEvent()
+        self.executePreview = FakeEvent()
         self.inputChanged = FakeEvent()
         self.validateInputs = FakeEvent()
         self.destroy = FakeEvent()
+
+
+def fire_preview(command, changed_input=None):
+    """Simulate Fusion firing executePreview after a Preview input change."""
+
+    changed = changed_input or SimpleNamespace(id=runtime.PREVIEW_INPUT_ID)
+    command.inputChanged.handlers[0].notify(SimpleNamespace(input=changed))
+    args = SimpleNamespace(command=command, isValidResult=None)
+    command.executePreview.handlers[0].notify(args)
+    return args
 
 
 def fake_adsk_modules(app):
@@ -248,6 +266,101 @@ class MeshBodyAdapterTests(unittest.TestCase):
         self.assertEqual(body.name, "Test Sponge")
         self.assertEqual(calls[0][1], [0, 1, 2])
         self.assertEqual(calls[0][2:], ([], []))
+
+    def test_builder_removes_partially_inserted_body_if_naming_fails(self):
+        mesh = TriangleMesh(
+            vertices=((0, 0, 0), (1, 0, 0), (0, 1, 0)),
+            faces=((0, 1, 2),),
+        )
+
+        class Body:
+            deleted = 0
+
+            @property
+            def name(self):
+                return ""
+
+            @name.setter
+            def name(self, value):
+                raise RuntimeError("name failed")
+
+            def deleteMe(self):
+                self.deleted += 1
+
+        body = Body()
+        mesh_bodies = SimpleNamespace(
+            addByTriangleMeshData=lambda *args: body
+        )
+        design = SimpleNamespace(
+            rootComponent=SimpleNamespace(meshBodies=mesh_bodies)
+        )
+        adsk = ModuleType("adsk")
+        adsk.core = ModuleType("adsk.core")
+        adsk.fusion = ModuleType("adsk.fusion")
+        with patch.dict(sys.modules, {
+            "adsk": adsk, "adsk.core": adsk.core, "adsk.fusion": adsk.fusion,
+        }):
+            with self.assertRaisesRegex(RuntimeError, "name failed"):
+                MeshBodyBuilder().build(mesh, "preview", design)
+        self.assertEqual(body.deleted, 1)
+
+    def test_builder_inserts_into_root_sets_visibility_and_refreshes(self):
+        mesh = TriangleMesh(
+            vertices=((0, 0, 0), (1, 0, 0), (0, 1, 0)),
+            faces=((0, 1, 2),),
+        )
+        root = SimpleNamespace(name="Root Component")
+        active = SimpleNamespace(name="Active Component")
+
+        class Body:
+            name = ""
+            parentComponent = root
+            assemblyContext = None
+            entityToken = "preview-token"
+            isVisible = True
+            isLightBulbOn = False
+            objectType = "adsk::fusion::MeshBody"
+
+            def classType(self):
+                return "adsk::fusion::MeshBody"
+
+        body = Body()
+
+        class MeshBodies:
+            def __init__(self):
+                self.items = []
+
+            @property
+            def count(self):
+                return len(self.items)
+
+            def addByTriangleMeshData(self, *args):
+                self.items.append(body)
+                return body
+
+        root.meshBodies = MeshBodies()
+        design = SimpleNamespace(rootComponent=root, activeComponent=active)
+        refreshes = []
+        app = SimpleNamespace(
+            activeProduct=design,
+            activeViewport=SimpleNamespace(refresh=lambda: refreshes.append(True)),
+        )
+        adsk = ModuleType("adsk")
+        adsk.core = ModuleType("adsk.core")
+        adsk.fusion = ModuleType("adsk.fusion")
+        adsk.core.Application = SimpleNamespace(get=lambda: app)
+        adsk.fusion.Design = SimpleNamespace(cast=lambda product: product)
+        with patch.dict(sys.modules, {
+            "adsk": adsk, "adsk.core": adsk.core, "adsk.fusion": adsk.fusion,
+        }):
+            created = MeshBodyBuilder().build(mesh, "Preview")
+
+        self.assertIs(created, body)
+        self.assertTrue(body.isLightBulbOn)
+        self.assertEqual(refreshes, [True])
+        self.assertEqual(root.meshBodies.count, 1)
+        self.assertIs(body.parentComponent, root)
+        self.assertIsNone(body.assemblyContext)
 
 
 class FusionDependencyBoundaryTests(unittest.TestCase):
@@ -419,11 +532,13 @@ class FusionRuntimeStartupTests(unittest.TestCase):
     def setUp(self):
         runtime._handlers.clear()
         runtime._command_handler_groups.clear()
+        runtime._preview_controllers.clear()
         runtime._started = False
 
     def tearDown(self):
         runtime._handlers.clear()
         runtime._command_handler_groups.clear()
+        runtime._preview_controllers.clear()
         runtime._started = False
 
     def _start(self, global_panel=True, workspace_panel=True):
@@ -511,9 +626,239 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             inputs[runtime.RESOLUTION_INPUT_ID].value, DEFAULT_RESOLUTION
         )
         self.assertEqual(len(command.execute.handlers), 1)
+        self.assertEqual(len(command.executePreview.handlers), 1)
         self.assertEqual(len(command.inputChanged.handlers), 1)
         self.assertEqual(len(command.validateInputs.handlers), 1)
         self.assertEqual(len(command.destroy.handlers), 1)
+        self.assertIn(runtime.PREVIEW_INPUT_ID, inputs)
+        self.assertEqual(len(runtime._preview_controllers), 1)
+        retained = runtime._command_handler_groups[0]
+        self.assertIs(retained[0], command.execute.handlers[0])
+        self.assertIs(retained[1], command.inputChanged.handlers[0])
+        self.assertIs(retained[2], command.executePreview.handlers[0])
+        self.assertIs(retained[3], command.validateInputs.handlers[0])
+        self.assertIs(retained[4], command.destroy.handlers[0])
+
+    def test_preview_create_replace_finalize_cancel_destroy_and_stop(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preview_input = command.commandInputs.items[runtime.PREVIEW_INPUT_ID]
+        created = []
+
+        class Body:
+            def __init__(self, name):
+                self.name = name
+                self.isValid = True
+                self.deleted = 0
+
+            def deleteMe(self):
+                self.deleted += 1
+                self.isValid = False
+
+        def build(mesh, name):
+            body = Body(name)
+            created.append(body)
+            return body
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        with patch("generators.GeneratorFactory.generate_request", return_value=result):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", side_effect=build):
+                preview_input.value = True
+                fire_preview(command)
+                self.assertEqual(created[0].name, "NatureGenerator Preview — Sponge")
+                self.assertTrue(created[0].isValid)
+                self.assertIs(runtime._preview_controllers[0].body, created[0])
+                command.commandInputs.items[runtime.THICKNESS_INPUT_ID].value = 0.3
+                command.inputChanged.handlers[0].notify(SimpleNamespace(
+                    input=command.commandInputs.items[runtime.THICKNESS_INPUT_ID]
+                ))
+                preview_input.value = True
+                fire_preview(command, preview_input)
+                self.assertEqual(created[0].deleted, 1)
+                self.assertEqual(len(created), 2)
+                command.execute.handlers[0].notify(SimpleNamespace(command=command))
+                self.assertEqual(created[1].deleted, 1)
+                self.assertEqual(created[2].name, "NatureGenerator Sponge")
+                self.assertEqual(created[2].deleted, 0)
+
+        command.destroy.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(created[2].deleted, 0)
+        self.assertEqual(runtime._preview_controllers, [])
+
+        second = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=second)
+        )
+        second_preview = second.commandInputs.items[runtime.PREVIEW_INPUT_ID]
+        with patch("generators.GeneratorFactory.generate_request", return_value=result):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", side_effect=build):
+                fire_preview(second, second_preview)
+        pending = created[-1]
+        with patch.dict(sys.modules, fake_adsk_modules(app)):
+            runtime.stop()
+        self.assertEqual(pending.deleted, 1)
+
+    def test_preview_failure_reports_traceback_and_command_remains_usable(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        changed = SimpleNamespace(id=runtime.PREVIEW_INPUT_ID)
+        with patch(
+            "generators.GeneratorFactory.generate_request",
+            side_effect=RuntimeError("preview exploded"),
+        ):
+            fire_preview(command, changed)
+        self.assertEqual(ui.messages[-1][1], "Preview Error")
+        self.assertIn("preview exploded", ui.messages[-1][0])
+        self.assertTrue(any("Traceback" in message for message in app.logs))
+        self.assertEqual(runtime._preview_controllers[0].state, "failed")
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(
+            name="NatureGenerator Preview — Sponge", isValid=True,
+            deleteMe=lambda: None,
+        )
+        with patch("generators.GeneratorFactory.generate_request", return_value=result):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command, changed)
+        self.assertIs(runtime._preview_controllers[0].body, body)
+
+    def test_preview_operational_lifecycle_is_logged_concisely(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(
+            name="NatureGenerator Preview — Sponge", isValid=True,
+            deleteMe=lambda: None,
+        )
+        with patch("generators.GeneratorFactory.generate_request", return_value=result):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        expected = (
+            "Preview started:",
+            "Preview created:",
+        )
+        position = -1
+        for fragment in expected:
+            position = next(
+                index for index in range(position + 1, len(app.logs))
+                if fragment in app.logs[index]
+            )
+        self.assertFalse(any("entityToken" in item for item in app.logs))
+        self.assertFalse(any("objectType" in item for item in app.logs))
+
+    def test_destroy_removes_successful_preview_without_touching_unrelated_body(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+
+        class Body:
+            def __init__(self):
+                self.name = ""
+                self.isValid = True
+                self.deleted = 0
+
+            def deleteMe(self):
+                self.deleted += 1
+                self.isValid = False
+
+        preview = Body()
+        unrelated = Body()
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        with patch("generators.GeneratorFactory.generate_request", return_value=result):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=preview):
+                fire_preview(command)
+        self.assertEqual(preview.deleted, 0)
+        command.destroy.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(preview.deleted, 1)
+        self.assertEqual(unrelated.deleted, 0)
+
+    def test_stale_preview_is_deleted_and_current_final_is_regenerated(self):
+        class Body:
+            def __init__(self, name):
+                self.name = name
+                self.isValid = True
+                self.deleted = 0
+
+            def deleteMe(self):
+                self.deleted += 1
+                self.isValid = False
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        preview = Body("preview")
+        final = Body("NatureGenerator Sponge")
+        final_requests = []
+        with patch(
+            "commands.generate_nature.generate_nature",
+            side_effect=lambda request, insert: (
+                final_requests.append(request) or (result, final)
+            ),
+        ):
+            app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        with patch("generators.GeneratorFactory.generate_request", return_value=result):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=preview):
+                fire_preview(command)
+        thickness = command.commandInputs.items[runtime.THICKNESS_INPUT_ID]
+        thickness.value = 0.3
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=thickness))
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(preview.deleted, 1)
+        self.assertEqual(final.deleted, 0)
+        self.assertEqual(final_requests[0].parameter_overrides["thickness"], 0.3)
+
+    def test_invalid_or_unavailable_preview_creates_no_body(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preview_input = command.commandInputs.items[runtime.PREVIEW_INPUT_ID]
+        command.commandInputs.items[runtime.CELL_SIZE_INPUT_ID].value = 0.0
+        with patch("generators.GeneratorFactory.generate_request") as generate:
+            fire_preview(command, preview_input)
+        generate.assert_not_called()
+
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name.startswith("Bone")
+        )
+        with patch("generators.GeneratorFactory.generate_request") as generate:
+            fire_preview(command, preview_input)
+        generate.assert_not_called()
 
     def test_preset_switching_updates_visible_metadata_inputs(self):
         app, ui, workspace, panel = self._start()

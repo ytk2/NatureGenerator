@@ -45,6 +45,7 @@ class MeshBodyBuilder:
 
         coordinates, indices = triangle_mesh_data(mesh)
         target_design = design
+        app = None
         if target_design is None:
             app = adsk.core.Application.get()
             target_design = adsk.fusion.Design.cast(
@@ -61,6 +62,23 @@ class MeshBodyBuilder:
         body = mesh_bodies.addByTriangleMeshData(coordinates, indices, [], [])
         if body is None:
             raise FusionAdapterError("Fusion failed to create the MeshBody")
-        if name:
-            body.name = name
+        try:
+            if name:
+                body.name = name
+            if hasattr(body, "isLightBulbOn"):
+                body.isLightBulbOn = True
+        except Exception:
+            delete = getattr(body, "deleteMe", None)
+            if callable(delete):
+                try:
+                    delete()
+                except Exception:
+                    pass
+            raise
+
+        if app is not None:
+            viewport = getattr(app, "activeViewport", None)
+            refresh = getattr(viewport, "refresh", None)
+            if callable(refresh):
+                refresh()
         return body

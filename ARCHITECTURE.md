@@ -1,6 +1,6 @@
 # Architecture
 
-The current stable product baseline is the immutable `v0.8.0` release tag.
+The current stable product baseline is the immutable `v0.9.0` release tag.
 This file is current main-branch documentation describing that architecture;
 later documentation edits do not alter the tagged commit. See the
 [baseline checklist](docs/V0.5.0_BASELINE.md) and
@@ -26,9 +26,8 @@ meshes.
 `PresetFactory` is the command/UI entry point. It uses explicit built-in
 registration rather than filesystem discovery, keeping startup deterministic in
 Fusion's Python environment. Sponge maps to the available `gyroid` generator
-ID. Coral, Rock, and Bark are released through the `coral`, `rock`, and `bark`
-generator IDs. Root is executable but unreleased Sprint 11 work through the
-`root` ID; Bone remains visibly unavailable. Executable presets
+ID. Coral, Rock, Bark, and Root are released through the `coral`, `rock`,
+`bark`, and `root` generator IDs; Bone remains visibly unavailable. Executable presets
 describe all Fusion inputs through ordered parameter metadata.
 
 ### Generator runtime (`generators/`)
@@ -108,6 +107,17 @@ directly, it also adds the directory containing `NatureGenerator.py` to
 `sys.path` once before importing sibling packages. This bootstrap is confined to
 the entry point. Presets, generators, commands, core, and Fusion modules do not
 modify the import path.
+
+Sprint 12 development adds a command-instance `PreviewController` inside the
+Fusion boundary. It stores a deterministic request tuple and owns only the
+temporary MeshBody reference returned to that command. Pure generation still
+flows through `GeneratorFactory`; mesh conversion remains in `MeshBodyBuilder`.
+Input changes mark state stale but do not generate automatically. An explicit
+Preview click arms generation in Fusion's `executePreview` transaction. Destroy
+and add-in stop delete only directly owned preview references; final output is
+regenerated in `execute` after Fusion aborts the preview transaction.
+This lifecycle passed real Autodesk Fusion acceptance on macOS, including
+Browser/viewport insertion, replacement, OK finalization, and Cancel cleanup.
 
 ## Runtime pipeline
 
