@@ -70,6 +70,18 @@ class FakeListItems:
             self.dropdown.selectedItem = item
         return item
 
+    @property
+    def count(self):
+        return len(self.items)
+
+    def item(self, index):
+        return self.items[index]
+
+    def clear(self):
+        self.items.clear()
+        self.dropdown.selectedItem = None
+        return True
+
 
 class FakeCommandInputs:
     def __init__(self):
@@ -618,6 +630,12 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertIn("Root", labels)
         self.assertNotIn("Coral — Coming Soon", labels)
         self.assertEqual(preset_input.selectedItem.name, "Sponge")
+        variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        self.assertEqual(
+            [item.name for item in variant_input.listItems.items],
+            [runtime.CUSTOM_VARIANT_LABEL, "Fine", "Balanced", "Bold"],
+        )
+        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].unit, "mm")
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].value, 1.0)
         self.assertEqual(inputs[runtime.THICKNESS_INPUT_ID].unit, "")
@@ -919,6 +937,149 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             len([key for key in command.commandInputs.items if key.startswith("parameter_root_")]),
             len(root_keys),
         )
+
+    def test_variant_dropdown_tracks_selected_preset_and_preserves_custom_values(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        sponge_cell = inputs[runtime.CELL_SIZE_INPUT_ID]
+        sponge_cell.value = 1.3
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=sponge_cell))
+
+        rock_item = next(item for item in preset_input.listItems.items if item.name == "Rock")
+        preset_input.selectedItem = rock_item
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        self.assertEqual(
+            [item.name for item in variant_input.listItems.items],
+            [runtime.CUSTOM_VARIANT_LABEL, "Smooth", "Weathered", "Rugged"],
+        )
+        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+
+        sponge_item = next(
+            item for item in preset_input.listItems.items if item.name == "Sponge"
+        )
+        preset_input.selectedItem = sponge_item
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        self.assertEqual(sponge_cell.value, 1.3)
+        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+
+    def test_named_variant_applies_values_and_manual_edit_selects_custom(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        variant_input.selectedItem = next(
+            item for item in variant_input.listItems.items if item.name == "Rugged"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+
+        size = inputs[runtime._parameter_input_id("rock", "size")]
+        roughness = inputs[runtime._parameter_input_id("rock", "roughness")]
+        seed = inputs[runtime._parameter_input_id("rock", "seed")]
+        resolution = inputs[runtime._parameter_input_id("rock", "resolution")]
+        self.assertEqual((size.value, roughness.value, seed.value, resolution.value),
+                         (4.5, 0.62, 23, 25))
+        self.assertEqual(variant_input.selectedItem.name, "Rugged")
+
+        roughness.value = 0.5
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=roughness))
+        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+
+    def test_variant_selection_marks_existing_preview_stale_without_generating(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(
+            name="NatureGenerator Preview — Sponge", isValid=True,
+            deleteMe=lambda: None,
+        )
+        with patch("generators.GeneratorFactory.generate_request", return_value=result) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        controller = runtime._preview_controllers[0]
+        self.assertEqual(controller.state, "current")
+        variant_input = command.commandInputs.items[runtime.VARIANT_INPUT_ID]
+        variant_input.selectedItem = next(
+            item for item in variant_input.listItems.items if item.name == "Fine"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+        self.assertEqual(controller.state, "stale")
+        self.assertEqual(generate.call_count, 1)
+
+    def test_named_variant_builds_fresh_preview_request(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        variant_input = command.commandInputs.items[runtime.VARIANT_INPUT_ID]
+        variant_input.selectedItem = next(
+            item for item in variant_input.listItems.items if item.name == "Fine"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch("generators.GeneratorFactory.generate_request", return_value=result) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "sponge")
+        self.assertEqual(request.parameter_overrides["cell_size"], 7.0)
+        self.assertEqual(request.parameter_overrides["thickness"], 0.14)
+        self.assertEqual(request.resolution, 17)
+
+    def test_named_variant_builds_fresh_final_request(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="NatureGenerator Sponge")
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, insert: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        variant_input = command.commandInputs.items[runtime.VARIANT_INPUT_ID]
+        variant_input.selectedItem = next(
+            item for item in variant_input.listItems.items if item.name == "Bold"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].parameter_overrides["cell_size"], 16.0)
+        self.assertEqual(captured[0].parameter_overrides["thickness"], 0.32)
+        self.assertEqual(captured[0].resolution, 17)
 
     def test_root_selection_builds_metadata_driven_request(self):
         captured = []

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import math
 import re
 from types import MappingProxyType
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Tuple
 
 
 _PARAMETER_TYPES = {"bool", "float", "int", "integer", "length", "str"}
@@ -91,6 +91,73 @@ class ParameterMetadata:
 
 
 @dataclass(frozen=True)
+class ParameterRatioConstraint:
+    """Declarative inclusive ratio bounds between two numeric parameters."""
+
+    parameter_id: str
+    reference_parameter_id: str
+    minimum_ratio: Optional[float] = None
+    maximum_ratio: Optional[float] = None
+    minimum_message: str = ""
+    maximum_message: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "parameter_id", _stable_id(self.parameter_id, "parameter_id")
+        )
+        object.__setattr__(
+            self,
+            "reference_parameter_id",
+            _stable_id(self.reference_parameter_id, "reference_parameter_id"),
+        )
+        for value, name in (
+            (self.minimum_ratio, "minimum_ratio"),
+            (self.maximum_ratio, "maximum_ratio"),
+        ):
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value < 0
+            ):
+                raise TypeError(
+                    "{} must be a finite non-negative number or None".format(name)
+                )
+        if self.minimum_ratio is None and self.maximum_ratio is None:
+            raise ValueError("a ratio constraint requires at least one bound")
+        if (
+            self.minimum_ratio is not None
+            and self.maximum_ratio is not None
+            and self.minimum_ratio > self.maximum_ratio
+        ):
+            raise ValueError("minimum_ratio cannot exceed maximum_ratio")
+        if not isinstance(self.minimum_message, str) or not isinstance(
+            self.maximum_message, str
+        ):
+            raise TypeError("constraint messages must be strings")
+
+    def validate(self, values: Mapping[str, Any]) -> None:
+        """Raise ValueError when *values* violate this relationship."""
+
+        value = values[self.parameter_id]
+        reference = values[self.reference_parameter_id]
+        if self.minimum_ratio is not None and value < reference * self.minimum_ratio:
+            raise ValueError(
+                self.minimum_message
+                or "{} must be at least {} of {}".format(
+                    self.parameter_id, self.minimum_ratio, self.reference_parameter_id
+                )
+            )
+        if self.maximum_ratio is not None and value > reference * self.maximum_ratio:
+            raise ValueError(
+                self.maximum_message
+                or "{} must not exceed {} of {}".format(
+                    self.parameter_id, self.maximum_ratio, self.reference_parameter_id
+                )
+            )
+
+
+@dataclass(frozen=True)
 class NaturePreset:
     """Immutable user-facing definition of a natural form."""
 
@@ -103,6 +170,7 @@ class NaturePreset:
     parameter_metadata: Optional[Mapping[str, ParameterMetadata]] = None
     available: bool = False
     unavailable_reason: str = ""
+    parameter_constraints: Tuple[ParameterRatioConstraint, ...] = ()
 
     def __post_init__(self) -> None:
         for attribute in ("display_name", "category", "description"):
@@ -135,6 +203,21 @@ class NaturePreset:
             if defaults[parameter_id] != value.default_value:
                 raise ValueError("parameter metadata default must match preset defaults")
             metadata[parameter_id] = value
+
+        if not isinstance(self.parameter_constraints, tuple):
+            raise TypeError("parameter_constraints must be a tuple")
+        for constraint in self.parameter_constraints:
+            if not isinstance(constraint, ParameterRatioConstraint):
+                raise TypeError(
+                    "parameter_constraints values must be ParameterRatioConstraint"
+                )
+            for parameter_id in (
+                constraint.parameter_id, constraint.reference_parameter_id
+            ):
+                if parameter_id not in metadata:
+                    raise ValueError(
+                        "constraint parameter {!r} requires metadata".format(parameter_id)
+                    )
 
         if not isinstance(self.available, bool):
             raise TypeError("available must be a bool")

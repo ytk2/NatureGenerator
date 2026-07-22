@@ -1,6 +1,6 @@
 """Root preset definition."""
 
-from .preset import NaturePreset, ParameterMetadata
+from .preset import NaturePreset, ParameterMetadata, ParameterRatioConstraint
 
 
 ROOT_PRESET = NaturePreset(
@@ -58,5 +58,17 @@ ROOT_PRESET = NaturePreset(
             description="Voxel samples per axis.",
         ),
     },
+    parameter_constraints=(
+        ParameterRatioConstraint(
+            "root_radius",
+            "length",
+            minimum_ratio=0.08,
+            maximum_ratio=0.20,
+            minimum_message=(
+                "root_radius must be at least 8% of length at supported resolution"
+            ),
+            maximum_message="root_radius must not exceed 20% of length",
+        ),
+    ),
     available=True,
 )

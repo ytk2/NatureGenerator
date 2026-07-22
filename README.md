@@ -2,13 +2,13 @@
 
 > Generate manufacturable natural geometry directly inside Autodesk Fusion.
 
-NatureGenerator v0.9.0 is the stable Root Generator and Public Project
-Foundation release. Sponge, Coral, Rock, Bark, and Root are executable. Sprint
-12 adds an unreleased explicit interactive-preview foundation.
+NatureGenerator v0.10.0 is the stable Interactive Preview Foundation release.
+Sponge, Coral, Rock, Bark, and Root are executable. Sprint 13 adds unreleased
+curated Generator Variants.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
 
-**Stable baseline:** `v0.9.0 — Root Generator and Public Project Foundation`
+**Stable baseline:** `v0.10.0 — Interactive Preview Foundation`
 
 [Getting started](docs/GETTING_STARTED.md) · [Gallery](docs/GALLERY.md) ·
 [Vision](VISION.md) · [Architecture](ARCHITECTURE.md) · [Roadmap](ROADMAP.md) ·
@@ -51,6 +51,7 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
   STL serialization.
 - `generators/`: procedural form generation algorithms.
 - `presets/`: user-facing natural-form definitions and availability metadata.
+- `variants/`: immutable curated parameter configurations and registry.
 - `fusion/`: adapters between core meshes and Fusion 360.
 - `examples/`: small usage examples.
 - `tests/`: dependency-free automated tests.
@@ -87,6 +88,35 @@ sponge = PresetFactory.get("sponge")
 
 Built-ins are registered explicitly for predictable Fusion behavior; the
 framework does not scan directories or dynamically import arbitrary files.
+
+## Generator variants
+
+Sprint 13 development adds three curated parameter configurations for each
+executable preset. Variants are immutable, Fusion-independent data and use only
+existing preset parameters; they do not change generator algorithms.
+
+| Preset | Variants |
+| --- | --- |
+| Sponge | Fine, Balanced, Bold |
+| Coral | Fine Branching, Balanced, Massive |
+| Rock | Smooth, Weathered, Rugged |
+| Bark | Subtle, Grooved, Twisted |
+| Root | Sparse, Balanced, Dense |
+
+The generic **Variant** dropdown also contains **Custom**. Selecting a named
+variant updates the current inputs; editing any value changes the selection to
+Custom. Switching presets retains each preset's last values and restores them
+as Custom. Preview and OK always read current values through the unchanged
+`GenerationRequest` path. Variant names describe parameter configurations and
+do not claim species reproduction or biological realism. See
+[`docs/SPRINT13_DESIGN.md`](docs/SPRINT13_DESIGN.md).
+
+Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
+dropdown appeared, named selections updated parameters, Preview used and
+replaced the current configuration, manual edits selected Custom, Preset
+switching worked, and OK/Cancel remained functional. No event recursion or
+duplicate controls were observed. Sprint 13 remains unreleased until merge and
+tagging.
 
 | Preset | Category | Generator ID | Status |
 | --- | --- | --- | --- |
@@ -172,7 +202,7 @@ The dialog exposes each preset's metadata-defined inputs:
   and Seed:** dimensions and repeatable staged branching controls. Root
   resolution is constrained to 37–41, with a default of 37.
 
-Sponge, Coral, Rock, Bark, and Root are executable in v0.9.0. Bone
+Sponge, Coral, Rock, Bark, and Root are executable in v0.10.0. Bone
 appears as Coming Soon and produces no geometry when selected. Cancel also creates
 no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
@@ -198,9 +228,10 @@ Root v1 has a dominant primary root and lateral branches, but can resemble a
 simplified branching pipe or stylized root rather than a botanically realistic
 root system. It does not claim botanical simulation or species reproduction.
 
-### Unreleased interactive preview
+### Interactive preview
 
-Sprint 12 adds an explicit **Preview** button. It inserts a temporary body named
+The stable preview workflow provides an explicit **Preview** button. It inserts
+a temporary body named
 `NatureGenerator Preview — <Preset>`. Pressing Preview again replaces the body;
 OK lets Fusion abort the preview transaction and regenerates the current final
 request; Cancel, command close, and add-in stop remove owned preview

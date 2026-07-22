@@ -4,9 +4,24 @@ This history is maintained on the current development branch. Release tags are
 immutable recovery points; later documentation updates describe those releases
 without becoming part of their tagged commits.
 
-## Unreleased — Sprint 12 Interactive Preview Foundation
+## Unreleased — Sprint 13 Generator Variants
 
-Development on `feature/interactive-preview` adds an explicit Preview button,
+Development on `feature/generator-variants` adds immutable curated parameter
+configurations for Sponge, Coral, Rock, Bark, and Root, plus a generic Variant
+dropdown and Custom editing state. Variants flow through the existing Preview
+and OK request paths and do not alter generator algorithms. Names describe
+parameter configurations rather than biological or species realism.
+
+Real Fusion acceptance on macOS verified one filtered Variant dropdown, named
+parameter application, explicit Preview and replacement, Custom transition
+after editing, Rock/Bark/Root switching, OK, Cancel, and clean event lifecycle.
+Visual checks covered Rock Smooth, Rock Rugged, Rock Custom, Bark Grooved, and
+Root Dense; they do not represent visual inspection of every Variant. Sprint 13
+remains unreleased pending merge and release tagging.
+
+## v0.10.0 — Interactive Preview Foundation
+
+Added an explicit Preview button,
 temporary preview-body ownership, deterministic request reuse, safe replacement,
 transactional preview insertion, final regeneration, and Destroy/stop cleanup.
 Preview resolution is capped at each preset's existing default Resolution.

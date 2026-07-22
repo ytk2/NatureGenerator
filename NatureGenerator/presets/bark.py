@@ -1,6 +1,6 @@
 """Bark preset definition."""
 
-from .preset import NaturePreset, ParameterMetadata
+from .preset import NaturePreset, ParameterMetadata, ParameterRatioConstraint
 
 
 BARK_PRESET = NaturePreset(
@@ -49,5 +49,13 @@ BARK_PRESET = NaturePreset(
             description="Voxel samples per axis.",
         ),
     },
+    parameter_constraints=(
+        ParameterRatioConstraint(
+            "bark_depth",
+            "diameter",
+            maximum_ratio=0.25,
+            maximum_message="bark_depth must not exceed 25% of diameter",
+        ),
+    ),
     available=True,
 )

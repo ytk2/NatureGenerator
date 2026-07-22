@@ -15,6 +15,8 @@ LEGACY_COMMAND_ID = "NatureGeneratorGenerateSponge"
 WORKSPACE_ID = "FusionSolidEnvironment"
 PANEL_ID = "SolidScriptsAddinsPanel"
 PRESET_INPUT_ID = "naturePreset"
+VARIANT_INPUT_ID = "natureVariant"
+CUSTOM_VARIANT_LABEL = "Custom"
 PREVIEW_INPUT_ID = "naturePreview"
 CELL_SIZE_INPUT_ID = "parameter_sponge_cell_size"
 THICKNESS_INPUT_ID = "parameter_sponge_thickness"
@@ -112,6 +114,28 @@ def _read_parameter(input_value, metadata):
     return value
 
 
+def _write_parameter(input_value, metadata, value):
+    """Write one metadata value using Fusion's internal unit convention."""
+
+    if metadata.value_type == "length" and metadata.unit == "mm":
+        value = float(value) / 10.0
+    elif metadata.value_type in ("integer", "int"):
+        value = int(value)
+    else:
+        value = float(value)
+    input_value.value = value
+
+
+def _select_list_item(dropdown, item) -> None:
+    """Select a documented ListItem, with assignment support for test doubles."""
+
+    item.isSelected = True
+    try:
+        dropdown.selectedItem = item
+    except (AttributeError, TypeError):
+        pass
+
+
 def _delete_command(ui, panel, command_id: str) -> None:
     control = panel.controls.itemById(command_id) if panel else None
     if control is not None:
@@ -136,6 +160,7 @@ def start(context=None) -> None:
         GenerationRequest,
     )
     from presets import PresetFactory
+    from variants import VariantFactory
 
     global _started
 
@@ -219,18 +244,43 @@ def start(context=None) -> None:
         def __init__(self):
             self.pending = False
 
+    class VariantUiState:
+        def __init__(self):
+            self.variant_ids = {}
+            self.expected_values = {}
+
+        def rebuild(self, variant_input, preset_id):
+            self.expected_values.clear()
+            self.variant_ids.clear()
+            if not variant_input.listItems.clear():
+                raise RuntimeError("Fusion failed to rebuild the Variant list")
+            variant_input.listItems.add(CUSTOM_VARIANT_LABEL, True, "")
+            for variant in VariantFactory.list_for_preset(preset_id):
+                variant_input.listItems.add(variant.display_name, False, "")
+                self.variant_ids[variant.display_name] = variant.variant_id
+
+        def select_custom(self, variant_input):
+            for index in range(variant_input.listItems.count):
+                item = variant_input.listItems.item(index)
+                if item.name == CUSTOM_VARIANT_LABEL:
+                    _select_list_item(variant_input, item)
+                    return
+            raise RuntimeError("Custom variant list item is unavailable")
+
     class InputChangedHandler(adsk.core.InputChangedEventHandler):
         def __init__(
-            self, preset_input, preset_ids, parameter_inputs, preview_input,
-            controller, trigger,
+            self, preset_input, preset_ids, variant_input, parameter_inputs,
+            preview_input, controller, trigger, variant_state,
         ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
+            self._variant_input = variant_input
             self._parameter_inputs = parameter_inputs
             self._preview_input = preview_input
             self._controller = controller
             self._trigger = trigger
+            self._variant_state = variant_state
 
         def notify(self, args):
             try:
@@ -245,6 +295,43 @@ def start(context=None) -> None:
                 selected_id = self._preset_ids[selected.name] if selected else None
                 for (preset_id, _), input_value in self._parameter_inputs.items():
                     input_value.isVisible = preset_id == selected_id
+
+                if changed_id == PRESET_INPUT_ID:
+                    self._variant_state.rebuild(self._variant_input, selected_id)
+                    return
+
+                if changed_id == VARIANT_INPUT_ID:
+                    chosen = self._variant_input.selectedItem
+                    if chosen is None or chosen.name == CUSTOM_VARIANT_LABEL:
+                        self._variant_state.expected_values.clear()
+                        return
+                    variant = VariantFactory.get(
+                        self._variant_state.variant_ids[chosen.name]
+                    )
+                    if variant.preset_id != selected_id:
+                        raise ValueError("variant does not belong to selected preset")
+                    preset = PresetFactory.get(selected_id)
+                    expected = {}
+                    for parameter_id, value in variant.parameter_values.items():
+                        input_id = _parameter_input_id(selected_id, parameter_id)
+                        input_value = self._parameter_inputs[
+                            (selected_id, parameter_id)
+                        ]
+                        _write_parameter(
+                            input_value, preset.parameter_metadata[parameter_id], value
+                        )
+                        expected[input_id] = input_value.value
+                    self._variant_state.expected_values = expected
+                    return
+
+                parameter_prefix = "parameter_{}_".format(selected_id)
+                if changed_id and changed_id.startswith(parameter_prefix):
+                    expected = self._variant_state.expected_values
+                    if changed_id in expected and changed.value == expected[changed_id]:
+                        expected.pop(changed_id)
+                        return
+                    expected.clear()
+                    self._variant_state.select_custom(self._variant_input)
             except Exception:
                 details = traceback.format_exc()
                 app.log(details)
@@ -376,6 +463,13 @@ def start(context=None) -> None:
                     label, preset.preset_id == sponge.preset_id, ""
                 )
                 preset_ids[label] = preset.preset_id
+            variant_input = inputs.addDropDownCommandInput(
+                VARIANT_INPUT_ID,
+                "Variant",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            variant_state = VariantUiState()
+            variant_state.rebuild(variant_input, sponge.preset_id)
             parameter_inputs = {}
             for preset in presets:
                 if not preset.available:
@@ -404,8 +498,8 @@ def start(context=None) -> None:
                 controller,
             )
             input_changed_handler = InputChangedHandler(
-                preset_input, preset_ids, parameter_inputs, preview_input,
-                controller, preview_trigger,
+                preset_input, preset_ids, variant_input, parameter_inputs,
+                preview_input, controller, preview_trigger, variant_state,
             )
             execute_preview_handler = ExecutePreviewHandler(
                 preset_input, preset_ids, parameter_inputs, controller,

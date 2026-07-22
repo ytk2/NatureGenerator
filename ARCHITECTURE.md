@@ -119,10 +119,26 @@ regenerated in `execute` after Fusion aborts the preview transaction.
 This lifecycle passed real Autodesk Fusion acceptance on macOS, including
 Browser/viewport insertion, replacement, OK finalization, and Cancel cleanup.
 
+Sprint 13 adds a Fusion-independent `variants/` layer beside `presets/`.
+`VariantDefinition` contains only stable IDs, presentation text, and immutable
+existing-parameter values. `VariantRegistry` validates definitions against
+`PresetFactory` metadata and declarative ratio constraints without importing a
+generator. The Fusion runtime maps a selected variant generically onto the
+already metadata-generated inputs; request construction, preview execution,
+final generation, and concrete-generator routing remain unchanged.
+
+Variants are curated parameter bundles, not separate generators. Geometry is
+determined entirely by the normalized current parameters in
+`GenerationRequest`; no hidden Variant identity reaches `GeneratorFactory`.
+Real Fusion acceptance on macOS verified filtered dropdown rebuilding, generic
+parameter application, Custom transitions, Preview replacement, Preset
+switching, and OK/Cancel behavior without recursive events or duplicate UI.
+
 ## Runtime pipeline
 
 ```text
 User / Fusion Command
+    -> Variant Definition (optional parameter configuration)
     -> Generation Request
     -> Nature Preset
     -> Generator Runtime
@@ -155,6 +171,7 @@ they do not become implicit side effects of surface extraction.
 ```text
 Fusion UI lifecycle
     -> Fusion Adapter runtime
+    -> VariantFactory
     -> Generate Nature command
     -> GenerationRequest
     -> PresetFactory
@@ -175,6 +192,11 @@ reference generator implementations only through stable `generator_id` strings.
 The Generator Runtime owns ID resolution, and the Fusion Adapter depends on core
 mesh types rather than the reverse. Autodesk dependencies stop at the
 `fusion/` boundary.
+
+Variants depend on preset abstractions for validation. They do not depend on
+Fusion, commands, core geometry, or concrete generators. Stable variant IDs are
+separate from display names, while Custom remains transient UI state rather
+than a registered definition.
 
 These boundaries keep mathematical geometry testable in ordinary Python and
 prevent Autodesk runtime concerns from leaking into presets or algorithms.
