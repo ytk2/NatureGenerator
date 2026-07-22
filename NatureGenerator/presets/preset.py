@@ -42,6 +42,7 @@ class ParameterMetadata:
     maximum: Optional[float] = None
     unit: str = ""
     description: str = ""
+    preview_resolutions: Tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         display_name = _nonempty_text(self.display_name, "display_name")
@@ -85,6 +86,21 @@ class ParameterMetadata:
 
         if not isinstance(self.unit, str) or not isinstance(self.description, str):
             raise TypeError("unit and description must be strings")
+        if not isinstance(self.preview_resolutions, tuple):
+            raise TypeError("preview_resolutions must be a tuple")
+        previous = None
+        for resolution in self.preview_resolutions:
+            if isinstance(resolution, bool) or not isinstance(resolution, int):
+                raise TypeError("preview resolutions must be integers")
+            if resolution <= 0:
+                raise ValueError("preview resolutions must be positive")
+            if previous is not None and resolution <= previous:
+                raise ValueError("preview resolutions must be strictly increasing")
+            if minimum is not None and resolution < minimum:
+                raise ValueError("preview resolution cannot be below minimum")
+            if maximum is not None and resolution > maximum:
+                raise ValueError("preview resolution cannot exceed maximum")
+            previous = resolution
         object.__setattr__(self, "display_name", display_name)
         object.__setattr__(self, "value_type", value_type)
         object.__setattr__(self, "default_value", default_value)

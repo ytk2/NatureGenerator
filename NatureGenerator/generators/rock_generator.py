@@ -1,4 +1,4 @@
-"""Deterministic dependency-free rounded rock generation."""
+"""Deterministic dependency-free multi-scale boulder generation."""
 
 import math
 from typing import Any
@@ -14,19 +14,74 @@ from .value_noise import DeterministicValueNoise
 
 
 class _RockField:
-    """Ellipsoid radial field deformed by directional terms and value noise."""
+    """Faceted ellipsoid field with FBM, ridges, and a grounded lower face."""
 
     def __init__(self, size: float, roughness: float, seed: int) -> None:
         self.size = size
         self.roughness = roughness
         self.seed = seed
         self.noise = DeterministicValueNoise(seed)
-        # Seeded but bounded axis proportions create broad asymmetry.
+        normalized = max(0.0, min(1.0, roughness / 0.70))
+        self.response = normalized * normalized * (3.0 - 2.0 * normalized)
+        # Seeded axis proportions establish a broad non-spherical silhouette.
+        axis_variation = 0.35 + 0.65 * self.response
         self.radii = (
-            size * (0.47 + 0.025 * self.noise._lattice(1, 0, 0)),
-            size * (0.40 + 0.025 * self.noise._lattice(0, 1, 0)),
-            size * (0.34 + 0.020 * self.noise._lattice(0, 0, 1)),
+            size * (
+                0.47 + 0.025 * self.response
+                + 0.025 * axis_variation * self.noise._lattice(1, 0, 0)
+            ),
+            size * (
+                0.42 - 0.035 * self.response
+                + 0.025 * axis_variation * self.noise._lattice(0, 1, 0)
+            ),
+            size * (
+                0.36 - 0.040 * self.response
+                + 0.020 * axis_variation * self.noise._lattice(0, 0, 1)
+            ),
         )
+        self.facets = tuple(self._facet(index) for index in range(5))
+
+    def _facet(self, index: int):
+        """Return one stable upper/side clipping plane in normalized space."""
+
+        x = self.noise._lattice(17 + index * 5, 3, -7)
+        y = self.noise._lattice(-11, 23 + index * 7, 5)
+        z = 0.15 + 0.70 * abs(self.noise._lattice(7, -13, 31 + index * 3))
+        length = math.sqrt(x * x + y * y + z * z)
+        normal = (x / length, y / length, z / length)
+        # Smooth rocks receive only tiny cap facets; Rugged exposes broad planes.
+        offset = 1.015 - self.response * (
+            0.245 + 0.030 * self.noise._lattice(index, 41, -19)
+        )
+        return normal, offset
+
+    def _fbm(self, x: float, y: float, z: float, octaves: int) -> float:
+        """Return normalized deterministic multi-octave value-noise FBM."""
+
+        amplitude = 1.0
+        frequency = 0.78
+        total = 0.0
+        weight = 0.0
+        for octave in range(octaves):
+            total += amplitude * self.noise.sample(
+                x * frequency + 11.3 + octave * 3.17,
+                y * frequency - 7.9 + octave * 1.91,
+                z * frequency + 5.1 - octave * 2.43,
+            )
+            weight += amplitude
+            frequency *= 2.08
+            amplitude *= 0.52
+        return total / weight
+
+    def _ridged(self, x: float, y: float, z: float) -> float:
+        """Return centered ridge noise for sharper creases and shoulders."""
+
+        ridge = 1.0 - abs(self.noise.sample(
+            x * 3.15 - 4.7,
+            y * 3.15 + 9.2,
+            z * 3.15 - 2.6,
+        ))
+        return ridge * ridge - 0.38
 
     def __call__(self, x: float, y: float, z: float) -> float:
         nx, ny, nz = x / self.radii[0], y / self.radii[1], z / self.radii[2]
@@ -34,22 +89,39 @@ class _RockField:
         if radius == 0.0:
             return -1.0
         dx, dy, dz = nx / radius, ny / radius, nz / radius
-        broad = 0.055 * (dx * dy - 0.65 * dz * dz + 0.45 * dx * dz)
-        frequency = 1.35
-        amplitude = 1.0
-        total = 0.0
-        weight = 0.0
-        for _ in range(3):
-            total += amplitude * self.noise.sample(
-                dx * frequency + 13.7,
-                dy * frequency - 8.3,
-                dz * frequency + 4.9,
-            )
-            weight += amplitude
-            frequency *= 2.07
-            amplitude *= 0.5
-        variation = broad + self.roughness * 0.24 * (total / weight)
-        return radius - (1.0 + variation)
+
+        # Low-order terms break the sphere-like outline before noise is applied.
+        broad = (
+            0.060 * dx * dy
+            + 0.040 * dx * dz
+            - 0.045 * dz * dz
+            + 0.025 * (dx * dx - dy * dy)
+        )
+        large = self.noise.sample(
+            nx * 0.68 + 2.7,
+            ny * 0.68 - 5.4,
+            nz * 0.68 + 8.1,
+        )
+        fbm = self._fbm(nx, ny, nz, 5)
+        ridge = self._ridged(nx, ny, nz)
+        variation = (
+            broad * (0.35 + 0.95 * self.response)
+            + (0.018 + 0.145 * self.response) * large
+            + (0.012 + 0.105 * self.response) * fbm
+            + 0.090 * math.pow(self.response, 1.35) * ridge
+        )
+        field = radius - (1.0 + variation)
+
+        # Intersect with stable half-spaces. The max operation creates genuine
+        # planar regions while preserving a single continuous implicit solid.
+        for normal, offset in self.facets:
+            plane = nx * normal[0] + ny * normal[1] + nz * normal[2] - offset
+            field = max(field, plane)
+
+        # A small lower clipping face gives the boulder a plausible bearing
+        # surface. Rougher stones receive a slightly broader grounded region.
+        ground_offset = 0.95 - 0.17 * self.response
+        return max(field, -nz - ground_offset)
 
 
 class RockGenerator(MeshGenerator):

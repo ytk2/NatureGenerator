@@ -368,7 +368,10 @@ def start(context=None) -> None:
                     int(metadata.default_value)
                     if metadata is not None else request.resolution
                 )
-                actual_request = preview_request(request, cap)
+                candidates = (
+                    metadata.preview_resolutions if metadata is not None else ()
+                )
+                actual_request = preview_request(request, cap, candidates)
                 temporary_name = "NatureGenerator Preview — {}".format(
                     preset.display_name
                 )

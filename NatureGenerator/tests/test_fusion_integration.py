@@ -1052,6 +1052,40 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(request.parameter_overrides["thickness"], 0.14)
         self.assertEqual(request.resolution, 17)
 
+    def test_rugged_rock_preview_uses_adaptive_resolution_and_same_values(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        variant_input.selectedItem = next(
+            item for item in variant_input.listItems.items if item.name == "Rugged"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch("generators.GeneratorFactory.generate_request", return_value=result) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.resolution, 21)
+        self.assertEqual(
+            request.parameter_overrides,
+            {"size": 45.0, "roughness": 0.62, "seed": 23},
+        )
+
     def test_named_variant_builds_fresh_final_request(self):
         captured = []
         result = SimpleNamespace(

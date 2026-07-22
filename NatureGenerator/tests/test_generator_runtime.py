@@ -1,6 +1,7 @@
 """End-to-end tests for the preset-to-mesh generator runtime."""
 
 from dataclasses import FrozenInstanceError
+from collections import Counter
 from pathlib import Path
 import hashlib
 import math
@@ -311,6 +312,62 @@ class RockGeneratorTests(unittest.TestCase):
         extent = 40.0 * 0.72
         self.assertTrue(all(abs(value) < extent for vertex in result.mesh.vertices for value in vertex))
 
+    def test_v2_styles_are_grounded_and_rugged_has_stronger_planar_regions(self):
+        smooth = self._generate({"roughness": 0.10, "seed": 1})
+        weathered = self._generate({"roughness": 0.35, "seed": 1})
+        rugged = self._generate(
+            {"size": 45.0, "roughness": 0.62, "seed": 23}, 25
+        )
+
+        planar_face_counts = []
+        grounded_face_counts = []
+        for result in (smooth, weathered, rugged):
+            stats = result.statistics
+            self.assertTrue(stats.is_manifold)
+            self.assertTrue(stats.is_watertight)
+            self.assertEqual(stats.connected_component_count, 1)
+            self.assertEqual(stats.nonmanifold_edge_count, 0)
+            self.assertEqual(stats.nonmanifold_vertex_count, 0)
+            self.assertEqual(stats.inconsistent_winding_edge_count, 0)
+            normals = [
+                tuple(round(value, 5) for value in result.mesh.face_normal(index))
+                for index in range(len(result.mesh.faces))
+            ]
+            counts = Counter(normals)
+            planar_face_counts.append(max(counts.values()))
+            grounded_face_counts.append(counts[(0.0, -0.0, -1.0)])
+
+        self.assertGreater(min(grounded_face_counts), 0)
+        self.assertGreater(planar_face_counts[2], planar_face_counts[0] * 3)
+        self.assertGreater(grounded_face_counts[2], grounded_face_counts[0] * 3)
+
+    def test_roughness_changes_large_scale_silhouette_and_faceting(self):
+        low = self._generate({"roughness": 0.10, "seed": 1}, 25)
+        high = self._generate({"roughness": 0.70, "seed": 1}, 25)
+
+        low_spans = tuple(
+            low.statistics.bounds[1][axis] - low.statistics.bounds[0][axis]
+            for axis in range(3)
+        )
+        high_spans = tuple(
+            high.statistics.bounds[1][axis] - high.statistics.bounds[0][axis]
+            for axis in range(3)
+        )
+        self.assertGreater(
+            max(abs(a - b) for a, b in zip(low_spans, high_spans)), 4.0
+        )
+
+        def largest_planar_region(result):
+            normals = (
+                tuple(round(value, 5) for value in result.mesh.face_normal(index))
+                for index in range(len(result.mesh.faces))
+            )
+            return max(Counter(normals).values())
+
+        self.assertGreater(
+            largest_planar_region(high), largest_planar_region(low) * 5
+        )
+
     def test_invalid_parameters_are_rejected(self):
         for overrides in (
             {"size": 0.0}, {"roughness": -0.1}, {"roughness": 0.71},
@@ -324,14 +381,14 @@ class RockGeneratorTests(unittest.TestCase):
             with self.assertRaisesRegex(MeshExtractionError, "no triangles"):
                 self._generate()
 
-    def test_shared_noise_refactor_preserves_default_mesh_exactly(self):
+    def test_v2_default_mesh_digest(self):
         result = self._generate()
         digest = hashlib.sha256(
             repr((result.mesh.vertices, result.mesh.faces)).encode("ascii")
         ).hexdigest()
         self.assertEqual(
             digest,
-            "61beffffce8ee5669fc3e2cb8fbe8a396424f0ad5c7ea1d6128032a943f8c1c1",
+            "30a709c32fb7dd16b87f0388f21c6e24e12b6ad990b2872dd31f9549956e7c1d",
         )
 
 

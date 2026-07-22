@@ -21,16 +21,34 @@ def request_signature(request: GenerationRequest) -> RequestSignature:
 
 
 def preview_request(
-    request: GenerationRequest, resolution_cap: int
+    request: GenerationRequest,
+    resolution_cap: int,
+    resolution_candidates: Tuple[int, ...] = (),
 ) -> GenerationRequest:
-    """Return a request capped at a preset's safe default resolution."""
+    """Return a deterministic density-capped request for explicit Preview."""
 
     if isinstance(resolution_cap, bool) or not isinstance(resolution_cap, int):
         raise TypeError("preview resolution cap must be an integer")
+    if not isinstance(resolution_candidates, tuple):
+        raise TypeError("preview resolution candidates must be a tuple")
+    preview_resolution = min(request.resolution, resolution_cap)
+    previous = None
+    for candidate in resolution_candidates:
+        if isinstance(candidate, bool) or not isinstance(candidate, int):
+            raise TypeError("preview resolution candidates must be integers")
+        if candidate <= 0 or (previous is not None and candidate <= previous):
+            raise ValueError(
+                "preview resolution candidates must be positive and increasing"
+            )
+        # Keep Preview below a higher requested Final tier. When the request is
+        # already at the safe default, the initial cap preserves exact density.
+        if candidate < request.resolution:
+            preview_resolution = max(preview_resolution, candidate)
+        previous = candidate
     return GenerationRequest(
         request.preset_id,
         request.parameter_overrides,
-        min(request.resolution, resolution_cap),
+        min(request.resolution, preview_resolution),
     )
 
 
