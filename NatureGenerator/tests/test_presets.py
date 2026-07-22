@@ -69,7 +69,7 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(preset.parameter_metadata, {"scale": scale_metadata})
 
     def test_unavailable_presets_are_explicit(self):
-        for preset_id in ("bone", "bark"):
+        for preset_id in ("bone",):
             preset = PresetFactory.get(preset_id)
             self.assertFalse(preset.available)
             self.assertTrue(preset.unavailable_reason)
@@ -98,6 +98,28 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(rock.parameter_metadata["seed"].value_type, "integer")
         self.assertEqual(rock.parameter_metadata["resolution"].minimum, 9)
         self.assertEqual(rock.parameter_metadata["resolution"].maximum, 41)
+
+    def test_bark_is_available_with_stable_metadata_and_defaults(self):
+        bark = PresetFactory.get("bark")
+        self.assertTrue(bark.available)
+        self.assertEqual(bark.preset_id, "bark")
+        self.assertEqual(bark.generator_id, "bark")
+        self.assertEqual(
+            tuple(bark.parameter_metadata),
+            ("diameter", "height", "bark_depth", "groove_scale", "twist", "seed", "resolution"),
+        )
+        self.assertEqual(dict(bark.default_parameters), {
+            "diameter": 80.0, "height": 120.0, "bark_depth": 4.0,
+            "groove_scale": 18.0, "twist": 0.0, "seed": 10,
+            "resolution": 33,
+        })
+        for key in ("diameter", "height", "bark_depth", "groove_scale"):
+            self.assertEqual(bark.parameter_metadata[key].value_type, "length")
+            self.assertEqual(bark.parameter_metadata[key].unit, "mm")
+            self.assertGreater(bark.parameter_metadata[key].minimum, 0)
+        self.assertEqual(bark.parameter_metadata["seed"].value_type, "integer")
+        self.assertEqual(bark.parameter_metadata["resolution"].minimum, 29)
+        self.assertEqual(bark.parameter_metadata["resolution"].maximum, 41)
 
     def test_stable_ids_reject_display_text(self):
         with self.assertRaises(ValueError):

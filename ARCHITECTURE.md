@@ -1,6 +1,6 @@
 # Architecture
 
-The current stable product baseline is the immutable `v0.5.0` release tag.
+The current stable product baseline is the immutable `v0.7.0` release tag.
 This file is current main-branch documentation describing that architecture;
 later documentation edits do not alter the tagged commit. See the
 [baseline checklist](docs/V0.5.0_BASELINE.md) and
@@ -26,10 +26,9 @@ meshes.
 `PresetFactory` is the command/UI entry point. It uses explicit built-in
 registration rather than filesystem discovery, keeping startup deterministic in
 Fusion's Python environment. Sponge maps to the available `gyroid` generator
-ID. Coral and Rock are available through the `coral` and `rock` generator IDs;
-Bone and Bark remain visibly unavailable until their reserved generator IDs
-have implementations. Executable presets describe all Fusion inputs through
-ordered parameter metadata.
+ID. Coral, Rock, and Sprint 10 Bark are available through the `coral`, `rock`,
+and `bark` generator IDs; Bone remains visibly unavailable. Executable presets
+describe all Fusion inputs through ordered parameter metadata.
 
 ### Generator runtime (`generators/`)
 
@@ -44,8 +43,10 @@ an immutable `GeneratorResult` containing the mesh, statistics, warnings, IDs,
 and elapsed time.
 
 `SpongeGenerator` delegates to the unchanged `GyroidGenerator` pipeline, while
-`CoralGenerator` produces a closed branching implicit solid and `RockGenerator`
-produces a closed deformed ellipsoid with deterministic value noise. The legacy
+`CoralGenerator` produces a closed branching implicit solid, `RockGenerator`
+produces a closed deformed ellipsoid with deterministic value noise, and
+`BarkGenerator` produces a closed capped trunk field with directional periodic
+detail using the same narrow deterministic value-noise primitive. The legacy
 generator-ID factory and public result-returning entry points remain compatible.
 The runtime uses explicit registration rather than filesystem discovery and
 does not introduce `GeneratorDescriptor`.
@@ -54,8 +55,9 @@ does not introduce `GeneratorDescriptor`.
 
 A scalar field is the mathematical implicit representation of a form. It maps a
 three-dimensional point to a scalar value that can be sampled and polygonized.
-`GyroidField` is the current implementation and returns `abs(g) - thickness` for
-a periodic gyroid sheet.
+`GyroidField` returns `abs(g) - thickness` for a periodic gyroid sheet. Rock and
+Bark supply bounded callable fields directly; Bark closes its finite cylinder
+with the maximum of its radial side field and planar cap field.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing
