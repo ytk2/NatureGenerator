@@ -88,11 +88,14 @@ algorithm implementations. It resolves an available preset's stable
 There is no filesystem discovery or algorithm selection chain.
 
 ```python
-from generators import GeneratorFactory
-from presets import PresetFactory
+from generators import GenerationRequest, GeneratorFactory
 
-preset = PresetFactory.get("sponge")
-result = GeneratorFactory.generate(preset)
+request = GenerationRequest(
+    preset_id="sponge",
+    parameter_overrides={"cell_size": 12.0, "thickness": 0.25},
+    resolution=21,
+)
+result = GeneratorFactory.generate_request(request)
 
 print(result.statistics.face_count)
 print(result.elapsed_time)
@@ -105,16 +108,19 @@ immutable `GeneratorResult`. The finite gyroid crop normally has boundary edges,
 so that expected open-mesh condition is returned as a warning rather than being
 misrepresented as watertight.
 
-## First Fusion integration
+`GeneratorFactory.generate(preset, parameters)` remains available for existing
+callers and uses the original resolution of 17 samples per axis.
 
-Sprint 6 adds one intentionally minimal **Generate Sponge** command to the
-Design workspace's Add-Ins panel. It selects the built-in Sponge preset, runs
-the existing Generator Runtime with preset defaults, and asks the Fusion
-Adapter to insert the resulting `TriangleMesh` as a `MeshBody` in the active
-design.
+## Interactive Fusion generation
+
+The **Generate Nature** command appears in the Design workspace's Add-Ins panel.
+Its dialog selects a preset and accepts Sponge generation parameters before it
+runs the Generator Runtime and inserts the resulting `TriangleMesh` as a
+`MeshBody` in the active design.
 
 ```text
-Generate Sponge
+Generate Nature
+    -> GenerationRequest
     -> PresetFactory
     -> GeneratorFactory
     -> TriangleMesh
@@ -122,11 +128,18 @@ Generate Sponge
     -> MeshBody
 ```
 
-There is no parameter dialog or preview yet. The command module remains
-Fusion-independent; command registration, Autodesk event handling, and
-`MeshBody` construction are isolated in `fusion/`. See
-[`docs/SPRINT6_DESIGN.md`](docs/SPRINT6_DESIGN.md) for the Sprint scope and
-design constraints.
+The dialog exposes:
+
+- **Cell Size:** physical gyroid period in millimeters.
+- **Thickness:** dimensionless isosurface offset around the gyroid surface.
+- **Resolution:** samples per axis; higher values increase mesh quality and
+  pure-Python runtime cost. The supported range is 9–41 and the default is 17.
+
+Sponge is currently the only executable preset. Other natural forms appear as
+Coming Soon and produce no geometry when selected. Cancel also creates no
+geometry. Command orchestration remains Fusion-independent; Autodesk command
+inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
+See [`docs/SPRINT7_DESIGN.md`](docs/SPRINT7_DESIGN.md) for the detailed contract.
 
 ## Gyroid scalar field
 
