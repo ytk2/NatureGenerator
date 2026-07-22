@@ -2,14 +2,13 @@
 
 > Generate manufacturable natural forms directly inside Autodesk Fusion.
 
-NatureGenerator v0.5.0 is the stable interactive Fusion baseline with the
-Sponge preset. Sprint 9 development adds deterministic Rock generation and a
-preset-driven Fusion dialog alongside the executable Sponge and Coral forms.
+NatureGenerator v0.7.0 is the stable Rock Generator baseline. Sprint 10
+development adds deterministic Bark generation alongside the executable
+Sponge, Coral, and Rock forms.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
 
-**Stable baseline:**
-[v0.5.0 — Interactive Generation Command](docs/V0.5.0_BASELINE.md)
+**Stable baseline:** `v0.7.0 — Rock Generator`
 
 [Release history](docs/RELEASES.md) · [Roadmap](ROADMAP.md) ·
 [Architecture](ARCHITECTURE.md) · [Documentation index](docs/README.md)
@@ -17,7 +16,8 @@ preset-driven Fusion dialog alongside the executable Sponge and Coral forms.
 The project includes a Fusion-independent procedural geometry pipeline and a
 user-facing nature preset framework. Sponge is backed by the configurable
 gyroid scalar field, Coral uses a closed branching implicit solid, and Rock
-uses a deformed ellipsoid with dependency-free value noise.
+uses a deformed ellipsoid with dependency-free value noise. Sprint 10 Bark uses
+a closed finite cylinder with directional, anisotropic surface variation.
 
 ## Geometry pipeline
 
@@ -89,7 +89,7 @@ framework does not scan directories or dynamically import arbitrary files.
 | Coral | Aquatic | `coral` | Available in Sprint 8 development |
 | Sponge | Aquatic | `gyroid` | Available |
 | Bone | Biological | `cellular` | Unavailable — generator not implemented |
-| Bark | Botanical | `noise` | Unavailable — generator not implemented |
+| Bark | Botanical | `bark` | Available in Sprint 10 development |
 | Rock | Geological | `rock` | Available in Sprint 9 development |
 
 ## Generator runtime
@@ -124,7 +124,8 @@ misrepresented as watertight.
 branch capsules. Its surface stays inside the sampled domain and must pass
 watertight validation. `GeneratorFactory.create_for_preset(preset_id)` resolves
 both forms through explicit preset and generator registration. The
-request-oriented `SpongeGenerator`, `CoralGenerator`, and `RockGenerator` each return a
+request-oriented `SpongeGenerator`, `CoralGenerator`, `RockGenerator`, and
+`BarkGenerator` each return a
 `TriangleMesh`; the factory preserves the public immutable `GeneratorResult`
 API and delegates Sponge geometry to the unchanged `GyroidGenerator` pipeline.
 
@@ -134,7 +135,7 @@ callers and uses the original resolution of 17 samples per axis.
 ## Interactive Fusion generation
 
 The **Generate Nature** command appears in the Design workspace's Add-Ins panel.
-Its dialog selects Sponge, Coral, or Rock and builds each form's inputs from
+Its dialog selects Sponge, Coral, Rock, or Bark and builds each form's inputs from
 immutable preset parameter metadata before it
 runs the Generator Runtime and inserts the resulting `TriangleMesh` as a
 `MeshBody` in the active design.
@@ -159,9 +160,12 @@ The dialog exposes each preset's metadata-defined inputs:
   pure-Python runtime cost. The supported range is 9–41 and the default is 17.
 - **Rock Size, Roughness, and Seed:** physical scale, bounded surface variation,
   and a repeatable deterministic variation key.
+- **Bark Diameter, Height, Bark Depth, Groove Scale, Twist, and Seed:** trunk
+  dimensions and repeatable directional ridge controls. Bark resolution is
+  constrained to 29–41, with a default of 33.
 
-Sponge, Coral, and Rock are executable on the Sprint 9 branch. Other natural forms
-appear as Coming Soon and produce no geometry when selected. Cancel also creates
+Sponge, Coral, Rock, and Bark are executable on the Sprint 10 branch. Bone
+appears as Coming Soon and produces no geometry when selected. Cancel also creates
 no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
 See [`docs/SPRINT8_DESIGN.md`](docs/SPRINT8_DESIGN.md) for the multi-generator
@@ -171,6 +175,14 @@ faces in approximately 0.148 seconds; this is one verified configuration rather
 than an exhaustive parameter test.
 See [`docs/SPRINT9_DESIGN.md`](docs/SPRINT9_DESIGN.md) for Rock's field,
 sampling-margin, and preset-driven UI decisions.
+See [`docs/SPRINT10_DESIGN.md`](docs/SPRINT10_DESIGN.md) for Bark's exact capped
+cylinder field, anisotropic value-noise construction, bounds, and limitations.
+
+Bark v1 is intentionally a closed procedural trunk segment with directional
+grooves. Its current visual character is closer to an irregular or twisted
+trunk than realistic deeply fractured bark. Adjusting depth, spacing, twist,
+and variation cannot add longitudinal cracks, peeling plates, knots, or
+species-specific structure; those remain future work.
 
 ## Gyroid scalar field
 

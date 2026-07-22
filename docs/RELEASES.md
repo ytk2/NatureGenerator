@@ -4,9 +4,28 @@ This history is maintained on the current development branch. Release tags are
 immutable recovery points; later documentation updates describe those releases
 without becoming part of their tagged commits.
 
+## Unreleased — Sprint 10 Bark Generator
+
+Development on `feature/bark-generator` adds a deterministic closed Bark trunk
+with Diameter, Height, Bark Depth, Groove Scale, Twist, Seed, and Resolution
+controls. Real Fusion acceptance has passed; it remains unreleased until merge
+and an explicit release tag.
+
+Real Fusion acceptance on macOS verified Bark preset inputs, MeshBody creation,
+parameter effects, Bark Depth rejection, and command lifecycle behavior. Bark
+v1 is a closed directional-groove trunk, but its visual character remains closer
+to an irregular or twisted trunk than realistic fractured bark. Crack, plate,
+peeling, knot, and species-specific models remain future work.
+
+## v0.7.0 — Rock Generator
+
+Added the deterministic watertight Rock generator, Size/Roughness/Seed controls,
+and metadata-driven preset-specific Fusion inputs while preserving Sponge and
+Coral behavior.
+
 ## v0.5.0 — Interactive Generation Command
 
-**Status:** Current stable baseline
+**Status:** Historical stable release
 
 ### Capabilities
 

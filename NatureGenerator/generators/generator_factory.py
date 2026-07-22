@@ -9,6 +9,7 @@ from presets import PresetFactory
 from presets.preset import NaturePreset
 
 from .coral_generator import CoralGenerator
+from .bark_generator import BarkGenerator
 from .generator import (
     Generator,
     MeshExtractionError,
@@ -58,6 +59,7 @@ class GeneratorFactory:
             cls.register_preset("sponge", SpongeGenerator)
             cls.register_preset("coral", CoralGenerator)
             cls.register_preset("rock", RockGenerator)
+            cls.register_preset("bark", BarkGenerator)
             cls._builtins_registered = True
 
     @classmethod
@@ -116,7 +118,10 @@ class GeneratorFactory:
             registered = None
         if registered == preset:
             supplied = {} if parameters is None else dict(parameters)
-            resolution = supplied.pop("resolution", DEFAULT_RESOLUTION)
+            resolution = supplied.pop(
+                "resolution",
+                preset.default_parameters.get("resolution", DEFAULT_RESOLUTION),
+            )
             return cls.generate_request(
                 GenerationRequest(
                     preset.preset_id,

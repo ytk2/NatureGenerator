@@ -257,6 +257,12 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
             for module in (package_root / folder).glob("*.py"):
                 self.assertNotIn("RockGenerator", module.read_text(encoding="utf-8"))
 
+    def test_command_and_fusion_layers_do_not_reference_concrete_bark_generator(self):
+        package_root = Path(__file__).parents[1]
+        for folder in ("commands", "fusion"):
+            for module in (package_root / folder).glob("*.py"):
+                self.assertNotIn("BarkGenerator", module.read_text(encoding="utf-8"))
+
     def test_geometry_runtime_presets_and_commands_have_no_adsk_imports(self):
         package_root = Path(__file__).parents[1]
         for folder in ("core", "generators", "presets", "commands"):
@@ -484,8 +490,9 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         labels = [item.name for item in preset_input.listItems.items]
         self.assertIn("Sponge", labels)
         self.assertIn("Coral", labels)
-        for name in ("Bone", "Bark"):
+        for name in ("Bone",):
             self.assertIn("{} — Coming Soon".format(name), labels)
+        self.assertIn("Bark", labels)
         self.assertIn("Rock", labels)
         self.assertNotIn("Coral — Coming Soon", labels)
         self.assertEqual(preset_input.selectedItem.name, "Sponge")
@@ -520,6 +527,56 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertFalse(command.commandInputs.items[runtime.CELL_SIZE_INPUT_ID].isVisible)
         self.assertEqual(command.commandInputs.items[
             runtime._parameter_input_id("rock", "size")].name, "Size")
+
+        bark_item = next(item for item in preset_input.listItems.items if item.name == "Bark")
+        preset_input.selectedItem = bark_item
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        bark_keys = (
+            "diameter", "height", "bark_depth", "groove_scale", "twist",
+            "seed", "resolution",
+        )
+        self.assertTrue(all(
+            command.commandInputs.items[
+                runtime._parameter_input_id("bark", key)
+            ].isVisible
+            for key in bark_keys
+        ))
+        preset_input.selectedItem = rock_item
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        preset_input.selectedItem = bark_item
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        self.assertEqual(
+            len([key for key in command.commandInputs.items if key.startswith("parameter_bark_")]),
+            len(bark_keys),
+        )
+
+    def test_bark_selection_builds_metadata_driven_request(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=10, face_count=20), elapsed_time=0.25
+        )
+        body = SimpleNamespace(name="NatureGenerator Bark")
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, inserter: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Bark"
+        )
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(captured[0].preset_id, "bark")
+        self.assertEqual(set(captured[0].parameter_overrides), {
+            "diameter", "height", "bark_depth", "groove_scale", "twist", "seed",
+        })
+        self.assertEqual(captured[0].resolution, 33)
 
     def test_rock_selection_builds_metadata_driven_request(self):
         captured = []
@@ -677,6 +734,27 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         args = SimpleNamespace(areInputsValid=True)
         command.validateInputs.handlers[0].notify(args)
         self.assertFalse(args.areInputsValid)
+
+    def test_invalid_bark_depth_ratio_prevents_geometry(self):
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch.dict(sys.modules, fake_adsk_modules(app)):
+            runtime.start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Bark"
+        )
+        command.commandInputs.items[
+            runtime._parameter_input_id("bark", "diameter")
+        ].value = 3.0
+        command.commandInputs.items[
+            runtime._parameter_input_id("bark", "bark_depth")
+        ].value = 1.5
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertIn("25%", ui.messages[0][0])
 
     def test_repeated_start_stop_does_not_duplicate_ui_or_handlers(self):
         app, ui, workspace, panel = fake_fusion_ui()

@@ -2,9 +2,9 @@
 
 ## Current Stable Baseline
 
-**v0.5.0 — Interactive Generation Command**
+**v0.7.0 — Rock Generator**
 
-The immutable `v0.5.0` Git tag is the released source baseline. This roadmap is
+The immutable `v0.7.0` Git tag is the released source baseline. This roadmap is
 current main-branch documentation describing that baseline and future
 candidates; it is not part of the historical tagged commit unless viewed from
 that tag.
@@ -20,25 +20,23 @@ Completed:
 - Real Fusion acceptance test
 
 All future feature branches should be created from the latest `main` after
-v0.5.0 unless a maintenance branch explicitly targets an earlier release.
+v0.7.0 unless a maintenance branch explicitly targets an earlier release.
 
 See the [v0.5.0 baseline checklist](docs/V0.5.0_BASELINE.md) and
 [release history](docs/RELEASES.md) for verified capabilities and limitations.
 
 ## Committed Next Sprint
 
-**Sprint 8 — First Multi-Generator Architecture**
+**Sprint 10 — Bark Generator**
 
-In development on `feature/multi-generator`:
+In development on `feature/bark-generator`:
 
-- complete explicit preset-to-generator resolution
-- add an available, watertight Coral generator
-- preserve Sponge and the public Generator Runtime API
-- route Fusion preset selection without concrete-generator command logic
-- record successful real-Fusion acceptance for Sponge/Coral routing and Coral
-  MeshBody creation
+- add a deterministic, watertight Bark trunk generator
+- expose Bark-specific inputs through existing preset metadata
+- share only the deterministic value-noise primitive with Rock
+- preserve exact Rock output and Sponge/Coral routing
 
-See [SPRINT8_DESIGN.md](docs/SPRINT8_DESIGN.md) for scope, exclusions,
+See [SPRINT10_DESIGN.md](docs/SPRINT10_DESIGN.md) for scope, exclusions,
 architecture decisions, Definition of Done, and Fusion acceptance checks.
 
 ## Candidate Future Work
@@ -50,8 +48,8 @@ architecture decisions, Definition of Done, and Fusion acceptance checks.
 - Progress and cancellation support
 - Additional generators and presets:
   - richer Coral models, including possible Gray-Scott growth
-  - Bark / Noise
   - Bone / Cellular or Voronoi
+- Bark v2: longitudinal crack and plate-based surface model
 - Smoothing and mesh optimization
 - Installer or release packaging
 
@@ -65,6 +63,7 @@ architecture decisions, Definition of Done, and Fusion acceptance checks.
 - User-facing Nature Preset framework
 - Interactive Fusion command and MeshBody insertion
 - Deterministic watertight Rock generator and preset-driven Fusion inputs
+- Deterministic closed Bark trunk generator with directional grooves
 
 This roadmap is directional. Each phase should remain small enough to review and
 should add tests before expanding the public API.

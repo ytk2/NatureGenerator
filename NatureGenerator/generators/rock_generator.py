@@ -1,7 +1,7 @@
 """Deterministic dependency-free rounded rock generation."""
 
 import math
-from typing import Any, Mapping
+from typing import Any
 
 from core.marching_tetrahedra import extract_isosurface
 from core.mesh import TriangleMesh
@@ -10,46 +10,7 @@ from presets import PresetFactory
 
 from .generator import InvalidGeneratorParameters, MeshExtractionError, MeshGenerator
 from .request import GenerationRequest
-
-
-class _ValueNoise:
-    """Seeded lattice value noise with smoothstep trilinear interpolation."""
-
-    def __init__(self, seed: int) -> None:
-        self.seed = seed
-
-    def _lattice(self, x: int, y: int, z: int) -> float:
-        # Fixed-width integer mixing is stable and does not use randomized hash().
-        value = (self.seed ^ (x * 0x8DA6B343) ^ (y * 0xD8163841) ^
-                 (z * 0xCB1AB31F)) & 0xFFFFFFFF
-        value ^= value >> 16
-        value = (value * 0x7FEB352D) & 0xFFFFFFFF
-        value ^= value >> 15
-        value = (value * 0x846CA68B) & 0xFFFFFFFF
-        value ^= value >> 16
-        return (value / 2147483647.5) - 1.0
-
-    def sample(self, x: float, y: float, z: float) -> float:
-        ix, iy, iz = math.floor(x), math.floor(y), math.floor(z)
-        fx, fy, fz = x - ix, y - iy, z - iz
-
-        def fade(value: float) -> float:
-            return value * value * (3.0 - 2.0 * value)
-
-        def blend(a: float, b: float, amount: float) -> float:
-            return a + (b - a) * amount
-
-        ux, uy, uz = fade(fx), fade(fy), fade(fz)
-        planes = []
-        for dz in (0, 1):
-            rows = []
-            for dy in (0, 1):
-                rows.append(blend(
-                    self._lattice(ix, iy + dy, iz + dz),
-                    self._lattice(ix + 1, iy + dy, iz + dz), ux,
-                ))
-            planes.append(blend(rows[0], rows[1], uy))
-        return blend(planes[0], planes[1], uz)
+from .value_noise import DeterministicValueNoise
 
 
 class _RockField:
@@ -59,7 +20,7 @@ class _RockField:
         self.size = size
         self.roughness = roughness
         self.seed = seed
-        self.noise = _ValueNoise(seed)
+        self.noise = DeterministicValueNoise(seed)
         # Seeded but bounded axis proportions create broad asymmetry.
         self.radii = (
             size * (0.47 + 0.025 * self.noise._lattice(1, 0, 0)),

@@ -2,6 +2,7 @@
 
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+import hashlib
 import math
 import unittest
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from generators import (
     GeneratorResult,
     GenerationRequest,
     CoralGenerator,
+    BarkGenerator,
     RockGenerator,
     SpongeGenerator,
     GyroidGenerator,
@@ -48,11 +50,17 @@ class GeneratorFactoryTests(unittest.TestCase):
             ("sponge", SpongeGenerator),
             ("coral", CoralGenerator),
             ("rock", RockGenerator),
+            ("bark", BarkGenerator),
         ):
             generator = GeneratorFactory.create_for_preset(preset_id)
             self.assertIsInstance(generator, expected_type)
             mesh = generator.generate(
-                GenerationRequest(preset_id, {}, DEFAULT_RESOLUTION)
+                GenerationRequest(
+                    preset_id, {},
+                    PresetFactory.get(preset_id).default_parameters.get(
+                        "resolution", DEFAULT_RESOLUTION
+                    ),
+                )
             )
             self.assertIsInstance(mesh, TriangleMesh)
             self.assertGreater(len(mesh.faces), 0)
@@ -313,6 +321,119 @@ class RockGeneratorTests(unittest.TestCase):
             with self.assertRaisesRegex(MeshExtractionError, "no triangles"):
                 self._generate()
 
+    def test_shared_noise_refactor_preserves_default_mesh_exactly(self):
+        result = self._generate()
+        digest = hashlib.sha256(
+            repr((result.mesh.vertices, result.mesh.faces)).encode("ascii")
+        ).hexdigest()
+        self.assertEqual(
+            digest,
+            "61beffffce8ee5669fc3e2cb8fbe8a396424f0ad5c7ea1d6128032a943f8c1c1",
+        )
+
+
+class BarkGeneratorTests(unittest.TestCase):
+    def _generate(self, overrides=None, resolution=33):
+        return GeneratorFactory.generate_request(
+            GenerationRequest("bark", {} if overrides is None else overrides, resolution)
+        )
+
+    def test_deterministic_same_seed_and_different_seed_variation(self):
+        first = self._generate({"seed": 42})
+        repeated = self._generate({"seed": 42})
+        different = self._generate({"seed": 43})
+        self.assertEqual(first.mesh.vertices, repeated.mesh.vertices)
+        self.assertEqual(first.mesh.faces, repeated.mesh.faces)
+        self.assertNotEqual(first.mesh.vertices, different.mesh.vertices)
+
+    def test_dimensions_depth_grooves_twist_and_resolution_affect_geometry(self):
+        narrow = self._generate({"diameter": 50.0})
+        wide = self._generate({"diameter": 120.0})
+        short = self._generate({"height": 60.0})
+        tall = self._generate({"height": 200.0})
+        shallow = self._generate({"bark_depth": 1.0})
+        deep = self._generate({"bark_depth": 10.0})
+        broad = self._generate({"groove_scale": 36.0})
+        twisted = self._generate({"twist": 0.75})
+        dense = self._generate(resolution=41)
+        self.assertLess(narrow.statistics.bounds[1][0], wide.statistics.bounds[1][0])
+        self.assertLess(short.statistics.bounds[1][2], tall.statistics.bounds[1][2])
+        self.assertNotEqual(shallow.mesh.vertices, deep.mesh.vertices)
+        self.assertNotEqual(broad.mesh.vertices, shallow.mesh.vertices)
+        self.assertNotEqual(twisted.mesh.vertices, shallow.mesh.vertices)
+        self.assertGreater(dense.statistics.face_count, shallow.statistics.face_count)
+
+    def test_closed_manufacturable_single_component_and_caps(self):
+        result = self._generate({"bark_depth": 10.0, "twist": 1.0, "seed": 987}, 29)
+        stats = result.statistics
+        self.assertTrue(stats.is_manifold)
+        self.assertTrue(stats.is_watertight)
+        self.assertEqual(stats.connected_component_count, 1)
+        self.assertEqual(stats.degenerate_face_count, 0)
+        self.assertTrue(all(
+            math.isfinite(value)
+            for vertex in result.mesh.vertices for value in vertex
+        ))
+        for cap_z in (-60.0, 60.0):
+            self.assertTrue(any(
+                all(abs(result.mesh.vertices[index][2] - cap_z) < 1e-9 for index in face)
+                for face in result.mesh.faces
+            ))
+
+    def test_surface_stays_inside_sampling_bounds(self):
+        diameter, height, depth = 30.0, 240.0, 7.5
+        result = self._generate({
+            "diameter": diameter, "height": height, "bark_depth": depth,
+            "groove_scale": 6.0, "twist": -1.0, "seed": 2147483647,
+        }, 29)
+        radial_extent = diameter * 0.56 + depth * 1.2
+        vertical_extent = height / 2.0 + max(height * 0.05, depth * 1.5)
+        self.assertTrue(all(
+            abs(x) < radial_extent and abs(y) < radial_extent and abs(z) < vertical_extent
+            for x, y, z in result.mesh.vertices
+        ))
+
+    def test_bark_is_quantitatively_distinct_from_rock(self):
+        bark = self._generate()
+        rock = GeneratorFactory.generate_request(GenerationRequest("rock", {}, 17))
+        bark_bounds = bark.statistics.bounds
+        rock_bounds = rock.statistics.bounds
+        bark_aspect = (
+            (bark_bounds[1][2] - bark_bounds[0][2]) /
+            (bark_bounds[1][0] - bark_bounds[0][0])
+        )
+        rock_aspect = (
+            (rock_bounds[1][2] - rock_bounds[0][2]) /
+            (rock_bounds[1][0] - rock_bounds[0][0])
+        )
+        self.assertGreater(bark_aspect, rock_aspect * 2.0)
+        self.assertNotEqual(bark.statistics.face_count, rock.statistics.face_count)
+
+    def test_invalid_parameters_and_depth_ratio_are_rejected(self):
+        for overrides in (
+            {"diameter": 0.0}, {"height": 0.0}, {"bark_depth": 0.0},
+            {"groove_scale": 0.0}, {"twist": 1.1}, {"seed": 1.5},
+            {"diameter": 30.0, "bark_depth": 15.0}, {"unknown": 1},
+        ):
+            with self.assertRaises(InvalidGeneratorParameters):
+                self._generate(overrides)
+        with self.assertRaises(InvalidGeneratorParameters):
+            self._generate(resolution=25)
+
+    def test_legacy_factory_uses_bark_metadata_resolution_default(self):
+        legacy = GeneratorFactory.generate(PresetFactory.get("bark"))
+        explicit = self._generate(resolution=33)
+        self.assertEqual(legacy.mesh.vertices, explicit.mesh.vertices)
+        self.assertEqual(legacy.mesh.faces, explicit.mesh.faces)
+
+    def test_empty_extraction_is_reported(self):
+        with patch(
+            "generators.bark_generator.extract_isosurface",
+            return_value=TriangleMesh((), ()),
+        ):
+            with self.assertRaisesRegex(MeshExtractionError, "no triangles"):
+                self._generate()
+
 
 class GeneratorRuntimeDependencyTests(unittest.TestCase):
     def test_runtime_has_no_fusion_numpy_or_dynamic_discovery_imports(self):
@@ -322,6 +443,8 @@ class GeneratorRuntimeDependencyTests(unittest.TestCase):
             "generator_factory.py",
             "gyroid_generator.py",
             "coral_generator.py",
+            "bark_generator.py",
+            "value_noise.py",
             "sponge_generator.py",
             "result.py",
             "request.py",
