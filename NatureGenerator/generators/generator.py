@@ -6,7 +6,8 @@ from typing import Any, Mapping, Optional
 from presets.preset import NaturePreset
 
 from .result import GeneratorResult
-from .request import DEFAULT_RESOLUTION
+from .request import DEFAULT_RESOLUTION, GenerationRequest
+from core.mesh import TriangleMesh
 
 
 class GeneratorError(Exception):
@@ -49,3 +50,26 @@ class Generator(ABC):
         resolution: int = DEFAULT_RESOLUTION,
     ) -> GeneratorResult:
         """Execute *preset* with overrides and samples-per-axis resolution."""
+
+
+class MeshGenerator(ABC):
+    """Preset-selected generator contract for the multi-generator runtime."""
+
+    @property
+    @abstractmethod
+    def preset_id(self) -> str:
+        """Return the stable user-facing preset ID handled by this generator."""
+
+    @property
+    @abstractmethod
+    def generator_id(self) -> str:
+        """Return the stable implementation ID recorded in results."""
+
+    @property
+    @abstractmethod
+    def require_watertight(self) -> bool:
+        """Return whether runtime validation must reject boundary edges."""
+
+    @abstractmethod
+    def generate(self, request: GenerationRequest) -> TriangleMesh:
+        """Generate a triangle mesh for an immutable request."""

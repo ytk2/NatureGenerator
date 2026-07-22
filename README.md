@@ -2,9 +2,10 @@
 
 > Generate manufacturable natural forms directly inside Autodesk Fusion.
 
-NatureGenerator v0.5.0 is an interactive Fusion add-in that currently generates
-the Sponge preset. Cell Size, Thickness, and Resolution are adjustable through
-a Fusion-native command dialog.
+NatureGenerator v0.5.0 is the stable interactive Fusion baseline with the
+Sponge preset. Sprint 8 development adds a second executable form, Coral, while
+Cell Size, Thickness, and Resolution remain adjustable through the same
+Fusion-native command dialog.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
 
@@ -16,7 +17,7 @@ a Fusion-native command dialog.
 
 The project includes a Fusion-independent procedural geometry pipeline and a
 user-facing nature preset framework. Sponge is backed by the configurable
-gyroid scalar field.
+gyroid scalar field; Coral uses a closed branching implicit solid.
 
 ## Geometry pipeline
 
@@ -85,7 +86,7 @@ framework does not scan directories or dynamically import arbitrary files.
 
 | Preset | Category | Generator ID | Status |
 | --- | --- | --- | --- |
-| Coral | Aquatic | `gray_scott` | Unavailable — generator not implemented |
+| Coral | Aquatic | `coral` | Available in Sprint 8 development |
 | Sponge | Aquatic | `gyroid` | Available |
 | Bone | Biological | `cellular` | Unavailable — generator not implemented |
 | Bark | Botanical | `noise` | Unavailable — generator not implemented |
@@ -113,11 +114,19 @@ print(result.elapsed_time)
 print(result.warnings)
 ```
 
-The current `GyroidGenerator` constructs `GyroidField`, samples a `VoxelGrid`,
+`GyroidGenerator` constructs `GyroidField`, samples a `VoxelGrid`,
 extracts a `TriangleMesh` with marching tetrahedra, validates it, and returns an
 immutable `GeneratorResult`. The finite gyroid crop normally has boundary edges,
 so that expected open-mesh condition is returned as a warning rather than being
 misrepresented as watertight.
+
+`CoralGenerator` uses the same Geometry Core to extract a connected union of
+branch capsules. Its surface stays inside the sampled domain and must pass
+watertight validation. `GeneratorFactory.create_for_preset(preset_id)` resolves
+both forms through explicit preset and generator registration. The
+request-oriented `SpongeGenerator` and `CoralGenerator` each return a
+`TriangleMesh`; the factory preserves the public immutable `GeneratorResult`
+API and delegates Sponge geometry to the unchanged `GyroidGenerator` pipeline.
 
 `GeneratorFactory.generate(preset, parameters)` remains available for existing
 callers and uses the original resolution of 17 samples per axis.
@@ -125,7 +134,7 @@ callers and uses the original resolution of 17 samples per axis.
 ## Interactive Fusion generation
 
 The **Generate Nature** command appears in the Design workspace's Add-Ins panel.
-Its dialog selects a preset and accepts Sponge generation parameters before it
+Its dialog selects Sponge or Coral and accepts shared generation parameters before it
 runs the Generator Runtime and inserts the resulting `TriangleMesh` as a
 `MeshBody` in the active design.
 
@@ -141,16 +150,22 @@ Generate Nature
 
 The dialog exposes:
 
-- **Cell Size:** physical gyroid period in millimeters.
-- **Thickness:** dimensionless isosurface offset around the gyroid surface.
+- **Cell Size:** physical form scale; the gyroid period for Sponge and overall
+  branching scale for Coral.
+- **Thickness:** gyroid field-value offset for Sponge and relative branch radius
+  for Coral.
 - **Resolution:** samples per axis; higher values increase mesh quality and
   pure-Python runtime cost. The supported range is 9–41 and the default is 17.
 
-Sponge is currently the only executable preset. Other natural forms appear as
-Coming Soon and produce no geometry when selected. Cancel also creates no
-geometry. Command orchestration remains Fusion-independent; Autodesk command
+Sponge and Coral are executable on the Sprint 8 branch. Other natural forms
+appear as Coming Soon and produce no geometry when selected. Cancel also creates
+no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
-See [`docs/SPRINT7_DESIGN.md`](docs/SPRINT7_DESIGN.md) for the detailed contract.
+See [`docs/SPRINT8_DESIGN.md`](docs/SPRINT8_DESIGN.md) for the multi-generator
+contract and the successful macOS Autodesk Fusion acceptance result. The
+observed Coral run created `NatureGenerator Coral` with 820 vertices and 1,636
+faces in approximately 0.148 seconds; this is one verified configuration rather
+than an exhaustive parameter test.
 
 ## Gyroid scalar field
 
