@@ -121,6 +121,27 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(bark.parameter_metadata["resolution"].minimum, 29)
         self.assertEqual(bark.parameter_metadata["resolution"].maximum, 41)
 
+    def test_root_is_available_with_stable_metadata_and_defaults(self):
+        root = PresetFactory.get("root")
+        self.assertTrue(root.available)
+        self.assertEqual(root.preset_id, "root")
+        self.assertEqual(root.generator_id, "root")
+        self.assertEqual(tuple(root.parameter_metadata), (
+            "length", "root_radius", "branch_count", "branching", "spread",
+            "taper", "gravity", "seed", "resolution",
+        ))
+        self.assertEqual(dict(root.default_parameters), {
+            "length": 100.0, "root_radius": 8.0, "branch_count": 5,
+            "branching": 0.45, "spread": 0.65, "taper": 0.65,
+            "gravity": 0.70, "seed": 11, "resolution": 37,
+        })
+        for key in ("length", "root_radius"):
+            self.assertEqual(root.parameter_metadata[key].value_type, "length")
+            self.assertEqual(root.parameter_metadata[key].unit, "mm")
+        self.assertEqual(root.parameter_metadata["branch_count"].maximum, 8)
+        self.assertEqual(root.parameter_metadata["root_radius"].minimum, 4.0)
+        self.assertEqual(root.parameter_metadata["resolution"].minimum, 37)
+
     def test_stable_ids_reject_display_text(self):
         with self.assertRaises(ValueError):
             NaturePreset(
@@ -187,7 +208,7 @@ class PresetRegistryTests(unittest.TestCase):
     def test_factory_exposes_all_initial_presets(self):
         self.assertEqual(
             {preset.preset_id for preset in PresetFactory.list_all()},
-            {"coral", "bone", "bark", "sponge", "rock"},
+            {"coral", "bone", "bark", "sponge", "rock", "root"},
         )
 
 

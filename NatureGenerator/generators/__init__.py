@@ -15,6 +15,7 @@ from .coral_generator import CoralGenerator
 from .bark_generator import BarkGenerator
 from .sponge_generator import SpongeGenerator
 from .rock_generator import RockGenerator
+from .root_generator import RootGenerator, RootSegment, build_root_skeleton
 from .gyroid import GyroidField
 from .gyroid_generator import GyroidGenerator
 from .result import GeneratorResult
@@ -32,6 +33,9 @@ __all__ = [
     "MeshGenerator",
     "SpongeGenerator",
     "RockGenerator",
+    "RootGenerator",
+    "RootSegment",
+    "build_root_skeleton",
     "GeneratorError",
     "GeneratorFactory",
     "GeneratorResult",
