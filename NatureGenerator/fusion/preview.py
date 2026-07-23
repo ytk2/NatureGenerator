@@ -5,7 +5,7 @@ from typing import Any, Callable, Optional, Tuple
 from generators import GenerationRequest, GeneratorResult
 
 
-RequestSignature = Tuple[str, Tuple[Tuple[str, str, Any], ...], int]
+RequestSignature = Tuple[str, str, Tuple[Tuple[str, str, Any], ...], int]
 
 
 def request_signature(request: GenerationRequest) -> RequestSignature:
@@ -17,7 +17,12 @@ def request_signature(request: GenerationRequest) -> RequestSignature:
         (key, type(value).__name__, value)
         for key, value in request.parameter_overrides.items()
     ))
-    return (request.preset_id, parameters, request.resolution)
+    return (
+        request.preset_id,
+        request.family_id,
+        parameters,
+        request.resolution,
+    )
 
 
 def preview_request(
@@ -49,6 +54,7 @@ def preview_request(
         request.preset_id,
         request.parameter_overrides,
         min(request.resolution, preview_resolution),
+        request.family_id,
     )
 
 

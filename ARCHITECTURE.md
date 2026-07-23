@@ -81,12 +81,12 @@ cylinder with the maximum of its radial side field and planar cap field. Root's
 staged skeleton is a generator-owned intermediate representation rather than a
 core geometry dependency.
 
-Internal Rock families are immutable bundles containing one parameter set per
-Rock stage. `RockFamilyRegistry` resolves those bundles, and
-`RockGenerator.generate_family` feeds them through the same field composition,
-sampling, and extraction path. Families do not own algorithms and are not
-automatically exposed as presets or Variants. River Stone is the first internal
-family and remains absent from the Fusion UI.
+Rock families are immutable bundles containing current UI parameter values and
+one parameter set per Rock stage. `RockFamilyRegistry` resolves those bundles,
+and `RockGenerator` feeds them through the same field composition, sampling,
+and extraction path. Families do not own algorithms. Sprint 16 exposes Smooth,
+Weathered, Rugged, and River Stone through a Registry-driven Fusion Family
+input.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing
@@ -156,11 +156,17 @@ Real Fusion acceptance on macOS verified filtered dropdown rebuilding, generic
 parameter application, Custom transitions, Preview replacement, Preset
 switching, and OK/Cancel behavior without recursive events or duplicate UI.
 
+Sprint 16 replaces Variant with Family only for Rock. The Fusion runtime reads
+the Rock Family registry, applies its immutable parameter values, and stores
+the selected stable family ID in `GenerationRequest`. Preview copies that ID
+while changing only density; Final uses the requested density. Non-Rock presets
+retain the Sprint 13 Variant behavior.
+
 ## Runtime pipeline
 
 ```text
 User / Fusion Command
-    -> Variant Definition (optional parameter configuration)
+    -> Variant or Rock Family Definition
     -> Generation Request
     -> Nature Preset
     -> Generator Runtime
@@ -174,7 +180,7 @@ User / Fusion Command
 ```
 
 1. A user or Fusion command creates an immutable request identifying a preset,
-   parameter overrides, and sampling resolution.
+   parameter overrides, sampling resolution, and an optional Rock family ID.
 2. The Generator Runtime resolves the preset ID to a registered mesh generator
    and verifies its stable `generator_id` against the preset metadata.
 3. The implementation supplies a scalar field, such as `GyroidField`.
@@ -194,6 +200,7 @@ they do not become implicit side effects of surface extraction.
 Fusion UI lifecycle
     -> Fusion Adapter runtime
     -> VariantFactory
+    -> RockFamilyRegistry
     -> Generate Nature command
     -> GenerationRequest
     -> PresetFactory

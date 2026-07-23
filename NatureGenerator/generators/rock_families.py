@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Mapping, Tuple
+from typing import Any, Mapping, Tuple
 
 from .rock_pipeline import (
     DEFAULT_FACET_PARAMETERS,
@@ -16,18 +16,52 @@ from .rock_pipeline import (
 
 @dataclass(frozen=True)
 class RockFamilyDefinition:
-    """One internal family expressed only as three-stage parameters."""
+    """One Rock family expressed as immutable UI values and stage parameters."""
 
     family_id: str
     display_name: str
+    parameter_values: Mapping[str, Any]
     macro: MacroShapeParameters
     facets: FacetLayoutParameters
     surface: SurfaceDetailParameters
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "parameter_values", MappingProxyType(dict(self.parameter_values))
+        )
 
 
 DEFAULT_ROCK_FAMILY = RockFamilyDefinition(
     "default",
     "Default",
+    {},
+    DEFAULT_MACRO_PARAMETERS,
+    DEFAULT_FACET_PARAMETERS,
+    DEFAULT_SURFACE_PARAMETERS,
+)
+
+SMOOTH_ROCK_FAMILY = RockFamilyDefinition(
+    "smooth",
+    "Smooth",
+    {"size": 40.0, "roughness": 0.10, "seed": 1, "resolution": 17},
+    DEFAULT_MACRO_PARAMETERS,
+    DEFAULT_FACET_PARAMETERS,
+    DEFAULT_SURFACE_PARAMETERS,
+)
+
+WEATHERED_ROCK_FAMILY = RockFamilyDefinition(
+    "weathered",
+    "Weathered",
+    {"size": 40.0, "roughness": 0.35, "seed": 1, "resolution": 17},
+    DEFAULT_MACRO_PARAMETERS,
+    DEFAULT_FACET_PARAMETERS,
+    DEFAULT_SURFACE_PARAMETERS,
+)
+
+RUGGED_ROCK_FAMILY = RockFamilyDefinition(
+    "rugged",
+    "Rugged",
+    {"size": 45.0, "roughness": 0.62, "seed": 23, "resolution": 25},
     DEFAULT_MACRO_PARAMETERS,
     DEFAULT_FACET_PARAMETERS,
     DEFAULT_SURFACE_PARAMETERS,
@@ -36,6 +70,7 @@ DEFAULT_ROCK_FAMILY = RockFamilyDefinition(
 RIVER_STONE_FAMILY = RockFamilyDefinition(
     "river_stone",
     "River Stone",
+    {"size": 40.0, "roughness": 0.35, "seed": 1, "resolution": 25},
     MacroShapeParameters(
         axis_base=(0.46, 0.44, 0.31),
         axis_response=(0.004, -0.004, -0.008),
@@ -83,10 +118,19 @@ RIVER_STONE_FAMILY = RockFamilyDefinition(
 class RockFamilyRegistry:
     """Resolve internal Rock family definitions without procedural branching."""
 
-    _definitions: Mapping[str, RockFamilyDefinition] = MappingProxyType({
-        definition.family_id: definition
-        for definition in (DEFAULT_ROCK_FAMILY, RIVER_STONE_FAMILY)
-    })
+    preset_id = "rock"
+    _selectable = (
+        SMOOTH_ROCK_FAMILY,
+        WEATHERED_ROCK_FAMILY,
+        RUGGED_ROCK_FAMILY,
+        RIVER_STONE_FAMILY,
+    )
+    _definitions: Mapping[str, RockFamilyDefinition] = MappingProxyType(
+        {
+            definition.family_id: definition
+            for definition in (DEFAULT_ROCK_FAMILY,) + _selectable
+        }
+    )
 
     @classmethod
     def get(cls, family_id: str) -> RockFamilyDefinition:
@@ -97,4 +141,4 @@ class RockFamilyRegistry:
 
     @classmethod
     def list_all(cls) -> Tuple[RockFamilyDefinition, ...]:
-        return tuple(cls._definitions.values())
+        return cls._selectable

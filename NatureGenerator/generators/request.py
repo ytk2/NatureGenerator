@@ -40,11 +40,12 @@ def _parameter_value(value: Any, parameter_id: str) -> Any:
 
 @dataclass(frozen=True)
 class GenerationRequest:
-    """Preset selection, immutable overrides, and sampling resolution."""
+    """Preset, immutable overrides, sampling resolution, and optional family."""
 
     preset_id: str
     parameter_overrides: Mapping[str, Any]
     resolution: int = DEFAULT_RESOLUTION
+    family_id: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.preset_id, str) or re.fullmatch(
@@ -61,3 +62,9 @@ class GenerationRequest:
 
         object.__setattr__(self, "parameter_overrides", MappingProxyType(overrides))
         object.__setattr__(self, "resolution", validate_resolution(self.resolution))
+        if not isinstance(self.family_id, str):
+            raise TypeError("family_id must be a string")
+        if self.family_id and re.fullmatch(
+            r"[a-z][a-z0-9_]*", self.family_id
+        ) is None:
+            raise ValueError("family_id must be empty or a lowercase stable identifier")
