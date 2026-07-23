@@ -30,6 +30,22 @@ ID. Coral, Rock, Bark, and Root are released through the `coral`, `rock`,
 `bark`, and `root` generator IDs; Bone remains visibly unavailable. Executable presets
 describe all Fusion inputs through ordered parameter metadata.
 
+Sprint 18 adds an immutable `PresetDefinition` association around each
+`NaturePreset` and its optional Family registry. `PresetCatalog` is the
+application composition root: Rock is associated with `RockFamilyRegistry`;
+Bark, Coral, Sponge, Root, and Bone are explicit no-Family placeholders.
+`PresetFactory` remains the stable metadata API used by generators, preserving
+existing public contracts and the rule that `presets/` never imports concrete
+generator code.
+
+```text
+PresetCatalog
+    -> PresetRegistry
+        -> PresetDefinition
+            -> NaturePreset
+            -> optional Family registry
+```
+
 ### Generator runtime (`generators/`)
 
 The Generator Runtime is the resolver and execution layer between presets and
@@ -157,17 +173,20 @@ Real Fusion acceptance on macOS verified filtered dropdown rebuilding, generic
 parameter application, Custom transitions, Preview replacement, Preset
 switching, and OK/Cancel behavior without recursive events or duplicate UI.
 
-Sprint 16 replaces Variant with Family only for Rock. The Fusion runtime reads
-the Rock Family registry, applies its immutable parameter values, and stores
-the selected stable family ID in `GenerationRequest`. Preview copies that ID
-while changing only density; Final uses the requested density. Non-Rock presets
-retain the Sprint 13 Variant behavior.
+Sprint 16 replaces Variant with Family only for Rock. Sprint 18 preserves that
+presentation while removing the Fusion runtime's direct Rock registry
+dependency. The runtime resolves an optional Family registry from
+`PresetCatalog`, applies its immutable parameter values, and stores the selected
+stable family ID in `GenerationRequest`. Preview copies that ID while changing
+only density; Final uses the requested density. Non-Rock presets retain the
+Sprint 13 Variant behavior.
 
 ## Runtime pipeline
 
 ```text
 User / Fusion Command
-    -> Variant or Rock Family Definition
+    -> PresetCatalog
+    -> Variant or Family Definition
     -> Generation Request
     -> Nature Preset
     -> Generator Runtime
@@ -200,8 +219,9 @@ they do not become implicit side effects of surface extraction.
 ```text
 Fusion UI lifecycle
     -> Fusion Adapter runtime
+    -> PresetCatalog
+    -> PresetDefinition
     -> VariantFactory
-    -> RockFamilyRegistry
     -> Generate Nature command
     -> GenerationRequest
     -> PresetFactory
@@ -227,6 +247,12 @@ Variants depend on preset abstractions for validation. They do not depend on
 Fusion, commands, core geometry, or concrete generators. Stable variant IDs are
 separate from display names, while Custom remains transient UI state rather
 than a registered definition.
+
+`preset_catalog.py` is a narrow composition root allowed to depend on preset
+metadata and concrete Family registries. This avoids placing generator imports
+inside `presets/` and avoids concrete Family knowledge in `fusion/`. Family
+registries provide stable preset identity, deterministic listing, and lookup;
+their concrete Family definitions remain preset-specific.
 
 These boundaries keep mathematical geometry testable in ordinary Python and
 prevent Autodesk runtime concerns from leaking into presets or algorithms.

@@ -35,6 +35,7 @@
 - [SPRINT15_PHASE2_DESIGN.md](SPRINT15_PHASE2_DESIGN.md)
 - [SPRINT16_DESIGN.md](SPRINT16_DESIGN.md)
 - [SPRINT17_DESIGN.md](SPRINT17_DESIGN.md)
+- [SPRINT18_DESIGN.md](SPRINT18_DESIGN.md)
 
 Sprint design documents record the goal, scope, exclusions, architecture
 decisions, and Definition of Done for that Sprint.

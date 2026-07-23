@@ -247,3 +247,31 @@ class NaturePreset:
         object.__setattr__(self, "default_parameters", MappingProxyType(defaults))
         object.__setattr__(self, "parameter_metadata", MappingProxyType(metadata))
         object.__setattr__(self, "unavailable_reason", self.unavailable_reason.strip())
+
+
+@dataclass(frozen=True)
+class PresetDefinition:
+    """One preset and its optional registry-driven Family metadata."""
+
+    preset: NaturePreset
+    families: Optional[object] = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.preset, NaturePreset):
+            raise TypeError("preset must be a NaturePreset")
+        if self.families is None:
+            return
+        if getattr(self.families, "preset_id", None) != self.preset.preset_id:
+            raise ValueError("family registry preset_id must match preset")
+        if not callable(getattr(self.families, "get", None)):
+            raise TypeError("family registry must provide get()")
+        if not callable(getattr(self.families, "list_all", None)):
+            raise TypeError("family registry must provide list_all()")
+
+    @property
+    def preset_id(self) -> str:
+        return self.preset.preset_id
+
+    @property
+    def display_name(self) -> str:
+        return self.preset.display_name
