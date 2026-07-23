@@ -639,7 +639,10 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         family_input = inputs[runtime.FAMILY_INPUT_ID]
         self.assertEqual(
             [item.name for item in family_input.listItems.items],
-            ["Smooth", "Weathered", "Rugged", "River Stone"],
+            [
+                "Smooth", "Weathered", "Rugged", "River Stone",
+                "Granite", "Basalt", "Broken Rock",
+            ],
         )
         self.assertFalse(family_input.isVisible)
         self.assertTrue(variant_input.isVisible)
@@ -966,7 +969,10 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertTrue(family_input.isVisible)
         self.assertEqual(
             [item.name for item in family_input.listItems.items],
-            ["Smooth", "Weathered", "Rugged", "River Stone"],
+            [
+                "Smooth", "Weathered", "Rugged", "River Stone",
+                "Granite", "Basalt", "Broken Rock",
+            ],
         )
         self.assertEqual(family_input.selectedItem.name, "Smooth")
 
@@ -1136,6 +1142,86 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             request.parameter_overrides,
             {"size": 40.0, "roughness": 0.35, "seed": 1},
         )
+
+    def test_new_family_selections_apply_registry_defaults(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        expected = {
+            "Granite": (5.0, 0.45, 37, 25),
+            "Basalt": (5.0, 0.25, 61, 25),
+            "Broken Rock": (5.0, 0.55, 97, 25),
+        }
+        for family_name, values in expected.items():
+            with self.subTest(family=family_name):
+                family_input.selectedItem = next(
+                    item for item in family_input.listItems.items
+                    if item.name == family_name
+                )
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=family_input)
+                )
+                actual = tuple(
+                    inputs[runtime._parameter_input_id("rock", key)].value
+                    for key in ("size", "roughness", "seed", "resolution")
+                )
+                self.assertEqual(actual, values)
+
+    def test_new_families_use_adaptive_preview_and_retain_final_resolution_input(self):
+        captured = []
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(
+            name="preview", isValid=True, deleteMe=lambda: None
+        )
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        with patch(
+            "generators.GeneratorFactory.generate_request",
+            side_effect=lambda request: (captured.append(request) or result),
+        ):
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                for family_name in ("Granite", "Basalt", "Broken Rock"):
+                    family_input.selectedItem = next(
+                        item for item in family_input.listItems.items
+                        if item.name == family_name
+                    )
+                    command.inputChanged.handlers[0].notify(
+                        SimpleNamespace(input=family_input)
+                    )
+                    fire_preview(command)
+
+        self.assertEqual(
+            tuple(request.family_id for request in captured),
+            ("granite", "basalt", "broken_rock"),
+        )
+        self.assertTrue(all(request.resolution == 21 for request in captured))
+        self.assertTrue(all(
+            inputs[runtime._parameter_input_id("rock", "resolution")].value == 25
+            for _ in captured
+        ))
 
     def test_family_change_marks_preview_stale_and_replaces_owned_body(self):
         app, ui, workspace, panel = self._start()

@@ -84,9 +84,10 @@ core geometry dependency.
 Rock families are immutable bundles containing current UI parameter values and
 one parameter set per Rock stage. `RockFamilyRegistry` resolves those bundles,
 and `RockGenerator` feeds them through the same field composition, sampling,
-and extraction path. Families do not own algorithms. Sprint 16 exposes Smooth,
-Weathered, Rugged, and River Stone through a Registry-driven Fusion Family
-input.
+and extraction path. Families do not own algorithms. The Registry-driven
+Fusion Family input exposes Smooth, Weathered, Rugged, River Stone, Granite,
+Basalt, and Broken Rock. New families change only immutable stage parameters
+and existing public Rock defaults.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing

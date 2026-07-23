@@ -117,17 +117,27 @@ do not claim species reproduction or biological realism. See
 [`docs/SPRINT13_DESIGN.md`](docs/SPRINT13_DESIGN.md).
 
 Sprint 16 Phase 1 replaces the Rock Variant presentation with a Family
-dropdown populated by the Rock Family Registry. Smooth, Weathered, Rugged, and
-River Stone are selectable; manual Size, Roughness, Seed, and Resolution edits
-remain available. Preview and Final retain the same generation paths and differ
-only in sampling resolution. Other presets keep their existing Variant
-workflow. See
+dropdown populated by the Rock Family Registry. Smooth, Weathered, Rugged,
+River Stone, Granite, Basalt, and Broken Rock are selectable; manual Size,
+Roughness, Seed, and Resolution edits remain available. Preview and Final
+retain the same generation paths and differ only in sampling resolution. Other
+presets keep their existing Variant workflow. See
 [`docs/SPRINT16_DESIGN.md`](docs/SPRINT16_DESIGN.md).
 
 Sprint 16 passed manual Autodesk Fusion 360 validation: the Rock Family
 dropdown displayed all four families, family switching updated Preview, River
 Stone generated correctly, existing Rock results remained unchanged, and no
 runtime errors were observed.
+
+Sprint 17 adds Granite, Basalt, and Broken Rock through three-stage parameter
+tuning only. Granite is broad and heavy, Basalt is vertically directional and
+planar, and Broken Rock is an angular wedge dominated by fracture faces. These
+are procedural design approximations, not geological simulations. See
+[`docs/SPRINT17_DESIGN.md`](docs/SPRINT17_DESIGN.md).
+
+Real Autodesk Fusion acceptance confirmed that all three new silhouettes are
+visually distinct and behave correctly, while existing Rock families and
+non-Rock presets remain functional.
 
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
