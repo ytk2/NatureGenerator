@@ -9,11 +9,11 @@ def _variant(variant_id, preset_id, display_name, description, **values):
 
 BUILT_IN_VARIANTS = (
     _variant("sponge_fine", "sponge", "Fine", "Small, delicate porous cells.",
-             cell_size=7.0, thickness=0.14, resolution=21),
+             cell_size=7.0, thickness=0.14, seed=0, resolution=21),
     _variant("sponge_balanced", "sponge", "Balanced", "Default porous balance.",
-             cell_size=10.0, thickness=0.20, resolution=17),
+             cell_size=10.0, thickness=0.20, seed=0, resolution=17),
     _variant("sponge_bold", "sponge", "Bold", "Large, strongly defined cells.",
-             cell_size=16.0, thickness=0.32, resolution=17),
+             cell_size=16.0, thickness=0.32, seed=0, resolution=17),
     _variant("coral_fine_branching", "coral", "Fine Branching",
              "Slender, closely detailed branching.",
              cell_size=11.0, thickness=0.22, seed=0, resolution=21),

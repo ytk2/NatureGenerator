@@ -585,14 +585,15 @@ def start(context=None) -> None:
             )
             variant_state = VariantUiState()
             variant_state.rebuild(variant_input, sponge.preset_id)
-            variant_input.isVisible = True
             family_input = inputs.addDropDownCommandInput(
                 FAMILY_INPUT_ID,
                 "Family",
                 adsk.core.DropDownStyles.TextListDropDownStyle,
             )
             family_state = FamilyUiState(family_input)
-            family_input.isVisible = False
+            family_state.rebuild(family_input, sponge.preset_id)
+            variant_input.isVisible = not family_state.supports(sponge.preset_id)
+            family_input.isVisible = family_state.supports(sponge.preset_id)
             parameter_inputs = {}
             for preset in presets:
                 if not preset.available:

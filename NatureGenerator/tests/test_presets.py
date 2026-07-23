@@ -8,6 +8,7 @@ from generators.gyroid import GyroidField
 from generators.bark_families import BarkFamilyRegistry
 from generators.coral_families import CoralFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
+from generators.sponge_families import SpongeFamilyRegistry
 from preset_catalog import PresetCatalog
 from presets import (
     NaturePreset,
@@ -173,6 +174,7 @@ class NaturePresetTests(unittest.TestCase):
 
         parameters = dict(sponge.default_parameters)
         parameters.pop("resolution")
+        parameters.pop("seed")
         field = GyroidField(**parameters)
         self.assertEqual(field.cell_size, 10.0)
         self.assertEqual(field.thickness, 0.2)
@@ -246,8 +248,21 @@ class PresetRegistryTests(unittest.TestCase):
         )
         self.assertIs(definitions["bark"].families, BarkFamilyRegistry)
         self.assertIs(definitions["coral"].families, CoralFamilyRegistry)
-        for preset_id in ("sponge", "root", "bone"):
+        self.assertIs(definitions["sponge"].families, SpongeFamilyRegistry)
+        for preset_id in ("root", "bone"):
             self.assertIsNone(definitions[preset_id].families)
+
+    def test_sponge_catalog_exposes_classic_family_metadata(self):
+        definition = PresetCatalog.get("sponge")
+        self.assertIs(definition.families, SpongeFamilyRegistry)
+        families = definition.families.list_all()
+        self.assertEqual(len(families), 1)
+        self.assertEqual(families[0].family_id, "classic_sponge")
+        self.assertEqual(families[0].display_name, "Classic Sponge")
+        self.assertEqual(
+            tuple(families[0].parameter_values),
+            ("cell_size", "thickness", "seed", "resolution"),
+        )
 
     def test_bark_catalog_exposes_classic_family_metadata(self):
         definition = PresetCatalog.get("bark")

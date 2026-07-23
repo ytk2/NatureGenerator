@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from core.mesh import TriangleMesh
 from generators.coral_generator import _CoralField
+from generators.sponge_generator import _SpongeField
 from generators import (
     DEFAULT_RESOLUTION,
     MAX_RESOLUTION,
@@ -125,6 +126,18 @@ class GenerationRequestTests(unittest.TestCase):
 
 
 class GyroidGeneratorTests(unittest.TestCase):
+    def test_sponge_field_contains_rounded_exterior_connected_pores(self):
+        field = _SpongeField(10.0, 0.2, 0)
+        self.assertEqual(len(field._pores), 12)
+        self.assertLess(field.sample(0.0, 0.0, 0.0), 0.0)
+        for center, radius in field._pores:
+            self.assertGreater(field.sample(*center), 0.0)
+            face_axis = max(range(3), key=lambda axis: abs(center[axis]))
+            self.assertGreater(
+                abs(center[face_axis]) + radius,
+                field._half_extent,
+            )
+
     def test_sponge_runs_end_to_end(self):
         preset = PresetFactory.get("sponge")
         result = GeneratorFactory.generate(preset)
@@ -137,9 +150,11 @@ class GyroidGeneratorTests(unittest.TestCase):
         self.assertGreater(result.statistics.vertex_count, 0)
         self.assertGreater(result.statistics.face_count, 0)
         self.assertTrue(result.statistics.is_manifold)
-        self.assertFalse(result.statistics.is_watertight)
-        self.assertGreater(result.statistics.boundary_edge_count, 0)
-        self.assertTrue(any("boundary_edges" in warning for warning in result.warnings))
+        self.assertTrue(result.statistics.is_watertight)
+        self.assertEqual(result.statistics.boundary_edge_count, 0)
+        self.assertEqual(result.statistics.connected_component_count, 1)
+        self.assertEqual(result.statistics.degenerate_face_count, 0)
+        self.assertEqual(result.warnings, ())
         self.assertEqual(result.generator_id, "gyroid")
         self.assertEqual(result.preset_id, "sponge")
         self.assertGreater(result.elapsed_time, 0.0)
@@ -172,6 +187,58 @@ class GyroidGeneratorTests(unittest.TestCase):
         self.assertGreater(thin.statistics.face_count, 0)
         self.assertGreater(thick.statistics.face_count, 0)
         self.assertNotEqual(thin.statistics.face_count, thick.statistics.face_count)
+
+    def test_classic_family_matches_default_and_has_stable_digest(self):
+        default = GeneratorFactory.generate_request(
+            GenerationRequest("sponge", {}, DEFAULT_RESOLUTION)
+        )
+        family = GeneratorFactory.generate_request(
+            GenerationRequest("sponge", {}, DEFAULT_RESOLUTION, "classic_sponge")
+        )
+        self.assertEqual(default.mesh.vertices, family.mesh.vertices)
+        self.assertEqual(default.mesh.faces, family.mesh.faces)
+        digest = hashlib.sha256(
+            repr((family.mesh.vertices, family.mesh.faces)).encode("ascii")
+        ).hexdigest()
+        self.assertEqual(
+            digest,
+            "92fbd5d78f6797049fbafada00819d4cafa247e106be159a90d890cd6b502786",
+        )
+        self.assertEqual(family.statistics.vertex_count, 2984)
+        self.assertEqual(family.statistics.face_count, 5964)
+
+    def test_seed_is_deterministic_and_changes_pore_layout(self):
+        first = GeneratorFactory.generate_request(
+            GenerationRequest("sponge", {"seed": 42}, DEFAULT_RESOLUTION)
+        )
+        repeated = GeneratorFactory.generate_request(
+            GenerationRequest("sponge", {"seed": 42}, DEFAULT_RESOLUTION)
+        )
+        changed = GeneratorFactory.generate_request(
+            GenerationRequest("sponge", {"seed": 43}, DEFAULT_RESOLUTION)
+        )
+        self.assertEqual(first.mesh.vertices, repeated.mesh.vertices)
+        self.assertEqual(first.mesh.faces, repeated.mesh.faces)
+        self.assertNotEqual(first.mesh.vertices, changed.mesh.vertices)
+        for result in (first, changed):
+            self.assertTrue(result.statistics.is_watertight)
+            self.assertTrue(result.statistics.is_manifold)
+            self.assertEqual(result.statistics.connected_component_count, 1)
+            self.assertEqual(result.statistics.degenerate_face_count, 0)
+            self.assertTrue(all(
+                math.isfinite(value)
+                for vertex in result.mesh.vertices for value in vertex
+            ))
+
+    def test_unknown_sponge_family_and_invalid_seed_are_rejected(self):
+        with self.assertRaises(InvalidGeneratorParameters):
+            GeneratorFactory.generate_request(
+                GenerationRequest("sponge", {}, DEFAULT_RESOLUTION, "missing")
+            )
+        with self.assertRaises(InvalidGeneratorParameters):
+            GeneratorFactory.generate_request(
+                GenerationRequest("sponge", {"seed": 1.5}, DEFAULT_RESOLUTION)
+            )
 
     def test_legacy_factory_api_keeps_default_resolution(self):
         legacy = GeneratorFactory.generate(PresetFactory.get("sponge"))
@@ -316,7 +383,7 @@ class CoralGeneratorTests(unittest.TestCase):
         )
 
         self.assertTrue(coral.statistics.is_watertight)
-        self.assertFalse(sponge.statistics.is_watertight)
+        self.assertTrue(sponge.statistics.is_watertight)
         self.assertNotEqual(coral.statistics.face_count, sponge.statistics.face_count)
 
     def test_coral_is_quantitatively_distinct_from_rock_and_bark(self):

@@ -639,22 +639,20 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertNotIn("Coral — Coming Soon", labels)
         self.assertEqual(preset_input.selectedItem.name, "Sponge")
         variant_input = inputs[runtime.VARIANT_INPUT_ID]
-        self.assertEqual(
-            [item.name for item in variant_input.listItems.items],
-            [runtime.CUSTOM_VARIANT_LABEL, "Fine", "Balanced", "Bold"],
-        )
-        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+        self.assertFalse(variant_input.isVisible)
         family_input = inputs[runtime.FAMILY_INPUT_ID]
         self.assertEqual(
             [item.name for item in family_input.listItems.items],
-            ["Classic Coral"],
+            ["Classic Sponge"],
         )
-        self.assertFalse(family_input.isVisible)
-        self.assertTrue(variant_input.isVisible)
+        self.assertTrue(family_input.isVisible)
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].unit, "mm")
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].value, 1.0)
         self.assertEqual(inputs[runtime.THICKNESS_INPUT_ID].unit, "")
         self.assertEqual(inputs[runtime.THICKNESS_INPUT_ID].value, 0.2)
+        self.assertEqual(
+            inputs[runtime._parameter_input_id("sponge", "seed")].value, 0
+        )
         self.assertEqual(
             inputs[runtime.RESOLUTION_INPUT_ID].value, DEFAULT_RESOLUTION
         )
@@ -953,7 +951,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             len(root_keys),
         )
 
-    def test_family_replaces_variant_for_rock_and_other_presets_keep_variants(self):
+    def test_family_replaces_variant_for_registry_backed_presets(self):
         app, ui, workspace, panel = self._start()
         command = FakeCommand()
         ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
@@ -986,10 +984,40 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         )
         preset_input.selectedItem = sponge_item
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
-        self.assertEqual(sponge_cell.value, 1.3)
-        self.assertTrue(variant_input.isVisible)
-        self.assertFalse(family_input.isVisible)
-        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+        self.assertEqual(sponge_cell.value, 1.0)
+        self.assertFalse(variant_input.isVisible)
+        self.assertTrue(family_input.isVisible)
+        self.assertEqual(family_input.selectedItem.name, "Classic Sponge")
+
+    def test_sponge_uses_registry_family_ui_and_existing_preview_pipeline(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        self.assertTrue(family_input.isVisible)
+        self.assertFalse(inputs[runtime.VARIANT_INPUT_ID].isVisible)
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items],
+            ["Classic Sponge"],
+        )
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "sponge")
+        self.assertEqual(request.family_id, "classic_sponge")
+        self.assertEqual(request.parameter_overrides["seed"], 0)
 
     def test_named_rock_family_applies_values_and_manual_edit_retains_family(self):
         app, ui, workspace, panel = self._start()
