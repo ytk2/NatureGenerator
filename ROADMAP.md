@@ -49,13 +49,29 @@ See [SPRINT14_DESIGN.md](docs/SPRINT14_DESIGN.md).
 See [SPRINT15_DESIGN.md](docs/SPRINT15_DESIGN.md) for stage ownership,
 family composition, compatibility, regression digests, and validation.
 
-## Next Sprint
-
 **Sprint 16 — Fusion Rock Family Selection**
 
-Planning begins on `feature/rock-families`. The objective is to expose the
-internal family architecture and River Stone to Fusion users while preserving
-Preview, Final generation, and backward compatibility.
+- Registry-driven Rock Family dropdown
+- Smooth, Weathered, Rugged, and River Stone selection
+- unchanged Preview/Final lifecycle and backward-compatible requests
+- manual Autodesk Fusion validation passed
+
+See [SPRINT16_DESIGN.md](docs/SPRINT16_DESIGN.md).
+
+## Completed Development Milestone
+
+**Sprint 17 — Rock Diversity**
+
+Completed on `feature/rock-diversity`:
+
+- add Granite, Basalt, and Broken Rock through stage parameter tuning
+- preserve the existing four Rock family digests
+- create silhouette-level mass, axis, and facet differences
+- retain Registry-driven UI and Preview/Final behavior
+- maintain deterministic manufacturable topology
+- real Autodesk Fusion acceptance passed
+
+See [SPRINT17_DESIGN.md](docs/SPRINT17_DESIGN.md).
 
 ## Candidate Future Work
 
