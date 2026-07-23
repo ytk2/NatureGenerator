@@ -95,7 +95,7 @@ sponge = PresetFactory.get("sponge")
 Built-ins are registered explicitly for predictable Fusion behavior; the
 framework does not scan directories or dynamically import arbitrary files.
 
-## Generator variants
+## Generator variants and Rock families
 
 Sprint 13 development adds three curated parameter configurations for each
 executable preset. Variants are immutable, Fusion-independent data and use only
@@ -105,7 +105,6 @@ existing preset parameters; they do not change generator algorithms.
 | --- | --- |
 | Sponge | Fine, Balanced, Bold |
 | Coral | Fine Branching, Balanced, Massive |
-| Rock | Smooth, Weathered, Rugged |
 | Bark | Subtle, Grooved, Twisted |
 | Root | Sparse, Balanced, Dense |
 
@@ -116,6 +115,19 @@ as Custom. Preview and OK always read current values through the unchanged
 `GenerationRequest` path. Variant names describe parameter configurations and
 do not claim species reproduction or biological realism. See
 [`docs/SPRINT13_DESIGN.md`](docs/SPRINT13_DESIGN.md).
+
+Sprint 16 Phase 1 replaces the Rock Variant presentation with a Family
+dropdown populated by the Rock Family Registry. Smooth, Weathered, Rugged, and
+River Stone are selectable; manual Size, Roughness, Seed, and Resolution edits
+remain available. Preview and Final retain the same generation paths and differ
+only in sampling resolution. Other presets keep their existing Variant
+workflow. See
+[`docs/SPRINT16_DESIGN.md`](docs/SPRINT16_DESIGN.md).
+
+Sprint 16 passed manual Autodesk Fusion 360 validation: the Rock Family
+dropdown displayed all four families, family switching updated Preview, River
+Stone generated correctly, existing Rock results remained unchanged, and no
+runtime errors were observed.
 
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and

@@ -636,6 +636,13 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             [runtime.CUSTOM_VARIANT_LABEL, "Fine", "Balanced", "Bold"],
         )
         self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items],
+            ["Smooth", "Weathered", "Rugged", "River Stone"],
+        )
+        self.assertFalse(family_input.isVisible)
+        self.assertTrue(variant_input.isVisible)
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].unit, "mm")
         self.assertEqual(inputs[runtime.CELL_SIZE_INPUT_ID].value, 1.0)
         self.assertEqual(inputs[runtime.THICKNESS_INPUT_ID].unit, "")
@@ -938,7 +945,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             len(root_keys),
         )
 
-    def test_variant_dropdown_tracks_selected_preset_and_preserves_custom_values(self):
+    def test_family_replaces_variant_for_rock_and_other_presets_keep_variants(self):
         app, ui, workspace, panel = self._start()
         command = FakeCommand()
         ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
@@ -947,6 +954,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         inputs = command.commandInputs.items
         preset_input = inputs[runtime.PRESET_INPUT_ID]
         variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
         sponge_cell = inputs[runtime.CELL_SIZE_INPUT_ID]
         sponge_cell.value = 1.3
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=sponge_cell))
@@ -954,11 +962,13 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         rock_item = next(item for item in preset_input.listItems.items if item.name == "Rock")
         preset_input.selectedItem = rock_item
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        self.assertFalse(variant_input.isVisible)
+        self.assertTrue(family_input.isVisible)
         self.assertEqual(
-            [item.name for item in variant_input.listItems.items],
-            [runtime.CUSTOM_VARIANT_LABEL, "Smooth", "Weathered", "Rugged"],
+            [item.name for item in family_input.listItems.items],
+            ["Smooth", "Weathered", "Rugged", "River Stone"],
         )
-        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+        self.assertEqual(family_input.selectedItem.name, "Smooth")
 
         sponge_item = next(
             item for item in preset_input.listItems.items if item.name == "Sponge"
@@ -966,9 +976,11 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         preset_input.selectedItem = sponge_item
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
         self.assertEqual(sponge_cell.value, 1.3)
+        self.assertTrue(variant_input.isVisible)
+        self.assertFalse(family_input.isVisible)
         self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
 
-    def test_named_variant_applies_values_and_manual_edit_selects_custom(self):
+    def test_named_rock_family_applies_values_and_manual_edit_retains_family(self):
         app, ui, workspace, panel = self._start()
         command = FakeCommand()
         ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
@@ -976,15 +988,15 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         )
         inputs = command.commandInputs.items
         preset_input = inputs[runtime.PRESET_INPUT_ID]
-        variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
         preset_input.selectedItem = next(
             item for item in preset_input.listItems.items if item.name == "Rock"
         )
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
-        variant_input.selectedItem = next(
-            item for item in variant_input.listItems.items if item.name == "Rugged"
+        family_input.selectedItem = next(
+            item for item in family_input.listItems.items if item.name == "Rugged"
         )
-        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=family_input))
 
         size = inputs[runtime._parameter_input_id("rock", "size")]
         roughness = inputs[runtime._parameter_input_id("rock", "roughness")]
@@ -992,11 +1004,11 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         resolution = inputs[runtime._parameter_input_id("rock", "resolution")]
         self.assertEqual((size.value, roughness.value, seed.value, resolution.value),
                          (4.5, 0.62, 23, 25))
-        self.assertEqual(variant_input.selectedItem.name, "Rugged")
+        self.assertEqual(family_input.selectedItem.name, "Rugged")
 
         roughness.value = 0.5
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=roughness))
-        self.assertEqual(variant_input.selectedItem.name, runtime.CUSTOM_VARIANT_LABEL)
+        self.assertEqual(family_input.selectedItem.name, "Rugged")
 
     def test_variant_selection_marks_existing_preview_stale_without_generating(self):
         app, ui, workspace, panel = self._start()
@@ -1064,11 +1076,11 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             item for item in preset_input.listItems.items if item.name == "Rock"
         )
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
-        variant_input = inputs[runtime.VARIANT_INPUT_ID]
-        variant_input.selectedItem = next(
-            item for item in variant_input.listItems.items if item.name == "Rugged"
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        family_input.selectedItem = next(
+            item for item in family_input.listItems.items if item.name == "Rugged"
         )
-        command.inputChanged.handlers[0].notify(SimpleNamespace(input=variant_input))
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=family_input))
 
         result = SimpleNamespace(
             mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
@@ -1081,9 +1093,145 @@ class FusionRuntimeStartupTests(unittest.TestCase):
                 fire_preview(command)
         request = generate.call_args.args[0]
         self.assertEqual(request.resolution, 21)
+        self.assertEqual(request.family_id, "rugged")
         self.assertEqual(
             request.parameter_overrides,
             {"size": 45.0, "roughness": 0.62, "seed": 23},
+        )
+
+    def test_river_stone_family_builds_existing_family_preview_request(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        family_input.selectedItem = next(
+            item for item in family_input.listItems.items
+            if item.name == "River Stone"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=family_input))
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.family_id, "river_stone")
+        self.assertEqual(request.resolution, 21)
+        self.assertEqual(
+            request.parameter_overrides,
+            {"size": 40.0, "roughness": 0.35, "seed": 1},
+        )
+
+    def test_family_change_marks_preview_stale_and_replaces_owned_body(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+
+        class Body:
+            def __init__(self):
+                self.name = "preview"
+                self.isValid = True
+                self.deleted = 0
+
+            def deleteMe(self):
+                self.deleted += 1
+                self.isValid = False
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        bodies = []
+
+        def build(mesh, name):
+            body = Body()
+            body.name = name
+            bodies.append(body)
+            return body
+
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", side_effect=build):
+                fire_preview(command)
+                family_input = inputs[runtime.FAMILY_INPUT_ID]
+                family_input.selectedItem = next(
+                    item for item in family_input.listItems.items
+                    if item.name == "River Stone"
+                )
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=family_input)
+                )
+                self.assertEqual(runtime._preview_controllers[0].state, "stale")
+                fire_preview(command)
+
+        self.assertEqual(generate.call_count, 2)
+        self.assertEqual(generate.call_args_list[0].args[0].family_id, "smooth")
+        self.assertEqual(generate.call_args_list[1].args[0].family_id, "river_stone")
+        self.assertEqual(bodies[0].deleted, 1)
+        self.assertEqual(bodies[1].deleted, 0)
+
+    def test_river_stone_final_uses_fresh_full_resolution_request(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="NatureGenerator Rock")
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, insert: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Rock"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        family_input.selectedItem = next(
+            item for item in family_input.listItems.items
+            if item.name == "River Stone"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=family_input))
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].family_id, "river_stone")
+        self.assertEqual(captured[0].resolution, 25)
+        self.assertEqual(
+            captured[0].parameter_overrides,
+            {"size": 40.0, "roughness": 0.35, "seed": 1},
         )
 
     def test_named_variant_builds_fresh_final_request(self):
@@ -1193,11 +1341,13 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         preset_input.selectedItem = next(
             item for item in preset_input.listItems.items if item.name == "Rock"
         )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
         command.execute.handlers[0].notify(SimpleNamespace(command=command))
 
         self.assertEqual(captured[0].preset_id, "rock")
         self.assertEqual(set(captured[0].parameter_overrides), {"size", "roughness", "seed"})
         self.assertEqual(captured[0].resolution, DEFAULT_RESOLUTION)
+        self.assertEqual(captured[0].family_id, "smooth")
 
     def test_command_execute_builds_request_from_input_values(self):
         captured = []

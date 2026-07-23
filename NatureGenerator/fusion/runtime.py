@@ -17,6 +17,7 @@ PANEL_ID = "SolidScriptsAddinsPanel"
 PRESET_INPUT_ID = "naturePreset"
 VARIANT_INPUT_ID = "natureVariant"
 CUSTOM_VARIANT_LABEL = "Custom"
+FAMILY_INPUT_ID = "natureRockFamily"
 PREVIEW_INPUT_ID = "naturePreview"
 CELL_SIZE_INPUT_ID = "parameter_sponge_cell_size"
 THICKNESS_INPUT_ID = "parameter_sponge_thickness"
@@ -159,6 +160,7 @@ def start(context=None) -> None:
         GeneratorFactory,
         GenerationRequest,
     )
+    from generators.rock_families import RockFamilyRegistry
     from presets import PresetFactory
     from variants import VariantFactory
 
@@ -176,26 +178,30 @@ def start(context=None) -> None:
         _log(app, "NatureGenerator startup already completed")
         return
 
-    def read_request(preset_input, preset_ids, parameter_inputs):
-        try:
-            selected = preset_input.selectedItem
-            if selected is None:
-                raise ValueError("select a nature preset")
-            preset_id = preset_ids[selected.name]
-            preset = PresetFactory.get(preset_id)
-            if not preset.available:
-                raise ValueError("preset {!r} is unavailable: {}".format(
-                    preset_id, preset.unavailable_reason))
-            values = {
-                parameter_id: _read_parameter(
-                    parameter_inputs[(preset_id, parameter_id)], metadata
-                )
-                for parameter_id, metadata in preset.parameter_metadata.items()
-            }
-            resolution = values.pop("resolution", DEFAULT_RESOLUTION)
-            request = GenerationRequest(preset_id, values, resolution)
-        except Exception as error:
-            raise
+    def read_request(
+        preset_input,
+        preset_ids,
+        parameter_inputs,
+        family_input,
+        family_state,
+    ):
+        selected = preset_input.selectedItem
+        if selected is None:
+            raise ValueError("select a nature preset")
+        preset_id = preset_ids[selected.name]
+        preset = PresetFactory.get(preset_id)
+        if not preset.available:
+            raise ValueError("preset {!r} is unavailable: {}".format(
+                preset_id, preset.unavailable_reason))
+        values = {
+            parameter_id: _read_parameter(
+                parameter_inputs[(preset_id, parameter_id)], metadata
+            )
+            for parameter_id, metadata in preset.parameter_metadata.items()
+        }
+        resolution = values.pop("resolution", DEFAULT_RESOLUTION)
+        family_id = family_state.selected_id(family_input, preset_id)
+        request = GenerationRequest(preset_id, values, resolution, family_id)
         return preset, request
 
     class ExecuteHandler(adsk.core.CommandEventHandler):
@@ -204,18 +210,26 @@ def start(context=None) -> None:
             preset_input,
             preset_ids,
             parameter_inputs,
+            family_input,
+            family_state,
             controller,
         ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
             self._parameter_inputs = parameter_inputs
+            self._family_input = family_input
+            self._family_state = family_state
             self._controller = controller
 
         def notify(self, args):
             try:
                 preset, request = read_request(
-                    self._preset_input, self._preset_ids, self._parameter_inputs
+                    self._preset_input,
+                    self._preset_ids,
+                    self._parameter_inputs,
+                    self._family_input,
+                    self._family_state,
                 )
                 self._controller.cleanup()
                 result, body = generate_nature(request, MeshBodyBuilder().build)
@@ -267,20 +281,62 @@ def start(context=None) -> None:
                     return
             raise RuntimeError("Custom variant list item is unavailable")
 
+    class FamilyUiState:
+        def __init__(self, family_input):
+            self.preset_id = RockFamilyRegistry.preset_id
+            self.family_ids = {}
+            self.expected_values = {}
+            for index, family in enumerate(RockFamilyRegistry.list_all()):
+                family_input.listItems.add(
+                    family.display_name, index == 0, ""
+                )
+                self.family_ids[family.display_name] = family.family_id
+
+        def supports(self, preset_id):
+            return preset_id == self.preset_id
+
+        def selected_id(self, family_input, preset_id):
+            if not self.supports(preset_id):
+                return ""
+            chosen = family_input.selectedItem
+            if chosen is None:
+                raise ValueError("select a Rock Family")
+            return self.family_ids[chosen.name]
+
+        def apply_selected(self, family_input, parameter_inputs):
+            chosen = family_input.selectedItem
+            if chosen is None:
+                raise ValueError("select a Rock Family")
+            family = RockFamilyRegistry.get(self.family_ids[chosen.name])
+            preset = PresetFactory.get(self.preset_id)
+            expected = {}
+            for parameter_id, value in family.parameter_values.items():
+                input_value = parameter_inputs[(self.preset_id, parameter_id)]
+                _write_parameter(
+                    input_value, preset.parameter_metadata[parameter_id], value
+                )
+                expected[_parameter_input_id(
+                    self.preset_id, parameter_id
+                )] = input_value.value
+            self.expected_values = expected
+
     class InputChangedHandler(adsk.core.InputChangedEventHandler):
         def __init__(
-            self, preset_input, preset_ids, variant_input, parameter_inputs,
-            preview_input, controller, trigger, variant_state,
+            self, preset_input, preset_ids, variant_input, family_input,
+            parameter_inputs, preview_input, controller, trigger,
+            variant_state, family_state,
         ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
             self._variant_input = variant_input
+            self._family_input = family_input
             self._parameter_inputs = parameter_inputs
             self._preview_input = preview_input
             self._controller = controller
             self._trigger = trigger
             self._variant_state = variant_state
+            self._family_state = family_state
 
         def notify(self, args):
             try:
@@ -295,9 +351,24 @@ def start(context=None) -> None:
                 selected_id = self._preset_ids[selected.name] if selected else None
                 for (preset_id, _), input_value in self._parameter_inputs.items():
                     input_value.isVisible = preset_id == selected_id
+                family_supported = self._family_state.supports(selected_id)
+                self._family_input.isVisible = family_supported
+                self._variant_input.isVisible = not family_supported
 
                 if changed_id == PRESET_INPUT_ID:
                     self._variant_state.rebuild(self._variant_input, selected_id)
+                    if family_supported:
+                        self._family_state.apply_selected(
+                            self._family_input, self._parameter_inputs
+                        )
+                    return
+
+                if changed_id == FAMILY_INPUT_ID:
+                    if not family_supported:
+                        return
+                    self._family_state.apply_selected(
+                        self._family_input, self._parameter_inputs
+                    )
                     return
 
                 if changed_id == VARIANT_INPUT_ID:
@@ -326,6 +397,16 @@ def start(context=None) -> None:
 
                 parameter_prefix = "parameter_{}_".format(selected_id)
                 if changed_id and changed_id.startswith(parameter_prefix):
+                    if family_supported:
+                        expected = self._family_state.expected_values
+                        if (
+                            changed_id in expected
+                            and changed.value == expected[changed_id]
+                        ):
+                            expected.pop(changed_id)
+                        else:
+                            expected.clear()
+                        return
                     expected = self._variant_state.expected_values
                     if changed_id in expected and changed.value == expected[changed_id]:
                         expected.pop(changed_id)
@@ -342,13 +423,15 @@ def start(context=None) -> None:
 
     class ExecutePreviewHandler(adsk.core.CommandEventHandler):
         def __init__(
-            self, preset_input, preset_ids, parameter_inputs, controller,
-            trigger,
+            self, preset_input, preset_ids, parameter_inputs, family_input,
+            family_state, controller, trigger,
         ):
             super().__init__()
             self._preset_input = preset_input
             self._preset_ids = preset_ids
             self._parameter_inputs = parameter_inputs
+            self._family_input = family_input
+            self._family_state = family_state
             self._controller = controller
             self._trigger = trigger
 
@@ -362,6 +445,8 @@ def start(context=None) -> None:
                 preset, request = read_request(
                     self._preset_input, self._preset_ids,
                     self._parameter_inputs,
+                    self._family_input,
+                    self._family_state,
                 )
                 metadata = preset.parameter_metadata.get("resolution")
                 cap = (
@@ -473,6 +558,14 @@ def start(context=None) -> None:
             )
             variant_state = VariantUiState()
             variant_state.rebuild(variant_input, sponge.preset_id)
+            variant_input.isVisible = True
+            family_input = inputs.addDropDownCommandInput(
+                FAMILY_INPUT_ID,
+                "Family",
+                adsk.core.DropDownStyles.TextListDropDownStyle,
+            )
+            family_state = FamilyUiState(family_input)
+            family_input.isVisible = False
             parameter_inputs = {}
             for preset in presets:
                 if not preset.available:
@@ -498,15 +591,18 @@ def start(context=None) -> None:
                 preset_input,
                 preset_ids,
                 parameter_inputs,
+                family_input,
+                family_state,
                 controller,
             )
             input_changed_handler = InputChangedHandler(
-                preset_input, preset_ids, variant_input, parameter_inputs,
-                preview_input, controller, preview_trigger, variant_state,
+                preset_input, preset_ids, variant_input, family_input,
+                parameter_inputs, preview_input, controller, preview_trigger,
+                variant_state, family_state,
             )
             execute_preview_handler = ExecutePreviewHandler(
-                preset_input, preset_ids, parameter_inputs, controller,
-                preview_trigger,
+                preset_input, preset_ids, parameter_inputs, family_input,
+                family_state, controller, preview_trigger,
             )
             validate_handler = ValidateInputsHandler(
                 preset_input, preset_ids, parameter_inputs

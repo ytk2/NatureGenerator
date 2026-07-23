@@ -97,6 +97,16 @@ class GenerationRequestTests(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             request.resolution = 21
 
+    def test_optional_family_id_is_immutable_and_validated(self):
+        request = GenerationRequest("rock", {}, 17, "river_stone")
+        self.assertEqual(request.family_id, "river_stone")
+        with self.assertRaises(FrozenInstanceError):
+            request.family_id = "smooth"
+        for value in (None, 1, "River Stone", "river-stone"):
+            with self.subTest(value=value):
+                with self.assertRaises((TypeError, ValueError)):
+                    GenerationRequest("rock", {}, 17, value)
+
     def test_resolution_validation(self):
         for value in (MIN_RESOLUTION, DEFAULT_RESOLUTION, MAX_RESOLUTION):
             self.assertEqual(GenerationRequest("sponge", {}, value).resolution, value)

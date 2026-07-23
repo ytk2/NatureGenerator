@@ -30,8 +30,14 @@ class RockFamilyDefinitionTests(unittest.TestCase):
         )
         self.assertEqual(
             tuple(item.family_id for item in RockFamilyRegistry.list_all()),
-            ("default", "river_stone"),
+            ("smooth", "weathered", "rugged", "river_stone"),
         )
+        self.assertEqual(
+            tuple(item.display_name for item in RockFamilyRegistry.list_all()),
+            ("Smooth", "Weathered", "Rugged", "River Stone"),
+        )
+        with self.assertRaises(TypeError):
+            RIVER_STONE_FAMILY.parameter_values["seed"] = 2
         with self.assertRaises(FrozenInstanceError):
             RIVER_STONE_FAMILY.display_name = "Changed"
         with self.assertRaises(TypeError):
@@ -94,6 +100,18 @@ class RiverStoneGenerationTests(unittest.TestCase):
             "61264e6e929229247ac7b4d89f2916f5c5cb875dc985c5c258fa79334c18abd4",
         )
 
+    def test_factory_request_selects_existing_river_family(self):
+        request = GenerationRequest(
+            "rock", self._PARAMETERS, 25, "river_stone"
+        )
+        first = GeneratorFactory.generate_request(request)
+        repeated = GeneratorFactory.generate_request(request)
+        self.assertEqual(_digest(first.mesh), _digest(repeated.mesh))
+        self.assertEqual(
+            _digest(first.mesh),
+            "61264e6e929229247ac7b4d89f2916f5c5cb875dc985c5c258fa79334c18abd4",
+        )
+
     def test_mesh_is_finite_closed_manifold_and_single_component(self):
         mesh = self._generate()
         statistics = mesh.statistics()
@@ -140,24 +158,27 @@ class RiverStoneGenerationTests(unittest.TestCase):
     def test_existing_variant_digests_remain_unchanged(self):
         cases = (
             (
+                "smooth",
                 {"size": 40.0, "roughness": 0.10, "seed": 1},
                 17,
                 "29d6402a0148637fd00cbc1274d8f6be6c9f8901b2b856e2de75dc43f91bdc3e",
             ),
             (
+                "weathered",
                 {"size": 40.0, "roughness": 0.35, "seed": 1},
                 17,
                 "30a709c32fb7dd16b87f0388f21c6e24e12b6ad990b2872dd31f9549956e7c1d",
             ),
             (
+                "rugged",
                 {"size": 45.0, "roughness": 0.62, "seed": 23},
                 25,
                 "040bd703ef44549b418fdb5fd6804b9e36ce93e372cbbea00e5e63a8b8ffadde",
             ),
         )
-        for parameters, resolution, expected in cases:
+        for family_id, parameters, resolution, expected in cases:
             result = GeneratorFactory.generate_request(GenerationRequest(
-                "rock", parameters, resolution
+                "rock", parameters, resolution, family_id
             ))
             self.assertEqual(_digest(result.mesh), expected)
 

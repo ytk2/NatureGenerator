@@ -85,7 +85,11 @@ class RockGenerator(MeshGenerator):
         return True
 
     def generate(self, request: GenerationRequest) -> TriangleMesh:
-        return self._generate(request, DEFAULT_ROCK_FAMILY)
+        family = (
+            RockFamilyRegistry.get(request.family_id)
+            if request.family_id else DEFAULT_ROCK_FAMILY
+        )
+        return self._generate(request, family)
 
     def generate_family(
         self, request: GenerationRequest, family_id: str

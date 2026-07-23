@@ -44,6 +44,21 @@ class PreviewControllerTests(unittest.TestCase):
         self.assertEqual(capped.resolution, 17)
         self.assertEqual(capped.parameter_overrides, self.request.parameter_overrides)
 
+    def test_preview_preserves_family_identity_and_signature_distinguishes_it(self):
+        source = GenerationRequest(
+            "rock",
+            {"size": 40.0, "roughness": 0.35, "seed": 1},
+            25,
+            "river_stone",
+        )
+        preview = preview_request(source, 17, (17, 21, 25))
+        default = GenerationRequest(
+            "rock", source.parameter_overrides, 25, "weathered"
+        )
+        self.assertEqual(preview.family_id, "river_stone")
+        self.assertEqual(preview.resolution, 21)
+        self.assertNotEqual(request_signature(source), request_signature(default))
+
     def test_adaptive_preview_resolution_is_deterministic_and_bounded(self):
         candidates = (17, 21, 25)
         expected = ((17, 17), (25, 21), (41, 25))
