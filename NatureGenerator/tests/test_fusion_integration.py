@@ -647,7 +647,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         family_input = inputs[runtime.FAMILY_INPUT_ID]
         self.assertEqual(
             [item.name for item in family_input.listItems.items],
-            ["Classic Bark"],
+            ["Classic Coral"],
         )
         self.assertFalse(family_input.isVisible)
         self.assertTrue(variant_input.isVisible)
@@ -1080,6 +1080,42 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(request.preset_id, "bark")
         self.assertEqual(request.family_id, "classic_bark")
         self.assertEqual(request.resolution, 33)
+
+    def test_coral_uses_registry_family_ui_and_existing_preview_pipeline(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Coral"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        self.assertTrue(family_input.isVisible)
+        self.assertFalse(inputs[runtime.VARIANT_INPUT_ID].isVisible)
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items],
+            ["Classic Coral"],
+        )
+
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "coral")
+        self.assertEqual(request.family_id, "classic_coral")
+        self.assertEqual(request.parameter_overrides["seed"], 0)
 
     def test_variant_selection_marks_existing_preview_stale_without_generating(self):
         app, ui, workspace, panel = self._start()
@@ -1603,8 +1639,10 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(len(captured), 1)
         self.assertEqual(captured[0].preset_id, "coral")
         self.assertEqual(
-            set(captured[0].parameter_overrides), {"cell_size", "thickness"}
+            set(captured[0].parameter_overrides),
+            {"cell_size", "thickness", "seed"},
         )
+        self.assertEqual(captured[0].family_id, "classic_coral")
 
     def test_invalid_cell_size_is_reported_without_geometry(self):
         app, ui, workspace, panel = self._start()

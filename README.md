@@ -100,9 +100,10 @@ framework does not scan directories or dynamically import arbitrary files.
 Sprint 18 adds `PresetDefinition` and `PresetCatalog` above the existing API.
 The catalog associates each `NaturePreset` with an optional Family registry.
 Rock points to `RockFamilyRegistry`, and Sprint 19 promotes Bark from a
-placeholder to `BarkFamilyRegistry`. Coral, Sponge, Root, and Bone remain
-explicit placeholders with no Family registry. Fusion reads these associations
-generically and does not import concrete Family registries directly. See
+placeholder to `BarkFamilyRegistry`. Sprint 20 promotes Coral to
+`CoralFamilyRegistry`. Sponge, Root, and Bone remain explicit placeholders with
+no Family registry. Fusion reads these associations generically and does not
+import concrete Family registries directly. See
 [`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
 
 ```text
@@ -161,6 +162,12 @@ The initial **Classic Bark** Family preserves the accepted cylindrical,
 directionally grooved Bark geometry and all seven existing parameters. Preview
 and OK carry the stable `classic_bark` ID through the unchanged request path.
 See [`docs/SPRINT19_DESIGN.md`](docs/SPRINT19_DESIGN.md).
+
+Sprint 20 registers **Classic Coral** through `CoralFamilyRegistry`. It
+preserves the accepted Seed 0 branching mesh and adds a metadata-driven Seed
+control for deterministic connected branch variation. Preview and OK carry
+`classic_coral` through the existing request path. See
+[`docs/SPRINT20_DESIGN.md`](docs/SPRINT20_DESIGN.md).
 
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
@@ -241,6 +248,8 @@ The dialog exposes each preset's metadata-defined inputs:
   branching scale for Coral.
 - **Thickness:** gyroid field-value offset for Sponge and relative branch radius
   for Coral.
+- **Coral Seed:** deterministic shared-node variation of the connected branch
+  silhouette.
 - **Resolution:** samples per axis; higher values increase mesh quality and
   pure-Python runtime cost. The supported range is 9–41 and the default is 17.
 - **Rock Size, Roughness, and Seed:** physical scale, bounded surface variation,

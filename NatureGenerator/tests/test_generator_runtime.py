@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from core.mesh import TriangleMesh
+from generators.coral_generator import _CoralField
 from generators import (
     DEFAULT_RESOLUTION,
     MAX_RESOLUTION,
@@ -226,6 +227,18 @@ class GyroidGeneratorTests(unittest.TestCase):
 
 
 class CoralGeneratorTests(unittest.TestCase):
+    def test_branch_graph_has_multiple_upward_connected_segments(self):
+        for seed in (0, 42):
+            field = _CoralField(14.0, 0.35, seed)
+            self.assertGreaterEqual(len(field._segments), 6)
+            self.assertTrue(all(
+                end[2] > start[2] for start, end in field._segments
+            ))
+            endpoints = [
+                endpoint for segment in field._segments for endpoint in segment
+            ]
+            self.assertLess(len(set(endpoints)), len(endpoints))
+
     def test_coral_runs_end_to_end_as_a_watertight_mesh(self):
         result = GeneratorFactory.generate_request(
             GenerationRequest("coral", {}, DEFAULT_RESOLUTION)
@@ -240,7 +253,54 @@ class CoralGeneratorTests(unittest.TestCase):
         self.assertTrue(result.statistics.is_manifold)
         self.assertTrue(result.statistics.is_watertight)
         self.assertEqual(result.statistics.boundary_edge_count, 0)
+        self.assertEqual(result.statistics.connected_component_count, 1)
         self.assertGreater(result.elapsed_time, 0.0)
+
+    def test_classic_family_matches_backward_compatible_default(self):
+        default = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {}, DEFAULT_RESOLUTION)
+        )
+        family = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {}, DEFAULT_RESOLUTION, "classic_coral")
+        )
+        self.assertEqual(default.mesh.vertices, family.mesh.vertices)
+        self.assertEqual(default.mesh.faces, family.mesh.faces)
+
+    def test_classic_coral_digest_is_stable(self):
+        result = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {}, DEFAULT_RESOLUTION, "classic_coral")
+        )
+        digest = hashlib.sha256(
+            repr((result.mesh.vertices, result.mesh.faces)).encode("ascii")
+        ).hexdigest()
+        self.assertEqual(
+            digest,
+            "f4c780ffb295c44a96d13311baae4c6987319c67f2dda515451c8ae0845834e4",
+        )
+
+    def test_seed_is_deterministic_and_changes_branch_geometry(self):
+        first = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {"seed": 42}, DEFAULT_RESOLUTION)
+        )
+        repeated = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {"seed": 42}, DEFAULT_RESOLUTION)
+        )
+        changed = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {"seed": 43}, DEFAULT_RESOLUTION)
+        )
+        self.assertEqual(first.mesh.vertices, repeated.mesh.vertices)
+        self.assertEqual(first.mesh.faces, repeated.mesh.faces)
+        self.assertNotEqual(first.mesh.vertices, changed.mesh.vertices)
+        for result in (first, changed):
+            self.assertTrue(result.statistics.is_watertight)
+            self.assertTrue(result.statistics.is_manifold)
+            self.assertEqual(result.statistics.connected_component_count, 1)
+
+    def test_unknown_coral_family_is_rejected(self):
+        with self.assertRaises(InvalidGeneratorParameters):
+            GeneratorFactory.generate_request(
+                GenerationRequest("coral", {}, DEFAULT_RESOLUTION, "missing")
+            )
 
     def test_legacy_factory_entry_point_supports_coral(self):
         result = GeneratorFactory.generate(PresetFactory.get("coral"))
@@ -258,6 +318,33 @@ class CoralGeneratorTests(unittest.TestCase):
         self.assertTrue(coral.statistics.is_watertight)
         self.assertFalse(sponge.statistics.is_watertight)
         self.assertNotEqual(coral.statistics.face_count, sponge.statistics.face_count)
+
+    def test_coral_is_quantitatively_distinct_from_rock_and_bark(self):
+        coral = GeneratorFactory.generate_request(
+            GenerationRequest("coral", {}, DEFAULT_RESOLUTION, "classic_coral")
+        )
+        rock = GeneratorFactory.generate_request(
+            GenerationRequest("rock", {}, DEFAULT_RESOLUTION)
+        )
+        bark = GeneratorFactory.generate_request(
+            GenerationRequest("bark", {}, 33)
+        )
+
+        def aspect(result):
+            bounds = result.statistics.bounds
+            spans = tuple(
+                bounds[1][axis] - bounds[0][axis] for axis in range(3)
+            )
+            return spans[2] / max(spans[0], spans[1])
+
+        self.assertGreater(aspect(coral), aspect(rock))
+        self.assertLess(aspect(coral), aspect(bark))
+        self.assertNotEqual(
+            coral.statistics.face_count, rock.statistics.face_count
+        )
+        self.assertNotEqual(
+            coral.statistics.face_count, bark.statistics.face_count
+        )
 
     def test_coral_shared_parameters_affect_scale_and_mesh(self):
         small = GeneratorFactory.generate_request(
@@ -279,6 +366,7 @@ class CoralGeneratorTests(unittest.TestCase):
             {"cell_size": 0.0},
             {"thickness": -0.1},
             {"thickness": 1.1},
+            {"seed": 1.5},
             {"unknown": 1.0},
         ):
             with self.assertRaises(InvalidGeneratorParameters):

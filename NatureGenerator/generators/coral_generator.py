@@ -8,12 +8,14 @@ from core.mesh import TriangleMesh
 from core.voxel_grid import VoxelGrid
 from presets import PresetFactory
 
+from .coral_families import CLASSIC_CORAL_FAMILY, CoralFamilyRegistry
 from .generator import (
     MeshGenerator,
     InvalidGeneratorParameters,
     MeshExtractionError,
 )
 from .request import GenerationRequest
+from .value_noise import DeterministicValueNoise
 
 
 Point3 = Tuple[float, float, float]
@@ -36,14 +38,31 @@ class _CoralField:
         ((-0.23, 0.12, 0.29), (-0.30, 0.04, 0.38)),
     )
 
-    def __init__(self, cell_size: float, thickness: float) -> None:
+    def __init__(self, cell_size: float, thickness: float, seed: int) -> None:
         self.cell_size = float(cell_size)
         self.thickness = float(thickness)
+        self.seed = seed
         self._radius = self.cell_size * (0.052 + 0.058 * self.thickness)
+        noise = DeterministicValueNoise(seed)
+
+        def transform(point: Point3) -> Point3:
+            if seed == 0:
+                return point
+            x, y, z = point
+            return (
+                x + 0.030 * noise.sample(3.1 * x + 2.7, 4.3 * y, 5.9 * z),
+                y + 0.030 * noise.sample(3.7 * x, 4.9 * y - 1.3, 5.3 * z),
+                z + 0.010 * noise.sample(4.1 * x, 3.3 * y, 6.1 * z + 0.8),
+            )
+
         self._segments = tuple(
             (
-                tuple(coordinate * self.cell_size for coordinate in start),
-                tuple(coordinate * self.cell_size for coordinate in end),
+                tuple(
+                    coordinate * self.cell_size for coordinate in transform(start)
+                ),
+                tuple(
+                    coordinate * self.cell_size for coordinate in transform(end)
+                ),
             )
             for start, end in self._SEGMENTS
         )
@@ -74,7 +93,7 @@ class _CoralField:
 class CoralGenerator(MeshGenerator):
     """Generate a closed, branching coral solid from shared command parameters."""
 
-    _PARAMETER_IDS = frozenset(("cell_size", "thickness"))
+    _PARAMETER_IDS = frozenset(("cell_size", "thickness", "seed"))
 
     @property
     def preset_id(self) -> str:
@@ -102,6 +121,14 @@ class CoralGenerator(MeshGenerator):
         preset = PresetFactory.get(self.preset_id)
 
         configured = dict(preset.default_parameters)
+        try:
+            family = (
+                CoralFamilyRegistry.get(request.family_id)
+                if request.family_id else CLASSIC_CORAL_FAMILY
+            )
+        except KeyError as error:
+            raise InvalidGeneratorParameters(str(error)) from error
+        configured.update(family.parameter_values)
         configured.pop("resolution", None)
         configured.update(request.parameter_overrides)
         unknown = set(configured) - self._PARAMETER_IDS
@@ -118,8 +145,11 @@ class CoralGenerator(MeshGenerator):
         try:
             cell_size = self._finite_number(configured["cell_size"], "cell_size")
             thickness = self._finite_number(configured["thickness"], "thickness")
+            seed = configured["seed"]
+            if isinstance(seed, bool) or not isinstance(seed, int):
+                raise TypeError("seed must be an integer")
             self._validate_metadata_bounds(preset, configured)
-            field = _CoralField(cell_size, thickness)
+            field = _CoralField(cell_size, thickness, seed)
         except (TypeError, ValueError, OverflowError) as error:
             raise InvalidGeneratorParameters(
                 "invalid coral parameters: {}".format(error)
