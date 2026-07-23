@@ -83,6 +83,16 @@ See [SPRINT17_DESIGN.md](docs/SPRINT17_DESIGN.md).
 
 See [SPRINT18_DESIGN.md](docs/SPRINT18_DESIGN.md).
 
+**Sprint 19 — Bark Preset MVP**
+
+- promote Bark from a no-Family placeholder to `BarkFamilyRegistry`
+- add the initial Classic Bark Family through immutable parameter metadata
+- preserve the accepted capped cylindrical Bark geometry
+- keep all seven Bark inputs, Preview, OK, and GeneratorFactory behavior
+- retain deterministic watertight single-component output
+
+See [SPRINT19_DESIGN.md](docs/SPRINT19_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

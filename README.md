@@ -99,9 +99,10 @@ framework does not scan directories or dynamically import arbitrary files.
 
 Sprint 18 adds `PresetDefinition` and `PresetCatalog` above the existing API.
 The catalog associates each `NaturePreset` with an optional Family registry.
-Rock points to `RockFamilyRegistry`; Bark, Coral, Sponge, Root, and Bone are
-explicit placeholders with no Family registry. Fusion reads this association
-generically and no longer imports the Rock registry directly. See
+Rock points to `RockFamilyRegistry`, and Sprint 19 promotes Bark from a
+placeholder to `BarkFamilyRegistry`. Coral, Sponge, Root, and Bone remain
+explicit placeholders with no Family registry. Fusion reads these associations
+generically and does not import concrete Family registries directly. See
 [`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
 
 ```text
@@ -154,6 +155,12 @@ are procedural design approximations, not geological simulations. See
 Real Autodesk Fusion acceptance confirmed that all three new silhouettes are
 visually distinct and behave correctly, while existing Rock families and
 non-Rock presets remain functional.
+
+Sprint 19 registers Bark through the same preset-level Family architecture.
+The initial **Classic Bark** Family preserves the accepted cylindrical,
+directionally grooved Bark geometry and all seven existing parameters. Preview
+and OK carry the stable `classic_bark` ID through the unchanged request path.
+See [`docs/SPRINT19_DESIGN.md`](docs/SPRINT19_DESIGN.md).
 
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and

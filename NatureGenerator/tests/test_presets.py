@@ -5,6 +5,7 @@ from pathlib import Path
 import unittest
 
 from generators.gyroid import GyroidField
+from generators.bark_families import BarkFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
 from preset_catalog import PresetCatalog
 from presets import (
@@ -241,8 +242,24 @@ class PresetRegistryTests(unittest.TestCase):
             set(definitions),
             {"coral", "bone", "bark", "sponge", "rock", "root"},
         )
-        for preset_id in ("bark", "coral", "sponge", "root", "bone"):
+        self.assertIs(definitions["bark"].families, BarkFamilyRegistry)
+        for preset_id in ("coral", "sponge", "root", "bone"):
             self.assertIsNone(definitions[preset_id].families)
+
+    def test_bark_catalog_exposes_classic_family_metadata(self):
+        definition = PresetCatalog.get("bark")
+        self.assertIs(definition.families, BarkFamilyRegistry)
+        families = definition.families.list_all()
+        self.assertEqual(len(families), 1)
+        self.assertEqual(families[0].family_id, "classic_bark")
+        self.assertEqual(families[0].display_name, "Classic Bark")
+        self.assertEqual(
+            tuple(families[0].parameter_values),
+            (
+                "diameter", "height", "bark_depth", "groove_scale",
+                "twist", "seed", "resolution",
+            ),
+        )
 
     def test_definition_rejects_family_registry_for_another_preset(self):
         with self.assertRaises(ValueError):
