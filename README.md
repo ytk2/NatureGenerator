@@ -2,13 +2,13 @@
 
 > Generate manufacturable natural geometry directly inside Autodesk Fusion.
 
-NatureGenerator v0.10.0 is the stable Interactive Preview Foundation release.
-Sponge, Coral, Rock, Bark, and Root are executable. Sprint 13 adds unreleased
-curated Generator Variants.
+NatureGenerator v0.11.0 is the stable Generator Variants release. Sponge,
+Coral, Rock, Bark, and Root are executable. Sprint 15 adds an internal Rock
+Family architecture while preserving the released UI.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
 
-**Stable baseline:** `v0.10.0 — Interactive Preview Foundation`
+**Stable baseline:** `v0.11.0 — Generator Variants`
 
 [Getting started](docs/GETTING_STARTED.md) · [Gallery](docs/GALLERY.md) ·
 [Vision](VISION.md) · [Architecture](ARCHITECTURE.md) · [Roadmap](ROADMAP.md) ·
@@ -22,6 +22,12 @@ uses a deformed ellipsoid with dependency-free value noise. Bark uses a closed
 finite cylinder with directional, anisotropic surface variation. Unreleased
 Root uses a bounded deterministic skeleton and a union of tapered segment
 fields.
+
+Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
+and Surface Detail stages, then adds River Stone as a parameter-only proof of
+the family architecture. It preserves the accepted Sprint 14 geometry and all
+public workflows; River Stone is not yet exposed in Fusion. See
+[`docs/SPRINT15_DESIGN.md`](docs/SPRINT15_DESIGN.md).
 
 ## Geometry pipeline
 
@@ -115,8 +121,7 @@ Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
 replaced the current configuration, manual edits selected Custom, Preset
 switching worked, and OK/Cancel remained functional. No event recursion or
-duplicate controls were observed. Sprint 13 remains unreleased until merge and
-tagging.
+duplicate controls were observed. Sprint 13 is released in `v0.11.0`.
 
 | Preset | Category | Generator ID | Status |
 | --- | --- | --- | --- |
@@ -202,7 +207,7 @@ The dialog exposes each preset's metadata-defined inputs:
   and Seed:** dimensions and repeatable staged branching controls. Root
   resolution is constrained to 37–41, with a default of 37.
 
-Sponge, Coral, Rock, Bark, and Root are executable in v0.10.0. Bone
+Sponge, Coral, Rock, Bark, and Root are executable in v0.11.0. Bone
 appears as Coming Soon and produces no geometry when selected. Cancel also creates
 no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
@@ -222,7 +227,7 @@ Root passed real Autodesk Fusion acceptance on macOS: all nine metadata-driven
 inputs displayed, `NatureGenerator Root` MeshBodies were created, and parameter
 changes produced different geometry. Observed runs produced 6,568 vertices and
 13,136 faces in approximately 2.498 seconds, and 7,452 vertices and 14,900 faces
-in approximately 3.941 seconds. Root is included in stable v0.9.0.
+in approximately 3.941 seconds. Root is included in the stable baseline.
 
 Root v1 has a dominant primary root and lateral branches, but can resemble a
 simplified branching pipe or stylized root rather than a botanically realistic
@@ -246,8 +251,7 @@ Real Fusion acceptance on macOS verified viewport and Browser preview display,
 replacement after parameter changes, OK finalization, Cancel cleanup, and the
 absence of orphaned bodies or duplicate controls. The observed Sponge preview
 at resolution 17 contained 5,684 vertices and 10,944 faces and completed in
-approximately 0.25–0.27 seconds. Sprint 12 remains unreleased until merge and
-tagging.
+approximately 0.25–0.27 seconds. Sprint 12 is included in the stable baseline.
 
 Bark v1 is intentionally a closed procedural trunk segment with directional
 grooves. Its current visual character is closer to an irregular or twisted

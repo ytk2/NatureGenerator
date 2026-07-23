@@ -1,6 +1,6 @@
 # Architecture
 
-The current stable product baseline is the immutable `v0.9.0` release tag.
+The current stable product baseline is the immutable `v0.11.0` release tag.
 This file is current main-branch documentation describing that architecture;
 later documentation edits do not alter the tagged commit. See the
 [baseline checklist](docs/V0.5.0_BASELINE.md) and
@@ -43,10 +43,13 @@ an immutable `GeneratorResult` containing the mesh, statistics, warnings, IDs,
 and elapsed time.
 
 `SpongeGenerator` delegates to the unchanged `GyroidGenerator` pipeline, while
-`CoralGenerator` produces a closed branching implicit solid, `RockGenerator`
-produces a closed deformed ellipsoid with deterministic value noise, and
-`BarkGenerator` produces a closed capped trunk field with directional periodic
-detail using the same narrow deterministic value-noise primitive.
+`CoralGenerator` produces a closed branching implicit solid. `RockGenerator`
+composes immutable Macro Shape, Facet Layout, and Surface Detail definitions
+into a closed deformed ellipsoid with deterministic value noise. The stages
+share only an immutable normalized Rock context and remain independently
+constructible and testable. `BarkGenerator` produces a closed capped trunk
+field with directional periodic detail using the same narrow deterministic
+value-noise primitive.
 `RootGenerator` first builds an immutable, depth-bounded primary/lateral
 skeleton, then thickens it as a hard implicit union of tapered capsule-like
 segment fields and a compact crown. Segment count, tip radius, sampling margin,
@@ -60,11 +63,30 @@ does not introduce `GeneratorDescriptor`.
 
 A scalar field is the mathematical implicit representation of a form. It maps a
 three-dimensional point to a scalar value that can be sampled and polygonized.
-`GyroidField` returns `abs(g) - thickness` for a periodic gyroid sheet. Rock,
-Bark, and Root supply bounded callable fields directly; Bark closes its finite
+`GyroidField` returns `abs(g) - thickness` for a periodic gyroid sheet. Rock
+builds its bounded callable field through this internal pipeline:
+
+```text
+Rock request
+    -> Macro Shape
+    -> Facet Layout
+    -> Surface Detail
+    -> composed scalar field
+    -> existing mesh pipeline
+```
+
+The pipeline has no Variant identity or Fusion dependency. Bark and Root also
+supply bounded callable fields directly; Bark closes its finite
 cylinder with the maximum of its radial side field and planar cap field. Root's
 staged skeleton is a generator-owned intermediate representation rather than a
 core geometry dependency.
+
+Internal Rock families are immutable bundles containing one parameter set per
+Rock stage. `RockFamilyRegistry` resolves those bundles, and
+`RockGenerator.generate_family` feeds them through the same field composition,
+sampling, and extraction path. Families do not own algorithms and are not
+automatically exposed as presets or Variants. River Stone is the first internal
+family and remains absent from the Fusion UI.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing
