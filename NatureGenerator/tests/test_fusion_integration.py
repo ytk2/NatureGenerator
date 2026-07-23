@@ -647,10 +647,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         family_input = inputs[runtime.FAMILY_INPUT_ID]
         self.assertEqual(
             [item.name for item in family_input.listItems.items],
-            [
-                "Smooth", "Weathered", "Rugged", "River Stone",
-                "Granite", "Basalt", "Broken Rock",
-            ],
+            ["Classic Bark"],
         )
         self.assertFalse(family_input.isVisible)
         self.assertTrue(variant_input.isVisible)
@@ -1023,6 +1020,66 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         roughness.value = 0.5
         command.inputChanged.handlers[0].notify(SimpleNamespace(input=roughness))
         self.assertEqual(family_input.selectedItem.name, "Rugged")
+
+    def test_bark_uses_registry_family_ui_and_metadata_parameters(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Bark"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        variant_input = inputs[runtime.VARIANT_INPUT_ID]
+        self.assertTrue(family_input.isVisible)
+        self.assertFalse(variant_input.isVisible)
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items],
+            ["Classic Bark"],
+        )
+        self.assertEqual(family_input.selectedItem.name, "Classic Bark")
+        self.assertEqual(
+            tuple(
+                inputs[runtime._parameter_input_id("bark", parameter_id)].value
+                for parameter_id in (
+                    "diameter", "height", "bark_depth", "groove_scale",
+                    "twist", "seed", "resolution",
+                )
+            ),
+            (8.0, 12.0, 0.4, 1.8, 0.0, 10, 33),
+        )
+
+    def test_bark_family_preview_uses_existing_preview_pipeline(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Bark"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "bark")
+        self.assertEqual(request.family_id, "classic_bark")
+        self.assertEqual(request.resolution, 33)
 
     def test_variant_selection_marks_existing_preview_stale_without_generating(self):
         app, ui, workspace, panel = self._start()
@@ -1413,6 +1470,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             "diameter", "height", "bark_depth", "groove_scale", "twist", "seed",
         })
         self.assertEqual(captured[0].resolution, 33)
+        self.assertEqual(captured[0].family_id, "classic_bark")
 
     def test_rock_selection_builds_metadata_driven_request(self):
         captured = []

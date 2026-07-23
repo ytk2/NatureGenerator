@@ -32,8 +32,9 @@ describe all Fusion inputs through ordered parameter metadata.
 
 Sprint 18 adds an immutable `PresetDefinition` association around each
 `NaturePreset` and its optional Family registry. `PresetCatalog` is the
-application composition root: Rock is associated with `RockFamilyRegistry`;
-Bark, Coral, Sponge, Root, and Bone are explicit no-Family placeholders.
+application composition root: Rock is associated with `RockFamilyRegistry`,
+and Sprint 19 associates Bark with `BarkFamilyRegistry`. Coral, Sponge, Root,
+and Bone are explicit no-Family placeholders.
 `PresetFactory` remains the stable metadata API used by generators, preserving
 existing public contracts and the rule that `presets/` never imports concrete
 generator code.
@@ -104,6 +105,12 @@ and extraction path. Families do not own algorithms. The Registry-driven
 Fusion Family input exposes Smooth, Weathered, Rugged, River Stone, Granite,
 Basalt, and Broken Rock. New families change only immutable stage parameters
 and existing public Rock defaults.
+
+Sprint 19 applies the same preset-level association to Bark.
+`BarkFamilyRegistry` initially exposes Classic Bark, an immutable bundle of the
+seven accepted Bark parameter values. `BarkGenerator` still owns the capped
+cylindrical scalar field and uses the same extraction path. The registry owns
+no geometry and introduces no Bark-specific Fusion branching.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing

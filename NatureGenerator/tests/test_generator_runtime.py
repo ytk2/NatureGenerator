@@ -416,6 +416,32 @@ class BarkGeneratorTests(unittest.TestCase):
         self.assertEqual(first.mesh.faces, repeated.mesh.faces)
         self.assertNotEqual(first.mesh.vertices, different.mesh.vertices)
 
+    def test_classic_family_matches_backward_compatible_default(self):
+        default = self._generate()
+        family = GeneratorFactory.generate_request(
+            GenerationRequest("bark", {}, 33, "classic_bark")
+        )
+        self.assertEqual(default.mesh.vertices, family.mesh.vertices)
+        self.assertEqual(default.mesh.faces, family.mesh.faces)
+
+    def test_classic_family_digest_is_stable(self):
+        result = GeneratorFactory.generate_request(
+            GenerationRequest("bark", {}, 33, "classic_bark")
+        )
+        digest = hashlib.sha256(
+            repr((result.mesh.vertices, result.mesh.faces)).encode("ascii")
+        ).hexdigest()
+        self.assertEqual(
+            digest,
+            "7cd5810b943bcfb4f88537d547ca9dfcce82380048d8bd41c20c309fd69dd6b7",
+        )
+
+    def test_unknown_bark_family_is_rejected(self):
+        with self.assertRaises(InvalidGeneratorParameters):
+            GeneratorFactory.generate_request(
+                GenerationRequest("bark", {}, 33, "missing")
+            )
+
     def test_dimensions_depth_grooves_twist_and_resolution_affect_geometry(self):
         narrow = self._generate({"diameter": 50.0})
         wide = self._generate({"diameter": 120.0})
