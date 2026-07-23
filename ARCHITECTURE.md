@@ -33,9 +33,9 @@ describe all Fusion inputs through ordered parameter metadata.
 Sprint 18 adds an immutable `PresetDefinition` association around each
 `NaturePreset` and its optional Family registry. `PresetCatalog` is the
 application composition root: Rock is associated with `RockFamilyRegistry`,
-Sprint 19 associates Bark with `BarkFamilyRegistry`, and Sprint 20 associates
-Coral with `CoralFamilyRegistry`. Sponge, Root, and Bone are explicit no-Family
-placeholders.
+Sprint 19 associates Bark with `BarkFamilyRegistry`, Sprint 20 associates Coral
+with `CoralFamilyRegistry`, and Sprint 21 associates Sponge with
+`SpongeFamilyRegistry`. Root and Bone remain explicit no-Family placeholders.
 `PresetFactory` remains the stable metadata API used by generators, preserving
 existing public contracts and the rule that `presets/` never imports concrete
 generator code.
@@ -60,8 +60,10 @@ samples-per-axis resolution without Fusion types. A `MeshGenerator` implements
 an immutable `GeneratorResult` containing the mesh, statistics, warnings, IDs,
 and elapsed time.
 
-`SpongeGenerator` delegates to the unchanged `GyroidGenerator` pipeline, while
-`CoralGenerator` produces a closed branching implicit solid. `RockGenerator`
+`SpongeGenerator` produces a closed rounded body with deterministic spherical
+surface pores. The legacy `GyroidGenerator` remains available through its
+stable generator API. `CoralGenerator` produces a closed branching implicit
+solid. `RockGenerator`
 composes immutable Macro Shape, Facet Layout, and Surface Detail definitions
 into a closed deformed ellipsoid with deterministic value noise. The stages
 share only an immutable normalized Rock context and remain independently
@@ -118,6 +120,12 @@ four accepted Coral parameter values, while `CoralGenerator` owns the connected
 capsule-union field. Seed 0 preserves the original branch graph; nonzero Seeds
 apply one deterministic transform per shared node, so connected segments keep
 identical endpoints and remain a single implicit solid.
+
+Sprint 21 associates Sponge with `SpongeFamilyRegistry`. Classic Sponge stores
+Cell Size, Thickness, Seed, and Resolution metadata. `SpongeGenerator` samples
+a rounded-box field with exterior-connected spherical cavities, producing a
+closed single-component porous mesh through the existing voxel and marching
+pipeline.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing

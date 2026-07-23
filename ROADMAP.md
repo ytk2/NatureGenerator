@@ -103,6 +103,17 @@ See [SPRINT19_DESIGN.md](docs/SPRINT19_DESIGN.md).
 
 See [SPRINT20_DESIGN.md](docs/SPRINT20_DESIGN.md).
 
+**Sprint 21 — Sponge Preset MVP**
+
+- promote Sponge from a no-Family placeholder to `SpongeFamilyRegistry`
+- register Classic Sponge through the generic Preset Catalog
+- replace the boundary-clipped sheet with a closed porous solid
+- add deterministic Seed-dependent rounded pore placement
+- expose Sponge Family selection through the existing Fusion dialog
+- preserve Rock, Bark, and Coral regression digests
+
+See [SPRINT21_DESIGN.md](docs/SPRINT21_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

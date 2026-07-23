@@ -1,4 +1,4 @@
-"""Sponge preset backed by the available gyroid scalar field."""
+"""Sponge preset backed by the closed porous Sponge field."""
 
 from .preset import NaturePreset, ParameterMetadata
 
@@ -7,11 +7,12 @@ SPONGE_PRESET = NaturePreset(
     preset_id="sponge",
     display_name="Sponge",
     category="aquatic",
-    description="Continuous porous sheet structure inspired by natural sponges.",
+    description="Closed rounded solid with seed-dependent surface pores.",
     generator_id="gyroid",
     default_parameters={
         "cell_size": 10.0,
         "thickness": 0.2,
+        "seed": 0,
         "resolution": 17,
     },
     parameter_metadata={
@@ -22,7 +23,7 @@ SPONGE_PRESET = NaturePreset(
             minimum=1.0,
             maximum=100.0,
             unit="mm",
-            description="World-space length of one gyroid period.",
+            description="Overall world-space scale of the sponge body.",
         ),
         "thickness": ParameterMetadata(
             "Thickness",
@@ -31,7 +32,11 @@ SPONGE_PRESET = NaturePreset(
             minimum=0.0,
             maximum=1.0,
             unit="",
-            description="Half-band around the mathematical gyroid surface.",
+            description="Relative size of rounded surface pores.",
+        ),
+        "seed": ParameterMetadata(
+            "Seed", "integer", 0, minimum=0, maximum=2147483647,
+            description="Deterministic pore-layout seed.",
         ),
         "resolution": ParameterMetadata(
             "Resolution", "integer", 17, minimum=9, maximum=41,

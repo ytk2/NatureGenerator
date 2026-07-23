@@ -101,7 +101,8 @@ Sprint 18 adds `PresetDefinition` and `PresetCatalog` above the existing API.
 The catalog associates each `NaturePreset` with an optional Family registry.
 Rock points to `RockFamilyRegistry`, and Sprint 19 promotes Bark from a
 placeholder to `BarkFamilyRegistry`. Sprint 20 promotes Coral to
-`CoralFamilyRegistry`. Sponge, Root, and Bone remain explicit placeholders with
+`CoralFamilyRegistry`, and Sprint 21 promotes Sponge to
+`SpongeFamilyRegistry`. Root and Bone remain explicit placeholders with
 no Family registry. Fusion reads these associations generically and does not
 import concrete Family registries directly. See
 [`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
@@ -169,6 +170,12 @@ control for deterministic connected branch variation. Preview and OK carry
 `classic_coral` through the existing request path. See
 [`docs/SPRINT20_DESIGN.md`](docs/SPRINT20_DESIGN.md).
 
+Sprint 21 registers **Classic Sponge** through `SpongeFamilyRegistry`. It
+creates a closed rounded porous solid whose exterior-connected spherical pores
+vary deterministically with Seed. Preview and OK use the same
+`GenerationRequest` and mesh pipeline. See
+[`docs/SPRINT21_DESIGN.md`](docs/SPRINT21_DESIGN.md).
+
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
 replaced the current configuration, manual edits selected Custom, Preset
@@ -208,9 +215,9 @@ print(result.warnings)
 
 `GyroidGenerator` constructs `GyroidField`, samples a `VoxelGrid`,
 extracts a `TriangleMesh` with marching tetrahedra, validates it, and returns an
-immutable `GeneratorResult`. The finite gyroid crop normally has boundary edges,
-so that expected open-mesh condition is returned as a warning rather than being
-misrepresented as watertight.
+immutable `GeneratorResult`. The legacy finite Gyroid crop remains available
+through this stable API. Classic Sponge instead uses a closed porous field and
+requires watertight validation.
 
 `CoralGenerator` uses the same Geometry Core to extract a connected union of
 branch capsules. Its surface stays inside the sampled domain and must pass
@@ -219,7 +226,7 @@ both forms through explicit preset and generator registration. The
 request-oriented `SpongeGenerator`, `CoralGenerator`, `RockGenerator`, and
 `BarkGenerator`, and `RootGenerator` each return a
 `TriangleMesh`; the factory preserves the public immutable `GeneratorResult`
-API and delegates Sponge geometry to the unchanged `GyroidGenerator` pipeline.
+API. Sponge geometry uses a closed rounded-body and spherical-pore field.
 
 `GeneratorFactory.generate(preset, parameters)` remains available for existing
 callers and uses the original resolution of 17 samples per axis.
@@ -244,12 +251,13 @@ Generate Nature
 
 The dialog exposes each preset's metadata-defined inputs:
 
-- **Cell Size:** physical form scale; the gyroid period for Sponge and overall
+- **Cell Size:** physical form scale; the overall Sponge body and Coral branch
   branching scale for Coral.
-- **Thickness:** gyroid field-value offset for Sponge and relative branch radius
+- **Thickness:** relative Sponge pore size and Coral branch radius
   for Coral.
 - **Coral Seed:** deterministic shared-node variation of the connected branch
   silhouette.
+- **Sponge Seed:** deterministic rounded pore placement and size variation.
 - **Resolution:** samples per axis; higher values increase mesh quality and
   pure-Python runtime cost. The supported range is 9–41 and the default is 17.
 - **Rock Size, Roughness, and Seed:** physical scale, bounded surface variation,
