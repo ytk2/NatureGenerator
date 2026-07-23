@@ -2,9 +2,9 @@
 
 ## Current Stable Baseline
 
-**v0.10.0 — Interactive Preview Foundation**
+**v0.11.0 — Generator Variants**
 
-The immutable `v0.10.0` Git tag is the released source baseline. This roadmap is
+The immutable `v0.11.0` Git tag is the released source baseline. This roadmap is
 current main-branch documentation describing that baseline and future
 candidates; it is not part of the historical tagged commit unless viewed from
 that tag.
@@ -19,28 +19,43 @@ Completed:
 - Interactive Sponge parameters
 - Real Fusion acceptance test
 
-All future feature branches should be created from the latest `main` after
-v0.10.0 unless a maintenance branch explicitly targets an earlier release.
+All future feature branches should be created from the latest `main` unless a
+maintenance branch explicitly targets an earlier release.
 
 See the [v0.5.0 baseline checklist](docs/V0.5.0_BASELINE.md) and
 [release history](docs/RELEASES.md) for verified capabilities and limitations.
 
-## Committed Next Sprint
+## Completed Development Milestones
 
-**Sprint 13 — Generator Variants**
+**Sprint 14 — Rock Generator v2**
 
-In development on `feature/generator-variants` and explicitly unreleased:
+- natural multi-scale boulder silhouettes
+- Roughness controls broad form, facets, ridges, and surface breakup
+- Smooth, Weathered, and Rugged remain distinct
+- adaptive Preview resolution preserves major features
+- deterministic, watertight output retained
 
-- add immutable curated variants for every executable preset
-- add one generic Variant dropdown with Custom behavior
-- preserve per-preset edited values across preset switching
-- invalidate previews without adding automatic generation
-- preserve all generator algorithms and deterministic defaults
-- real Fusion acceptance passed for filtering, application, Custom editing,
-  Preview replacement, Preset switching, OK, and Cancel
+See [SPRINT14_DESIGN.md](docs/SPRINT14_DESIGN.md).
 
-See [SPRINT13_DESIGN.md](docs/SPRINT13_DESIGN.md) for the data model, registry,
-application, switching, preview invalidation, and compatibility decisions.
+**Sprint 15 — Rock Family Architecture**
+
+- separate Macro Shape, Facet Layout, and Surface Detail definitions
+- make each internal stage immutable and independently testable
+- preserve Sprint 14 geometry, parameters, Variants, and Preview behavior
+- add an immutable, read-only internal Rock Family registry
+- prove parameter-only family generation with River Stone
+- keep River Stone intentionally absent from the Fusion UI
+
+See [SPRINT15_DESIGN.md](docs/SPRINT15_DESIGN.md) for stage ownership,
+family composition, compatibility, regression digests, and validation.
+
+## Next Sprint
+
+**Sprint 16 — Fusion Rock Family Selection**
+
+Planning begins on `feature/rock-families`. The objective is to expose the
+internal family architecture and River Stone to Fusion users while preserving
+Preview, Final generation, and backward compatibility.
 
 ## Candidate Future Work
 
