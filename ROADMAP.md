@@ -93,6 +93,16 @@ See [SPRINT18_DESIGN.md](docs/SPRINT18_DESIGN.md).
 
 See [SPRINT19_DESIGN.md](docs/SPRINT19_DESIGN.md).
 
+**Sprint 20 — Coral Preset MVP**
+
+- promote Coral from a no-Family placeholder to `CoralFamilyRegistry`
+- add Classic Coral as the initial branching Family
+- preserve the accepted Seed 0 Coral geometry
+- add deterministic Seed-dependent connected branch variation
+- keep Preview, OK, topology, and GeneratorFactory behavior
+
+See [SPRINT20_DESIGN.md](docs/SPRINT20_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

@@ -33,8 +33,9 @@ describe all Fusion inputs through ordered parameter metadata.
 Sprint 18 adds an immutable `PresetDefinition` association around each
 `NaturePreset` and its optional Family registry. `PresetCatalog` is the
 application composition root: Rock is associated with `RockFamilyRegistry`,
-and Sprint 19 associates Bark with `BarkFamilyRegistry`. Coral, Sponge, Root,
-and Bone are explicit no-Family placeholders.
+Sprint 19 associates Bark with `BarkFamilyRegistry`, and Sprint 20 associates
+Coral with `CoralFamilyRegistry`. Sponge, Root, and Bone are explicit no-Family
+placeholders.
 `PresetFactory` remains the stable metadata API used by generators, preserving
 existing public contracts and the rule that `presets/` never imports concrete
 generator code.
@@ -111,6 +112,12 @@ Sprint 19 applies the same preset-level association to Bark.
 seven accepted Bark parameter values. `BarkGenerator` still owns the capped
 cylindrical scalar field and uses the same extraction path. The registry owns
 no geometry and introduces no Bark-specific Fusion branching.
+
+Sprint 20 associates Coral with `CoralFamilyRegistry`. Classic Coral stores the
+four accepted Coral parameter values, while `CoralGenerator` owns the connected
+capsule-union field. Seed 0 preserves the original branch graph; nonzero Seeds
+apply one deterministic transform per shared node, so connected segments keep
+identical endpoints and remain a single implicit solid.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing

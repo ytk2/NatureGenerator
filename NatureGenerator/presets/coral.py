@@ -12,6 +12,7 @@ CORAL_PRESET = NaturePreset(
     default_parameters={
         "cell_size": 14.0,
         "thickness": 0.35,
+        "seed": 0,
         "resolution": 17,
     },
     parameter_metadata={
@@ -32,6 +33,10 @@ CORAL_PRESET = NaturePreset(
             maximum=1.0,
             unit="",
             description="Relative radius of the connected coral branches.",
+        ),
+        "seed": ParameterMetadata(
+            "Seed", "integer", 0, minimum=0, maximum=2147483647,
+            description="Deterministic variation key.",
         ),
         "resolution": ParameterMetadata(
             "Resolution", "integer", 17, minimum=9, maximum=41,

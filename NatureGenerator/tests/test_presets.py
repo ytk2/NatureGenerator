@@ -6,6 +6,7 @@ import unittest
 
 from generators.gyroid import GyroidField
 from generators.bark_families import BarkFamilyRegistry
+from generators.coral_families import CoralFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
 from preset_catalog import PresetCatalog
 from presets import (
@@ -89,7 +90,8 @@ class NaturePresetTests(unittest.TestCase):
         self.assertTrue(coral.available)
         self.assertEqual(coral.generator_id, "coral")
         self.assertEqual(
-            set(coral.default_parameters), {"cell_size", "thickness", "resolution"}
+            set(coral.default_parameters),
+            {"cell_size", "thickness", "seed", "resolution"},
         )
 
     def test_rock_is_available_with_stable_metadata(self):
@@ -243,7 +245,8 @@ class PresetRegistryTests(unittest.TestCase):
             {"coral", "bone", "bark", "sponge", "rock", "root"},
         )
         self.assertIs(definitions["bark"].families, BarkFamilyRegistry)
-        for preset_id in ("coral", "sponge", "root", "bone"):
+        self.assertIs(definitions["coral"].families, CoralFamilyRegistry)
+        for preset_id in ("sponge", "root", "bone"):
             self.assertIsNone(definitions[preset_id].families)
 
     def test_bark_catalog_exposes_classic_family_metadata(self):
@@ -259,6 +262,18 @@ class PresetRegistryTests(unittest.TestCase):
                 "diameter", "height", "bark_depth", "groove_scale",
                 "twist", "seed", "resolution",
             ),
+        )
+
+    def test_coral_catalog_exposes_classic_family_metadata(self):
+        definition = PresetCatalog.get("coral")
+        self.assertIs(definition.families, CoralFamilyRegistry)
+        families = definition.families.list_all()
+        self.assertEqual(len(families), 1)
+        self.assertEqual(families[0].family_id, "classic_coral")
+        self.assertEqual(families[0].display_name, "Classic Coral")
+        self.assertEqual(
+            tuple(families[0].parameter_values),
+            ("cell_size", "thickness", "seed", "resolution"),
         )
 
     def test_definition_rejects_family_registry_for_another_preset(self):

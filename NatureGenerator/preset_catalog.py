@@ -3,6 +3,7 @@
 from typing import Tuple
 
 from generators.bark_families import BarkFamilyRegistry
+from generators.coral_families import CoralFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
 from presets import PresetDefinition, PresetFactory, PresetRegistry
 
@@ -13,6 +14,7 @@ def _built_in_registry() -> PresetRegistry:
     registry = PresetRegistry()
     family_registries = {
         BarkFamilyRegistry.preset_id: BarkFamilyRegistry,
+        CoralFamilyRegistry.preset_id: CoralFamilyRegistry,
         RockFamilyRegistry.preset_id: RockFamilyRegistry,
     }
     for preset in PresetFactory.list_all():
