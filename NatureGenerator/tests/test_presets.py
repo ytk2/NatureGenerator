@@ -5,7 +5,15 @@ from pathlib import Path
 import unittest
 
 from generators.gyroid import GyroidField
-from presets import NaturePreset, ParameterMetadata, PresetFactory, PresetRegistry
+from generators.rock_families import RockFamilyRegistry
+from preset_catalog import PresetCatalog
+from presets import (
+    NaturePreset,
+    ParameterMetadata,
+    PresetDefinition,
+    PresetFactory,
+    PresetRegistry,
+)
 
 
 def sample_preset(preset_id="sample", category="test"):
@@ -210,6 +218,35 @@ class PresetRegistryTests(unittest.TestCase):
             {preset.preset_id for preset in PresetFactory.list_all()},
             {"coral", "bone", "bark", "sponge", "rock", "root"},
         )
+
+    def test_catalog_composes_family_metadata_without_changing_preset_api(self):
+        rock = PresetCatalog.get("rock")
+        self.assertIsInstance(rock, PresetDefinition)
+        self.assertIs(rock.preset, PresetFactory.get("rock"))
+        self.assertIs(rock.families, RockFamilyRegistry)
+        self.assertEqual(
+            tuple(family.display_name for family in rock.families.list_all()),
+            (
+                "Smooth", "Weathered", "Rugged", "River Stone",
+                "Granite", "Basalt", "Broken Rock",
+            ),
+        )
+
+    def test_non_rock_presets_are_explicit_family_placeholders(self):
+        definitions = {
+            definition.preset_id: definition
+            for definition in PresetCatalog.list_all()
+        }
+        self.assertEqual(
+            set(definitions),
+            {"coral", "bone", "bark", "sponge", "rock", "root"},
+        )
+        for preset_id in ("bark", "coral", "sponge", "root", "bone"):
+            self.assertIsNone(definitions[preset_id].families)
+
+    def test_definition_rejects_family_registry_for_another_preset(self):
+        with self.assertRaises(ValueError):
+            PresetDefinition(sample_preset("different"), RockFamilyRegistry)
 
 
 class PresetDependencyTests(unittest.TestCase):

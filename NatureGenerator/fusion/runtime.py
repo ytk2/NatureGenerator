@@ -160,8 +160,7 @@ def start(context=None) -> None:
         GeneratorFactory,
         GenerationRequest,
     )
-    from generators.rock_families import RockFamilyRegistry
-    from presets import PresetFactory
+    from preset_catalog import PresetCatalog
     from variants import VariantFactory
 
     global _started
@@ -189,7 +188,7 @@ def start(context=None) -> None:
         if selected is None:
             raise ValueError("select a nature preset")
         preset_id = preset_ids[selected.name]
-        preset = PresetFactory.get(preset_id)
+        preset = PresetCatalog.get(preset_id).preset
         if not preset.available:
             raise ValueError("preset {!r} is unavailable: {}".format(
                 preset_id, preset.unavailable_reason))
@@ -283,40 +282,61 @@ def start(context=None) -> None:
 
     class FamilyUiState:
         def __init__(self, family_input):
-            self.preset_id = RockFamilyRegistry.preset_id
+            self.preset_id = None
+            self.registry = None
             self.family_ids = {}
             self.expected_values = {}
-            for index, family in enumerate(RockFamilyRegistry.list_all()):
+            for definition in PresetCatalog.list_all():
+                if definition.families is not None:
+                    self.rebuild(family_input, definition.preset_id)
+                    break
+
+        def rebuild(self, family_input, preset_id):
+            definition = PresetCatalog.get(preset_id)
+            registry = definition.families
+            if registry is None:
+                return
+            if self.preset_id == preset_id:
+                return
+            if not family_input.listItems.clear():
+                raise RuntimeError("Fusion failed to rebuild the Family list")
+            self.preset_id = preset_id
+            self.registry = registry
+            self.family_ids.clear()
+            self.expected_values.clear()
+            for index, family in enumerate(registry.list_all()):
                 family_input.listItems.add(
                     family.display_name, index == 0, ""
                 )
                 self.family_ids[family.display_name] = family.family_id
 
         def supports(self, preset_id):
-            return preset_id == self.preset_id
+            return PresetCatalog.get(preset_id).families is not None
 
         def selected_id(self, family_input, preset_id):
             if not self.supports(preset_id):
                 return ""
+            self.rebuild(family_input, preset_id)
             chosen = family_input.selectedItem
             if chosen is None:
-                raise ValueError("select a Rock Family")
+                raise ValueError("select a Family")
             return self.family_ids[chosen.name]
 
-        def apply_selected(self, family_input, parameter_inputs):
+        def apply_selected(self, family_input, parameter_inputs, preset_id):
+            self.rebuild(family_input, preset_id)
             chosen = family_input.selectedItem
             if chosen is None:
-                raise ValueError("select a Rock Family")
-            family = RockFamilyRegistry.get(self.family_ids[chosen.name])
-            preset = PresetFactory.get(self.preset_id)
+                raise ValueError("select a Family")
+            family = self.registry.get(self.family_ids[chosen.name])
+            preset = PresetCatalog.get(preset_id).preset
             expected = {}
             for parameter_id, value in family.parameter_values.items():
-                input_value = parameter_inputs[(self.preset_id, parameter_id)]
+                input_value = parameter_inputs[(preset_id, parameter_id)]
                 _write_parameter(
                     input_value, preset.parameter_metadata[parameter_id], value
                 )
                 expected[_parameter_input_id(
-                    self.preset_id, parameter_id
+                    preset_id, parameter_id
                 )] = input_value.value
             self.expected_values = expected
 
@@ -358,8 +378,11 @@ def start(context=None) -> None:
                 if changed_id == PRESET_INPUT_ID:
                     self._variant_state.rebuild(self._variant_input, selected_id)
                     if family_supported:
+                        self._family_state.rebuild(
+                            self._family_input, selected_id
+                        )
                         self._family_state.apply_selected(
-                            self._family_input, self._parameter_inputs
+                            self._family_input, self._parameter_inputs, selected_id
                         )
                     return
 
@@ -367,7 +390,7 @@ def start(context=None) -> None:
                     if not family_supported:
                         return
                     self._family_state.apply_selected(
-                        self._family_input, self._parameter_inputs
+                        self._family_input, self._parameter_inputs, selected_id
                     )
                     return
 
@@ -381,7 +404,7 @@ def start(context=None) -> None:
                     )
                     if variant.preset_id != selected_id:
                         raise ValueError("variant does not belong to selected preset")
-                    preset = PresetFactory.get(selected_id)
+                    preset = PresetCatalog.get(selected_id).preset
                     expected = {}
                     for parameter_id, value in variant.parameter_values.items():
                         input_id = _parameter_input_id(selected_id, parameter_id)
@@ -507,7 +530,9 @@ def start(context=None) -> None:
         def notify(self, args):
             try:
                 selected = self._preset_input.selectedItem
-                preset = PresetFactory.get(self._preset_ids[selected.name])
+                preset = PresetCatalog.get(
+                    self._preset_ids[selected.name]
+                ).preset
                 if not preset.available:
                     args.areInputsValid = False
                     return
@@ -537,8 +562,10 @@ def start(context=None) -> None:
         def notify(self, args):
             command = args.command
             inputs = command.commandInputs
-            presets = PresetFactory.list_all()
-            sponge = PresetFactory.get("sponge")
+            presets = tuple(
+                definition.preset for definition in PresetCatalog.list_all()
+            )
+            sponge = PresetCatalog.get("sponge").preset
             preset_input = inputs.addDropDownCommandInput(
                 PRESET_INPUT_ID,
                 "Preset",

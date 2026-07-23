@@ -73,6 +73,16 @@ Completed on `feature/rock-diversity`:
 
 See [SPRINT17_DESIGN.md](docs/SPRINT17_DESIGN.md).
 
+**Sprint 18 — Preset Registry Architecture**
+
+- add immutable preset-to-Family registry definitions
+- compose all built-in presets in one application catalog
+- make Fusion Family presentation registry-driven rather than Rock-specific
+- keep non-Rock presets as explicit no-Family placeholders
+- preserve all generator, geometry, Preview, Final, and public preset behavior
+
+See [SPRINT18_DESIGN.md](docs/SPRINT18_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

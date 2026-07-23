@@ -394,6 +394,14 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
             for module in (package_root / folder).glob("*.py"):
                 self.assertNotIn("RootGenerator", module.read_text(encoding="utf-8"))
 
+    def test_fusion_uses_preset_catalog_without_rock_registry_assumptions(self):
+        source = (Path(__file__).parents[1] / "fusion" / "runtime.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("PresetCatalog", source)
+        self.assertNotIn("PresetFactory", source)
+        self.assertNotIn("RockFamilyRegistry", source)
+
     def test_geometry_runtime_presets_and_commands_have_no_adsk_imports(self):
         package_root = Path(__file__).parents[1]
         for folder in ("core", "generators", "presets", "commands"):

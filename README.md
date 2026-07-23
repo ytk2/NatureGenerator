@@ -57,6 +57,8 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
   STL serialization.
 - `generators/`: procedural form generation algorithms.
 - `presets/`: user-facing natural-form definitions and availability metadata.
+- `preset_catalog.py`: application composition of presets and optional Family
+  registries.
 - `variants/`: immutable curated parameter configurations and registry.
 - `fusion/`: adapters between core meshes and Fusion 360.
 - `examples/`: small usage examples.
@@ -94,6 +96,20 @@ sponge = PresetFactory.get("sponge")
 
 Built-ins are registered explicitly for predictable Fusion behavior; the
 framework does not scan directories or dynamically import arbitrary files.
+
+Sprint 18 adds `PresetDefinition` and `PresetCatalog` above the existing API.
+The catalog associates each `NaturePreset` with an optional Family registry.
+Rock points to `RockFamilyRegistry`; Bark, Coral, Sponge, Root, and Bone are
+explicit placeholders with no Family registry. Fusion reads this association
+generically and no longer imports the Rock registry directly. See
+[`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
+
+```text
+PresetCatalog
+    -> PresetDefinition
+        -> NaturePreset
+        -> optional Family registry
+```
 
 ## Generator variants and Rock families
 

@@ -1,8 +1,8 @@
 """Deterministic registry and factory for built-in nature presets."""
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
-from .preset import NaturePreset
+from .preset import NaturePreset, PresetDefinition
 
 
 def _sort_key(preset: NaturePreset) -> Tuple[str, str, str]:
@@ -14,29 +14,49 @@ def _sort_key(preset: NaturePreset) -> Tuple[str, str, str]:
 
 
 class PresetRegistry:
-    """Mutable registration container that returns immutable presets."""
+    """Mutable registration container for immutable preset definitions."""
 
     def __init__(self) -> None:
-        self._presets: Dict[str, NaturePreset] = {}
+        self._definitions: Dict[str, PresetDefinition] = {}
 
-    def register(self, preset: NaturePreset) -> None:
-        """Register *preset*, rejecting duplicate stable identifiers."""
+    def register(
+        self, preset: NaturePreset, families: Optional[object] = None
+    ) -> None:
+        """Register *preset* and optional Family registry."""
 
         if not isinstance(preset, NaturePreset):
             raise TypeError("preset must be a NaturePreset")
-        if preset.preset_id in self._presets:
+        if preset.preset_id in self._definitions:
             raise ValueError("duplicate preset id: {}".format(preset.preset_id))
-        self._presets[preset.preset_id] = preset
+        self._definitions[preset.preset_id] = PresetDefinition(preset, families)
 
     def get(self, preset_id: str) -> NaturePreset:
         """Return a preset by its stable identifier."""
 
-        return self._presets[preset_id]
+        return self.get_definition(preset_id).preset
+
+    def get_definition(self, preset_id: str) -> PresetDefinition:
+        """Return a preset together with its optional Family registry."""
+
+        return self._definitions[preset_id]
 
     def list_all(self) -> Tuple[NaturePreset, ...]:
         """Return every preset in deterministic category/name/id order."""
 
-        return tuple(sorted(self._presets.values(), key=_sort_key))
+        return tuple(
+            definition.preset
+            for definition in sorted(
+                self._definitions.values(),
+                key=lambda definition: _sort_key(definition.preset),
+            )
+        )
+
+    def list_definitions(self) -> Tuple[PresetDefinition, ...]:
+        """Return definitions in the same deterministic order as presets."""
+
+        return tuple(
+            self.get_definition(preset.preset_id) for preset in self.list_all()
+        )
 
     def list_by_category(self, category: str) -> Tuple[NaturePreset, ...]:
         """Return matching presets in deterministic order."""
