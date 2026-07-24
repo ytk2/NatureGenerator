@@ -175,7 +175,19 @@ See [SPRINT26_DESIGN.md](docs/SPRINT26_DESIGN.md).
 
 See [SPRINT27_DESIGN.md](docs/SPRINT27_DESIGN.md).
 
+**Sprint 28 — Procedural Lab Foundation**
+
+- add an independent Procedural Lab command for selected Fusion geometry
+- adapt one solid or mesh into the existing immutable TriangleMesh
+- add operator contracts, an immutable registry, and ordered pipeline boundary
+- prove Preview and Apply end to end with deterministic Pass Through
+- isolate source geometry and Nature Library preview ownership
+
+See [SPRINT28_DESIGN.md](docs/SPRINT28_DESIGN.md).
+
 ## Candidate Future Work
+
+- Procedural Lab operator stack and real geometry operators
 
 - Dedicated Utilities > Nature Generator panel
 - Command icon and resource assets

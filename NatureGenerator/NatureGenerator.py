@@ -47,8 +47,10 @@ def run(context):
     try:
         _bootstrap_addin_path()
         from fusion.runtime import start
+        from fusion.procedural_runtime import start as start_procedural
 
         start(context)
+        start_procedural(context)
     except Exception:
         details = traceback.format_exc()
         _report_failure("NatureGenerator Startup Error", details)
@@ -60,8 +62,14 @@ def stop(context):
     try:
         _bootstrap_addin_path()
         from fusion.runtime import stop
+        from fusion.procedural_runtime import stop as stop_procedural
 
-        stop(context)
+        try:
+            stop(context)
+        finally:
+            # Procedural previews must still be released if teardown of the
+            # independent Nature Library command reports an error.
+            stop_procedural(context)
     except Exception:
         details = traceback.format_exc()
         _report_failure("NatureGenerator Stop Error", details)
