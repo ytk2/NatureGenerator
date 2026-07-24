@@ -3,7 +3,7 @@
 > Generate manufacturable natural geometry directly inside Autodesk Fusion.
 
 NatureGenerator v0.11.0 is the stable Generator Variants release. Sponge,
-Coral, Rock, Bark, Root, and Bone are executable on current main. Sprint 15 adds an internal Rock
+Coral, Rock, Bark, Root, Bone, and Crystal are executable on current main. Sprint 15 adds an internal Rock
 Family architecture while preserving the released UI.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
@@ -22,6 +22,7 @@ uses a deformed ellipsoid with dependency-free value noise. Bark uses a closed
 finite cylinder with directional, anisotropic surface variation. Root uses a
 bounded deterministic skeleton and a union of tapered segment fields. Bone uses
 a curved variable-radius shaft smoothly joined to asymmetric rounded ends.
+Crystal uses a seeded irregular polygonal prism with a tapered termination.
 
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
@@ -34,9 +35,9 @@ public workflows; River Stone is not yet exposed in Fusion. See
 ```text
 Nature Preset
     -> Generator Runtime
-    -> Scalar Field
-    -> Voxel Grid
-    -> Marching Tetrahedra
+    -> Procedural Geometry
+        -> Scalar Field -> Voxel Grid -> Marching Tetrahedra
+        -> Direct Indexed Construction (Crystal)
     -> Triangle Mesh
     -> Generated Asset
         -> Material Intent
@@ -110,7 +111,8 @@ Rock points to `RockFamilyRegistry`, and Sprint 19 promotes Bark from a
 placeholder to `BarkFamilyRegistry`. Sprint 20 promotes Coral to
 `CoralFamilyRegistry`, and Sprint 21 promotes Sponge to
 `SpongeFamilyRegistry`. Sprint 23 associates Root with `RootFamilyRegistry`,
-and Sprint 24 introduces Bone through `BoneFamilyRegistry`. Fusion reads these associations generically and
+Sprint 24 introduces Bone through `BoneFamilyRegistry`, and Sprint 26 introduces
+Crystal through `CrystalFamilyRegistry`. Fusion reads these associations generically and
 does not import concrete Family registries directly. See
 [`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
 
@@ -202,6 +204,12 @@ accepted canonical result; all seven earlier Rock Family IDs and digests remain
 available. The new families use the same generic dropdown, Preview, OK,
 `GenerationRequest`, `RockGenerator`, and `GeneratedAsset` paths. See
 [`docs/SPRINT25_DESIGN.md`](docs/SPRINT25_DESIGN.md).
+
+Sprint 26 introduces **Classic Crystal** through `CrystalFamilyRegistry`. The
+new deterministic generator produces a closed elongated prism with major
+facets, a slightly irregular cross section, and a tapered point termination.
+It uses the generic Family, Preview, OK, validation, and GeneratedAsset paths.
+See [`docs/SPRINT26_DESIGN.md`](docs/SPRINT26_DESIGN.md).
 
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and

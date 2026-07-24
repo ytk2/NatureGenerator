@@ -46,6 +46,11 @@ _MATERIALS = {
         roughness=0.72,
         procedural_parameters={"pattern": "porous_variation"},
     ),
+    "crystal": MaterialDefinition(
+        "natural_crystal", "Natural Crystal", (0.68, 0.82, 0.88, 1.0),
+        roughness=0.28,
+        procedural_parameters={"pattern": "crystalline_variation"},
+    ),
 }
 
 

@@ -77,13 +77,14 @@ def _built_in_presets() -> Tuple[NaturePreset, ...]:
     from .bark import BARK_PRESET
     from .bone import BONE_PRESET
     from .coral import CORAL_PRESET
+    from .crystal import CRYSTAL_PRESET
     from .rock import ROCK_PRESET
     from .root import ROOT_PRESET
     from .sponge import SPONGE_PRESET
 
     return (
-        CORAL_PRESET, BONE_PRESET, BARK_PRESET, SPONGE_PRESET, ROCK_PRESET,
-        ROOT_PRESET,
+        CORAL_PRESET, BONE_PRESET, BARK_PRESET, CRYSTAL_PRESET, SPONGE_PRESET,
+        ROCK_PRESET, ROOT_PRESET,
     )
 
 
