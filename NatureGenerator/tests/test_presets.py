@@ -8,6 +8,7 @@ from generators.gyroid import GyroidField
 from generators.bark_families import BarkFamilyRegistry
 from generators.coral_families import CoralFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
+from generators.root_families import RootFamilyRegistry
 from generators.sponge_families import SpongeFamilyRegistry
 from preset_catalog import PresetCatalog
 from presets import (
@@ -237,7 +238,7 @@ class PresetRegistryTests(unittest.TestCase):
             ),
         )
 
-    def test_non_rock_presets_are_explicit_family_placeholders(self):
+    def test_every_implemented_preset_has_a_family_registry(self):
         definitions = {
             definition.preset_id: definition
             for definition in PresetCatalog.list_all()
@@ -248,9 +249,24 @@ class PresetRegistryTests(unittest.TestCase):
         )
         self.assertIs(definitions["bark"].families, BarkFamilyRegistry)
         self.assertIs(definitions["coral"].families, CoralFamilyRegistry)
+        self.assertIs(definitions["root"].families, RootFamilyRegistry)
         self.assertIs(definitions["sponge"].families, SpongeFamilyRegistry)
-        for preset_id in ("root", "bone"):
-            self.assertIsNone(definitions[preset_id].families)
+        self.assertIsNone(definitions["bone"].families)
+
+    def test_root_catalog_exposes_classic_family_metadata(self):
+        definition = PresetCatalog.get("root")
+        self.assertIs(definition.families, RootFamilyRegistry)
+        families = definition.families.list_all()
+        self.assertEqual(len(families), 1)
+        self.assertEqual(families[0].family_id, "classic_root")
+        self.assertEqual(families[0].display_name, "Classic Root")
+        self.assertEqual(
+            tuple(families[0].parameter_values),
+            (
+                "length", "root_radius", "branch_count", "branching", "spread",
+                "taper", "gravity", "seed", "resolution",
+            ),
+        )
 
     def test_sponge_catalog_exposes_classic_family_metadata(self):
         definition = PresetCatalog.get("sponge")

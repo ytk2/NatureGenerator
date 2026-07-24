@@ -123,6 +123,16 @@ See [SPRINT21_DESIGN.md](docs/SPRINT21_DESIGN.md).
 
 See [SPRINT22_DESIGN.md](docs/SPRINT22_DESIGN.md).
 
+**Sprint 23 — Complete Family Registry Migration**
+
+- add Classic Root and `RootFamilyRegistry`
+- route the final implemented preset through the generic Family architecture
+- expose Root Family selection through the existing Fusion dropdown
+- preserve Root geometry, deterministic Seed, Preview, and legacy requests
+- leave unavailable Bone as the only explicit no-Family catalog entry
+
+See [SPRINT23_DESIGN.md](docs/SPRINT23_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

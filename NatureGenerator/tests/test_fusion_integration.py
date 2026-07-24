@@ -1506,6 +1506,42 @@ class FusionRuntimeStartupTests(unittest.TestCase):
             "taper", "gravity", "seed",
         })
         self.assertEqual(captured[0].resolution, 37)
+        self.assertEqual(captured[0].family_id, "classic_root")
+
+    def test_root_uses_registry_family_ui_and_existing_preview_pipeline(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        inputs = command.commandInputs.items
+        preset_input = inputs[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Root"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = inputs[runtime.FAMILY_INPUT_ID]
+        self.assertTrue(family_input.isVisible)
+        self.assertFalse(inputs[runtime.VARIANT_INPUT_ID].isVisible)
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items],
+            ["Classic Root"],
+        )
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "root")
+        self.assertEqual(request.family_id, "classic_root")
+        self.assertEqual(request.parameter_overrides["seed"], 11)
 
     def test_bark_selection_builds_metadata_driven_request(self):
         captured = []

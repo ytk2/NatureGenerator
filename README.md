@@ -109,9 +109,10 @@ The catalog associates each `NaturePreset` with an optional Family registry.
 Rock points to `RockFamilyRegistry`, and Sprint 19 promotes Bark from a
 placeholder to `BarkFamilyRegistry`. Sprint 20 promotes Coral to
 `CoralFamilyRegistry`, and Sprint 21 promotes Sponge to
-`SpongeFamilyRegistry`. Root and Bone remain explicit placeholders with
-no Family registry. Fusion reads these associations generically and does not
-import concrete Family registries directly. See
+`SpongeFamilyRegistry`. Sprint 23 completes the implemented-preset migration by
+associating Root with `RootFamilyRegistry`; only unavailable Bone remains
+without a Family registry. Fusion reads these associations generically and
+does not import concrete Family registries directly. See
 [`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
 
 ```text
@@ -182,6 +183,14 @@ creates a closed rounded porous solid whose exterior-connected spherical pores
 vary deterministically with Seed. Preview and OK use the same
 `GenerationRequest` and mesh pipeline. See
 [`docs/SPRINT21_DESIGN.md`](docs/SPRINT21_DESIGN.md).
+
+Sprint 23 registers **Classic Root** through `RootFamilyRegistry`. The existing
+Root parameters, deterministic Seed behavior, Preview/OK pipeline,
+`GeneratedAsset` defaults, and accepted geometry digest remain unchanged.
+Requests without a Family ID continue to resolve to the same geometry. Every
+implemented preset now follows the PresetCatalog → Family Registry →
+GenerationRequest → GeneratorFactory → GeneratedAsset path. See
+[`docs/SPRINT23_DESIGN.md`](docs/SPRINT23_DESIGN.md).
 
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
