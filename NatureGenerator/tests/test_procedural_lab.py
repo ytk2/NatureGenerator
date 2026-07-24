@@ -86,7 +86,7 @@ class ProceduralContractTests(unittest.TestCase):
             [item.operator_id for item in DEFAULT_OPERATOR_REGISTRY.list_all()],
             [
                 "pass_through", "noise_displacement",
-                "subdivision", "voronoi_surface",
+                "subdivision", "voronoi_surface", "gyroid_surface",
             ],
         )
 

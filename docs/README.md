@@ -50,6 +50,7 @@
 - [SPRINT30_DESIGN.md](SPRINT30_DESIGN.md)
 - [SPRINT31_DESIGN.md](SPRINT31_DESIGN.md)
 - [SPRINT32_DESIGN.md](SPRINT32_DESIGN.md)
+- [SPRINT33_DESIGN.md](SPRINT33_DESIGN.md)
 
 Sprint design documents record the goal, scope, exclusions, architecture
 decisions, and Definition of Done for that Sprint.

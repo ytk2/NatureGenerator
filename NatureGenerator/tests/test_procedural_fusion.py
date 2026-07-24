@@ -186,6 +186,15 @@ class FakeParameterInputs:
         self.created[input_id] = control
         return control
 
+    def addBoolValueInput(
+        self, input_id, name, is_checkbox, resource_folder, initial
+    ):
+        control = SimpleNamespace(
+            id=input_id, name=name, value=initial, isCheckBox=is_checkbox
+        )
+        self.created[input_id] = control
+        return control
+
 
 class RegistryDrivenParameterUiTests(unittest.TestCase):
     def setUp(self):
@@ -213,7 +222,7 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
         self.assertFalse(
             DEFAULT_OPERATOR_REGISTRY.get("pass_through").parameter_definitions
         )
-        self.assertEqual(len(self.controls), 39)
+        self.assertEqual(len(self.controls), 63)
 
     def test_visibility_tracks_operator_without_noise_specific_branch(self):
         _set_parameter_visibility(self.controls, 2, "noise_displacement")
@@ -239,6 +248,9 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
             _read_operator_parameters(subdivision, self.controls, 1),
             {"level": 1},
         )
+        level_control = self.controls[(1, "subdivision", "level")]
+        self.assertEqual(level_control.minimumValue, 1)
+        self.assertEqual(level_control.maximumValue, 5)
 
     def test_voronoi_parameters_render_and_hide_unrelated_controls(self):
         voronoi = DEFAULT_OPERATOR_REGISTRY.get("voronoi_surface")
@@ -269,6 +281,39 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
                 "seed": 0,
             },
         )
+
+    def test_gyroid_parameters_are_metadata_driven_in_every_slot(self):
+        gyroid = DEFAULT_OPERATOR_REGISTRY.get("gyroid_surface")
+        expected_ids = (
+            "period", "amplitude", "threshold", "band_width",
+            "phase_x", "phase_y", "phase_z", "invert",
+        )
+        self.assertEqual(
+            tuple(item.parameter_id for item in gyroid.parameter_definitions),
+            expected_ids,
+        )
+        for slot_index in (1, 2, 3):
+            _set_parameter_visibility(
+                self.controls, slot_index, "gyroid_surface"
+            )
+            visible = [
+                key for key, control in self.controls.items()
+                if control.isVisible
+            ]
+            self.assertEqual(
+                visible,
+                [
+                    (slot_index, "gyroid_surface", parameter_id)
+                    for parameter_id in expected_ids
+                ],
+            )
+            values = _read_operator_parameters(
+                gyroid, self.controls, slot_index
+            )
+            self.assertEqual(values["period"], 20.0)
+            self.assertEqual(values["amplitude"], 2.0)
+            self.assertFalse(values["invert"])
+            _set_parameter_visibility(self.controls, slot_index, "")
 
     def test_fusion_length_values_are_read_back_in_millimeters(self):
         noise = DEFAULT_OPERATOR_REGISTRY.get("noise_displacement")

@@ -87,6 +87,14 @@ def _create_parameter_inputs(
                         step,
                         float(definition.default_value),
                     )
+                elif definition.value_type == "boolean":
+                    control = inputs.addBoolValueInput(
+                        input_id,
+                        label,
+                        True,
+                        "",
+                        bool(definition.default_value),
+                    )
                 else:
                     raise ValueError("unsupported procedural parameter type")
                 control.isVisible = False
@@ -114,6 +122,8 @@ def _read_operator_parameters(operator, parameter_inputs, slot_index):
             value = float(value) * 10.0
         elif definition.value_type == "integer":
             value = int(value)
+        elif definition.value_type == "boolean":
+            value = bool(value)
         else:
             value = float(value)
         values[definition.parameter_id] = definition.validate(value)

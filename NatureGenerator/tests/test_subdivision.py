@@ -1,16 +1,26 @@
 """Focused tests for deterministic midpoint Subdivision."""
 
 import unittest
+from unittest.mock import patch
 
 from core.mesh import TriangleMesh
+from fusion.procedural_preview import ProceduralPreviewController
 from procedural import (
     DEFAULT_OPERATOR_REGISTRY,
+    ExecutionContext,
+    OperatorInvocation,
     OperatorPipeline,
     ProceduralInputGeometry,
     ProceduralRequest,
+    ProceduralStackRequest,
+    SUBDIVISION_APPLY_MAX_FACES,
+    SUBDIVISION_PREVIEW_MAX_FACES,
     SourceType,
+    SubdivisionFaceLimitError,
     SubdivisionOperator,
     canonical_mesh_digest,
+    enforce_subdivision_face_limit,
+    estimate_subdivision_faces,
     subdivide,
     subdivide_once,
 )
@@ -43,9 +53,9 @@ def geometry(mesh=None):
     )
 
 
-def execute(level=1, mesh=None):
+def execute(level=1, mesh=None, context=ExecutionContext.FINAL):
     request = ProceduralRequest(
-        geometry(mesh), "subdivision", {"level": level}
+        geometry(mesh), "subdivision", {"level": level}, context
     )
     return OperatorPipeline(("subdivision",)).execute(request)
 
@@ -102,6 +112,28 @@ class MidpointKernelTests(unittest.TestCase):
                     canonical_mesh_digest(second),
                 )
 
+    def test_levels_four_and_five_execute_on_small_fixture(self):
+        source = TriangleMesh(
+            ((0, 0, 0), (2, 0, 0), (0, 2, 0)), ((0, 1, 2),)
+        )
+        level_four = subdivide(source, 4)
+        level_five = subdivide(source, 5)
+        self.assertEqual(len(level_four.faces), 256)
+        self.assertEqual(len(level_five.faces), 1024)
+
+    def test_levels_one_to_three_digests_are_unchanged(self):
+        expected = {
+            1: "15f095aea072057e05b11fe6e821363c3f3a2495afef966b962d8fa0f36f3db2",
+            2: "1aba4b30db935af0058b49b603e9d9b039ef5c751ed7af550efcf69c86793233",
+            3: "d462d1f545c462cdf9e7069cc6e2f306f422ba31d940e77e48899fe541b49a13",
+        }
+        for level, digest in expected.items():
+            with self.subTest(level=level):
+                self.assertEqual(
+                    canonical_mesh_digest(subdivide(cube_mesh(), level)),
+                    digest,
+                )
+
     def test_invalid_levels_are_rejected(self):
         for value in (True, 1.5, "1"):
             with self.subTest(value=value):
@@ -120,6 +152,10 @@ class SubdivisionOperatorTests(unittest.TestCase):
             tuple(item.parameter_id for item in operator.parameter_definitions),
             ("level",),
         )
+        definition = operator.parameter_definitions[0]
+        self.assertEqual(definition.default_value, 1)
+        self.assertEqual(definition.minimum, 1)
+        self.assertEqual(definition.maximum, 5)
 
     def test_operator_preserves_shape_topology_winding_units_and_provenance(self):
         source = cube_mesh()
@@ -169,10 +205,101 @@ class SubdivisionOperatorTests(unittest.TestCase):
         self.assertIsNot(first, second)
         self.assertEqual(first.output_digest, second.output_digest)
 
-    def test_operator_rejects_levels_outside_sprint_30_range(self):
-        for level in (0, 4):
+    def test_operator_rejects_levels_outside_supported_range(self):
+        for level in (0, 6):
             with self.subTest(level=level):
                 with self.assertRaisesRegex(ValueError, "Subdivision Level"):
                     execute(level)
         with self.assertRaisesRegex(TypeError, "Subdivision Level"):
             execute(1.5)
+
+
+class SubdivisionSafetyPolicyTests(unittest.TestCase):
+    def test_exact_face_count_prediction_uses_integer_arithmetic(self):
+        self.assertEqual(estimate_subdivision_faces(12, 1), 48)
+        self.assertEqual(estimate_subdivision_faces(12, 4), 3072)
+        self.assertEqual(estimate_subdivision_faces(12, 5), 12288)
+        self.assertIsInstance(estimate_subdivision_faces(12, 5), int)
+
+    def test_preview_limit_accepts_boundary_and_rejects_next_face(self):
+        self.assertEqual(
+            enforce_subdivision_face_limit(
+                500_000, 5, ExecutionContext.PREVIEW
+            ),
+            SUBDIVISION_PREVIEW_MAX_FACES,
+        )
+        with self.assertRaisesRegex(
+            SubdivisionFaceLimitError,
+            "500,001 faces.*Preview limit of 500,000",
+        ):
+            enforce_subdivision_face_limit(
+                500_001, 5, ExecutionContext.PREVIEW
+            )
+
+    def test_apply_limit_accepts_boundary_and_rejects_next_face(self):
+        self.assertEqual(
+            enforce_subdivision_face_limit(
+                1_000_000, 5, ExecutionContext.FINAL
+            ),
+            SUBDIVISION_APPLY_MAX_FACES,
+        )
+        with self.assertRaisesRegex(
+            SubdivisionFaceLimitError,
+            "1,000,001 faces.*Apply limit of 1,000,000",
+        ):
+            enforce_subdivision_face_limit(
+                1_000_001, 5, ExecutionContext.FINAL
+            )
+
+    def test_rejection_happens_before_subdivision_and_preserves_source(self):
+        base = cube_mesh()
+        source = TriangleMesh(base.vertices, base.faces * 41)
+        digest = canonical_mesh_digest(source)
+        with patch(
+            "procedural.operators.subdivide"
+        ) as subdivision_kernel:
+            with self.assertRaisesRegex(
+                SubdivisionFaceLimitError, "Preview limit"
+            ):
+                execute(
+                    5,
+                    source,
+                    ExecutionContext.PREVIEW,
+                )
+            subdivision_kernel.assert_not_called()
+        self.assertEqual(canonical_mesh_digest(source), digest)
+
+    def test_rejection_removes_existing_preview_and_leaves_no_partial_body(self):
+        controller = ProceduralPreviewController()
+        previous = type(
+            "Body", (), {"isValid": True, "deleted": False}
+        )()
+        previous.deleteMe = lambda: setattr(previous, "deleted", True)
+        controller.replace(lambda: previous)
+
+        def rejected_creation():
+            enforce_subdivision_face_limit(
+                500_001, 5, ExecutionContext.PREVIEW
+            )
+
+        with self.assertRaises(SubdivisionFaceLimitError):
+            controller.replace(rejected_creation)
+        self.assertTrue(previous.deleted)
+        self.assertIsNone(controller.body)
+
+    def test_prediction_uses_mesh_entering_later_stack_slot(self):
+        request = ProceduralStackRequest(
+            geometry(),
+            (
+                OperatorInvocation("subdivision", {"level": 1}),
+                OperatorInvocation("subdivision", {"level": 4}),
+            ),
+        )
+        result = OperatorPipeline(
+            ("subdivision", "subdivision")
+        ).execute_stack(request)
+        self.assertEqual(len(result.mesh.faces), 12 * (4 ** 5))
+        self.assertEqual(
+            result.execution_metadata["predicted_face_count"],
+            48 * (4 ** 4),
+        )

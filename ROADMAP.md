@@ -199,7 +199,8 @@ See [SPRINT29_DESIGN.md](docs/SPRINT29_DESIGN.md).
 
 - add the first topology-changing Procedural Lab operator
 - split every triangle into four using shared deterministic edge midpoints
-- expose registry-driven Subdivision Level values 1–3
+- expose registry-driven Subdivision Level values, extended from 1–3 to 1–5
+- guard exponential face growth with separate Preview and Apply limits
 - preserve winding, components, manifold adjacency, units, and source geometry
 - prepare denser inputs for later Noise, Relax, Smooth, Voronoi, and Erosion
 
@@ -225,9 +226,19 @@ See [SPRINT31_DESIGN.md](docs/SPRINT31_DESIGN.md).
 
 See [SPRINT32_DESIGN.md](docs/SPRINT32_DESIGN.md).
 
+**Sprint 33 — Gyroid Surface Operator**
+
+- add a deterministic analytical gyroid surface deformation
+- expose Period, signed Amplitude, Threshold, Band Width, phase, and Invert
+- preserve topology while supporting open, closed, and subdivided meshes
+- integrate generically with all three Operator Stack slots
+- explicitly defer volumetric TPMS infill, voxelization, and perforation
+
+See [SPRINT33_DESIGN.md](docs/SPRINT33_DESIGN.md).
+
 ## Candidate Future Work
 
-- Procedural Lab operator stack and real geometry operators
+- additional Procedural Lab geometry operators and variable stack workflows
 
 - Dedicated Utilities > Nature Generator panel
 - Command icon and resource assets

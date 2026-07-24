@@ -52,6 +52,13 @@ operator. Operators retain their existing single-stage contracts and remain
 unaware of UI slots or Fusion. Procedural results deliberately do not force
 natural-material or preset identity into selected user geometry.
 
+Sprint 33 registers Gyroid Surface. It evaluates the analytical gyroid field
+directly at existing object-space vertices and applies a smooth isovalue-band
+response along the same robust normals used by Noise and Voronoi. The operator
+copies face connectivity exactly and does not use the voxel or isosurface
+extraction architecture used by nature generators. It is a surface deformation,
+not a volumetric TPMS representation.
+
 ```text
 ProceduralStackRequest
     -> OperatorPipeline
@@ -64,6 +71,12 @@ ProceduralStackRequest
 The Fusion UI renders three independent registry-driven selector and parameter
 banks. Preview and Apply insert only the final stack mesh. The legacy
 single-operator request and command APIs delegate through the same pipeline.
+
+Subdivision Levels 1–5 share the same iterative midpoint kernel. Before any
+allocation, `subdivision_policy` predicts `input_face_count * (4 ** level)`
+from the mesh entering that stack stage. The centralized policy permits at
+most 500,000 faces for Preview and 1,000,000 for Apply. This keeps the operator
+Fusion-independent while preventing accidental high-density expansion.
 
 ### Nature presets (`presets/`)
 

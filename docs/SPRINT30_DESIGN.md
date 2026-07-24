@@ -45,8 +45,9 @@ altering the operator contract.
 
 ## Parameter and density growth
 
-The registry-defined **Subdivision Level** is an integer with a default of 1
-and Sprint 30 range of 1–3. Fusion renders it through the existing generic
+The registry-defined **Subdivision Level** is an integer with a default of 1.
+Sprint 33 extends the supported range from 1–3 to 1–5 without changing the
+midpoint algorithm. Fusion renders it through the existing generic
 operator-parameter UI.
 
 Each level multiplies triangle count by four:
@@ -56,6 +57,25 @@ Each level multiplies triangle count by four:
 | 1 | 4× |
 | 2 | 16× |
 | 3 | 64× |
+| 4 | 256× |
+| 5 | 1,024× |
+
+Before subdivision begins, the shared Fusion-independent safety policy
+calculates:
+
+```text
+predicted_faces = input_face_count * (4 ** level)
+```
+
+The count comes from the actual mesh entering the Subdivision stage, including
+meshes produced by earlier stack operators. Preview accepts at most 500,000
+predicted faces; Apply accepts at most 1,000,000. A count exactly at the limit
+is allowed. A larger count is rejected before the first midpoint or partial
+mesh is created, with guidance to reduce the level or input density.
+
+High levels can make Gyroid, Noise, and Voronoi detail visibly smoother, but
+their exponential growth means dense source meshes may be limited to a lower
+level.
 
 Vertices are added once per unique edge at each level. Runtime and memory are
 linear in the generated mesh size, but the generated size grows exponentially
