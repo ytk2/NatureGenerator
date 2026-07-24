@@ -15,8 +15,10 @@ from .operators import (
     PassThroughOperator,
     ProceduralOperator,
     SubdivisionOperator,
+    VoronoiSurfaceOperator,
 )
 from .subdivision import subdivide, subdivide_once
+from .voronoi import boundary_mask, lattice_site, nearest_site_distances
 from .pipeline import OperatorPipeline, ProceduralPipelineError
 from .registry import (
     DEFAULT_OPERATOR_REGISTRY,
@@ -40,8 +42,12 @@ __all__ = [
     "SourceType",
     "SubdivisionOperator",
     "UnknownOperatorError",
+    "VoronoiSurfaceOperator",
+    "boundary_mask",
     "canonical_mesh_digest",
     "fractal_value_noise",
+    "lattice_site",
+    "nearest_site_distances",
     "subdivide",
     "subdivide_once",
     "value_noise",

@@ -11,6 +11,7 @@ from core.mesh import TriangleMesh
 from .models import ProceduralRequest, ProceduralResult, canonical_mesh_digest
 from .noise import fractal_value_noise, vertex_normals
 from .subdivision import subdivide
+from .voronoi import boundary_mask, nearest_site_distances
 
 
 @dataclass(frozen=True)
@@ -238,6 +239,79 @@ class SubdivisionOperator(ProceduralOperator):
                 "execution_context": request.execution_context.value,
                 "level": level,
                 "operator_display_name": self.display_name,
+            },
+            units=source.units,
+            input_digest=source.digest,
+            output_digest=canonical_mesh_digest(output),
+        )
+
+
+class VoronoiSurfaceOperator(ProceduralOperator):
+    """Displace vertices near deterministic object-space Voronoi boundaries."""
+
+    operator_id = "voronoi_surface"
+    display_name = "Voronoi Surface"
+    parameter_definitions = (
+        ParameterDefinition(
+            "cell_size", "Cell Size", "length", 20.0, 1.0, 500.0, "mm"
+        ),
+        ParameterDefinition(
+            "depth", "Depth", "length", 2.0, -20.0, 20.0, "mm"
+        ),
+        ParameterDefinition(
+            "edge_width", "Edge Width", "length", 3.0, 0.1, 50.0, "mm"
+        ),
+        ParameterDefinition("falloff", "Falloff", "float", 2.0, 0.25, 8.0),
+        ParameterDefinition("jitter", "Jitter", "float", 0.75, 0.0, 1.0),
+        ParameterDefinition(
+            "seed", "Seed", "integer", 0, -2147483647, 2147483647
+        ),
+    )
+
+    def execute(self, request: ProceduralRequest) -> ProceduralResult:
+        parameters = self.parameters(request)
+        source = request.input_geometry
+        normals = vertex_normals(source.mesh)
+        depth = parameters["depth"]
+        output_vertices = []
+        for position, normal in zip(source.mesh.vertices, normals):
+            nearest, second = nearest_site_distances(
+                position,
+                parameters["cell_size"],
+                parameters["jitter"],
+                parameters["seed"],
+            )
+            mask = boundary_mask(
+                second - nearest,
+                parameters["edge_width"],
+                parameters["falloff"],
+            )
+            displacement = depth * mask
+            output_vertices.append(tuple(
+                position[axis] + normal[axis] * displacement
+                for axis in range(3)
+            ))
+        output = TriangleMesh(tuple(output_vertices), tuple(source.mesh.faces))
+        provenance = dict(source.provenance)
+        provenance.update({
+            "source_identifier": source.source_identifier,
+            "source_name": source.source_name,
+            "source_type": source.source_type.value,
+        })
+        return ProceduralResult(
+            mesh=output,
+            statistics=output.statistics(),
+            operator_id=self.operator_id,
+            source_provenance=provenance,
+            execution_metadata={
+                "cell_size_mm": parameters["cell_size"],
+                "depth_mm": depth,
+                "edge_width_mm": parameters["edge_width"],
+                "execution_context": request.execution_context.value,
+                "falloff": parameters["falloff"],
+                "jitter": parameters["jitter"],
+                "operator_display_name": self.display_name,
+                "seed": parameters["seed"],
             },
             units=source.units,
             input_digest=source.digest,

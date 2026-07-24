@@ -213,7 +213,7 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
         self.assertFalse(
             DEFAULT_OPERATOR_REGISTRY.get("pass_through").parameter_definitions
         )
-        self.assertEqual(len(self.controls), 7)
+        self.assertEqual(len(self.controls), 13)
 
     def test_visibility_tracks_operator_without_noise_specific_branch(self):
         _set_parameter_visibility(self.controls, "noise_displacement")
@@ -237,6 +237,36 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
         self.assertEqual(
             _read_operator_parameters(subdivision, self.controls),
             {"level": 1},
+        )
+
+    def test_voronoi_parameters_render_and_hide_unrelated_controls(self):
+        voronoi = DEFAULT_OPERATOR_REGISTRY.get("voronoi_surface")
+        _set_parameter_visibility(self.controls, "voronoi_surface")
+        visible = [
+            key for key, control in self.controls.items()
+            if control.isVisible
+        ]
+        self.assertEqual(
+            visible,
+            [
+                ("voronoi_surface", "cell_size"),
+                ("voronoi_surface", "depth"),
+                ("voronoi_surface", "edge_width"),
+                ("voronoi_surface", "falloff"),
+                ("voronoi_surface", "jitter"),
+                ("voronoi_surface", "seed"),
+            ],
+        )
+        self.assertEqual(
+            _read_operator_parameters(voronoi, self.controls),
+            {
+                "cell_size": 20.0,
+                "depth": 2.0,
+                "edge_width": 3.0,
+                "falloff": 2.0,
+                "jitter": 0.75,
+                "seed": 0,
+            },
         )
 
     def test_fusion_length_values_are_read_back_in_millimeters(self):

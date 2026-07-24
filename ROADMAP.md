@@ -205,6 +205,16 @@ See [SPRINT29_DESIGN.md](docs/SPRINT29_DESIGN.md).
 
 See [SPRINT30_DESIGN.md](docs/SPRINT30_DESIGN.md).
 
+**Sprint 31 — Voronoi Surface Operator**
+
+- add the first cell-based Procedural Lab deformation
+- generate deterministic jittered object-space lattice sites on demand
+- derive smooth boundary masks from nearest and second-nearest distances
+- expose registry-driven Cell Size, Depth, Edge Width, Falloff, Jitter, and Seed
+- preserve connectivity and prepare future cracks, cells, and porous surfaces
+
+See [SPRINT31_DESIGN.md](docs/SPRINT31_DESIGN.md).
+
 ## Candidate Future Work
 
 - Procedural Lab operator stack and real geometry operators
