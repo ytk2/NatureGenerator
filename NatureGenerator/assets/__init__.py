@@ -19,10 +19,18 @@ from .export import (
     ExporterRegistry,
 )
 from .factory import GeneratedAssetFactory
+from .natural_material import (
+    AssetBrowserMetadata,
+    NATURAL_MATERIALS,
+    NaturalMaterial,
+    NaturalMaterialRegistry,
+    ThumbnailReference,
+)
 
 __all__ = [
     "AssetExporter",
     "AssetMetadata",
+    "AssetBrowserMetadata",
     "Color",
     "ExportFormat",
     "ExportRequest",
@@ -33,6 +41,10 @@ __all__ = [
     "MappingDefinition",
     "MappingMode",
     "MaterialDefinition",
+    "NATURAL_MATERIALS",
+    "NaturalMaterial",
+    "NaturalMaterialRegistry",
+    "ThumbnailReference",
     "TextureResource",
     "TextureSemantic",
     "TextureSet",

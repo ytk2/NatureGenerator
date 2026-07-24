@@ -174,6 +174,35 @@ class ParameterRatioConstraint:
 
 
 @dataclass(frozen=True)
+class ParameterGroupDefinition:
+    """Stable presentation grouping shared by natural preset parameters."""
+
+    group_id: str
+    display_name: str
+    parameter_ids: Tuple[str, ...]
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "group_id", _stable_id(self.group_id, "group_id"))
+        object.__setattr__(
+            self, "display_name", _nonempty_text(self.display_name, "display_name")
+        )
+        if not isinstance(self.parameter_ids, tuple):
+            raise TypeError("parameter_ids must be a tuple")
+        parameter_ids = tuple(
+            _stable_id(value, "parameter_id") for value in self.parameter_ids
+        )
+        if not parameter_ids:
+            raise ValueError("parameter_ids cannot be empty")
+        if len(parameter_ids) != len(set(parameter_ids)):
+            raise ValueError("parameter_ids must be unique within a group")
+        if not isinstance(self.description, str):
+            raise TypeError("description must be a string")
+        object.__setattr__(self, "parameter_ids", parameter_ids)
+        object.__setattr__(self, "description", self.description.strip())
+
+
+@dataclass(frozen=True)
 class NaturePreset:
     """Immutable user-facing definition of a natural form."""
 
@@ -187,6 +216,7 @@ class NaturePreset:
     available: bool = False
     unavailable_reason: str = ""
     parameter_constraints: Tuple[ParameterRatioConstraint, ...] = ()
+    parameter_groups: Tuple[ParameterGroupDefinition, ...] = ()
 
     def __post_init__(self) -> None:
         for attribute in ("display_name", "category", "description"):
@@ -234,6 +264,27 @@ class NaturePreset:
                     raise ValueError(
                         "constraint parameter {!r} requires metadata".format(parameter_id)
                     )
+
+        if not isinstance(self.parameter_groups, tuple):
+            raise TypeError("parameter_groups must be a tuple")
+        grouped_parameter_ids = []
+        group_ids = []
+        for group in self.parameter_groups:
+            if not isinstance(group, ParameterGroupDefinition):
+                raise TypeError(
+                    "parameter_groups values must be ParameterGroupDefinition"
+                )
+            group_ids.append(group.group_id)
+            for parameter_id in group.parameter_ids:
+                if parameter_id not in metadata:
+                    raise ValueError(
+                        "grouped parameter {!r} requires metadata".format(parameter_id)
+                    )
+                grouped_parameter_ids.append(parameter_id)
+        if len(group_ids) != len(set(group_ids)):
+            raise ValueError("parameter group IDs must be unique")
+        if len(grouped_parameter_ids) != len(set(grouped_parameter_ids)):
+            raise ValueError("parameters cannot appear in multiple groups")
 
         if not isinstance(self.available, bool):
             raise TypeError("available must be a bool")

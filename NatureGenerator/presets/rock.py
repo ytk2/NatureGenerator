@@ -1,6 +1,7 @@
 """Rock preset definition."""
 
 from .preset import NaturePreset, ParameterMetadata
+from .common import natural_parameter_groups
 
 
 ROCK_PRESET = NaturePreset(
@@ -35,5 +36,6 @@ ROCK_PRESET = NaturePreset(
             preview_resolutions=(17, 21, 25),
         ),
     },
+    parameter_groups=natural_parameter_groups(("size", "roughness")),
     available=True,
 )

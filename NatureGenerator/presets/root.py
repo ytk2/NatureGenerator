@@ -1,6 +1,7 @@
 """Root preset definition."""
 
 from .preset import NaturePreset, ParameterMetadata, ParameterRatioConstraint
+from .common import natural_parameter_groups
 
 
 ROOT_PRESET = NaturePreset(
@@ -69,6 +70,17 @@ ROOT_PRESET = NaturePreset(
             ),
             maximum_message="root_radius must not exceed 20% of length",
         ),
+    ),
+    parameter_groups=natural_parameter_groups(
+        (
+            "length",
+            "root_radius",
+            "branch_count",
+            "branching",
+            "spread",
+            "taper",
+            "gravity",
+        )
     ),
     available=True,
 )

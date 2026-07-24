@@ -1,6 +1,7 @@
 """Classic Bone preset definition."""
 
 from .preset import NaturePreset, ParameterMetadata
+from .common import natural_parameter_groups
 
 
 BONE_PRESET = NaturePreset(
@@ -55,5 +56,15 @@ BONE_PRESET = NaturePreset(
             preview_resolutions=(21, 25),
         ),
     },
+    parameter_groups=natural_parameter_groups(
+        (
+            "length",
+            "shaft_radius",
+            "end_scale",
+            "curvature",
+            "asymmetry",
+            "surface_detail",
+        )
+    ),
     available=True,
 )

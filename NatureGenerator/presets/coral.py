@@ -1,6 +1,7 @@
 """Coral preset definition."""
 
 from .preset import NaturePreset, ParameterMetadata
+from .common import natural_parameter_groups
 
 
 CORAL_PRESET = NaturePreset(
@@ -43,5 +44,6 @@ CORAL_PRESET = NaturePreset(
             description="Voxel samples per axis.",
         ),
     },
+    parameter_groups=natural_parameter_groups(("cell_size", "thickness")),
     available=True,
 )

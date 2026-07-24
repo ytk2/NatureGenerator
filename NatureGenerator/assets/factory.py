@@ -12,46 +12,7 @@ from .definition import (
     MaterialDefinition,
     TextureSet,
 )
-
-
-_MATERIALS = {
-    "rock": MaterialDefinition(
-        "natural_rock", "Natural Rock", (0.34, 0.32, 0.28, 1.0),
-        roughness=0.86,
-        procedural_parameters={"pattern": "mineral_variation"},
-    ),
-    "bark": MaterialDefinition(
-        "natural_bark", "Natural Bark", (0.24, 0.12, 0.055, 1.0),
-        roughness=0.92,
-        normal_strength=1.2,
-        procedural_parameters={"pattern": "directional_ridges"},
-    ),
-    "coral": MaterialDefinition(
-        "natural_coral", "Natural Coral", (0.78, 0.36, 0.28, 1.0),
-        roughness=0.7,
-        procedural_parameters={"pattern": "branch_gradient"},
-    ),
-    "sponge": MaterialDefinition(
-        "natural_sponge", "Natural Sponge", (0.78, 0.58, 0.16, 1.0),
-        roughness=0.88,
-        procedural_parameters={"pattern": "porous_variation"},
-    ),
-    "root": MaterialDefinition(
-        "natural_root", "Natural Root", (0.29, 0.16, 0.075, 1.0),
-        roughness=0.9,
-        procedural_parameters={"pattern": "fibrous_variation"},
-    ),
-    "bone": MaterialDefinition(
-        "natural_bone", "Natural Bone", (0.82, 0.79, 0.68, 1.0),
-        roughness=0.72,
-        procedural_parameters={"pattern": "porous_variation"},
-    ),
-    "crystal": MaterialDefinition(
-        "natural_crystal", "Natural Crystal", (0.68, 0.82, 0.88, 1.0),
-        roughness=0.28,
-        procedural_parameters={"pattern": "crystalline_variation"},
-    ),
-}
+from .natural_material import NATURAL_MATERIALS
 
 
 class GeneratedAssetFactory:
@@ -71,15 +32,15 @@ class GeneratedAssetFactory:
         if not isinstance(preset, NaturePreset):
             raise TypeError("preset must be a NaturePreset")
         recorded_parameters = {} if parameters is None else dict(parameters)
-        material = _MATERIALS.get(
-            preset.preset_id,
-            MaterialDefinition(
+        try:
+            material = NATURAL_MATERIALS.get(preset.preset_id).definition
+        except KeyError:
+            material = MaterialDefinition(
                 "natural_surface",
                 "Natural Surface",
                 (0.5, 0.5, 0.5, 1.0),
                 roughness=0.8,
-            ),
-        )
+            )
         return GeneratedAsset(
             mesh=mesh,
             material=material,
