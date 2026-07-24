@@ -30,6 +30,12 @@ ID. Coral, Rock, Bark, Root, Bone, and Crystal are released through the
 `coral`, `rock`, `bark`, `root`, `bone`, and `crystal` generator IDs. Executable presets describe all
 Fusion inputs through ordered parameter metadata.
 
+Sprint 27 adds optional immutable `ParameterGroupDefinition` values. Every
+built-in uses the shared **Form** and **Generation** groups, while the empty
+default preserves legacy and third-party `NaturePreset` construction. Groups
+are presentation metadata only; current Fusion input creation still consumes
+the same ordered parameter metadata.
+
 Sprint 18 adds an immutable `PresetDefinition` association around each
 `NaturePreset` and its optional Family registry. `PresetCatalog` is the
 application composition root: Rock is associated with `RockFamilyRegistry`,
@@ -193,6 +199,14 @@ image resources but is empty in Sprint 22 because no baking pipeline exists.
 `AssetMetadata` records stable preset/generator/family identity, generation
 request parameters, units, and schema version. Family identity and explicit
 overrides remain distinct so provenance does not mislabel Family-owned values.
+
+Sprint 27 introduces `NaturalMaterial` as the shared catalog record around
+each existing `MaterialDefinition`. `NaturalMaterialRegistry` provides stable
+preset-ID lookup; `AssetBrowserMetadata` carries categories and keywords, and
+an optional `ThumbnailReference` reserves a renderer-neutral packaged-resource
+boundary. `GeneratedAssetFactory` obtains the same material definitions through
+this registry. No thumbnail assets, browser UI, material rendering, or geometry
+behavior are added.
 
 `AssetExporter`, `ExportRequest`, `ExportResult`, and `ExporterRegistry`
 separate serialization from generation and avoid format-selection branching.

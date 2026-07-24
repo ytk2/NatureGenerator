@@ -62,6 +62,7 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
 - `core/`: Fusion-independent geometry primitives, sampled grids, meshes, and
   STL serialization.
 - `assets/`: renderer-neutral generated assets, material and mapping intent,
+  shared natural-material discovery metadata, future thumbnail references,
   texture resources, provenance metadata, and future exporter contracts.
 - `generators/`: procedural form generation algorithms.
 - `presets/`: user-facing natural-form definitions and availability metadata.
@@ -104,6 +105,13 @@ sponge = PresetFactory.get("sponge")
 
 Built-ins are registered explicitly for predictable Fusion behavior; the
 framework does not scan directories or dynamically import arbitrary files.
+
+Sprint 27 standardizes immutable **Form** and **Generation** parameter groups
+for every built-in while keeping groups optional for legacy presets. Shared
+`NaturalMaterial` records pair the existing renderer-neutral material values
+with Asset Browser categories, search keywords, and an optional future
+thumbnail reference. No thumbnail UI or image resources are introduced. See
+[`docs/SPRINT27_DESIGN.md`](docs/SPRINT27_DESIGN.md).
 
 Sprint 18 adds `PresetDefinition` and `PresetCatalog` above the existing API.
 The catalog associates each `NaturePreset` with an optional Family registry.

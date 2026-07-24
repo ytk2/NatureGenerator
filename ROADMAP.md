@@ -165,6 +165,16 @@ See [SPRINT25_DESIGN.md](docs/SPRINT25_DESIGN.md).
 
 See [SPRINT26_DESIGN.md](docs/SPRINT26_DESIGN.md).
 
+**Sprint 27 — Natural Material Framework**
+
+- introduce immutable shared `NaturalMaterial` catalog records
+- centralize reusable Asset Browser category and keyword metadata
+- prepare optional renderer-neutral thumbnail resource references
+- standardize Form and Generation parameter groups for all built-ins
+- preserve all existing geometry, IDs, defaults, requests, and asset behavior
+
+See [SPRINT27_DESIGN.md](docs/SPRINT27_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

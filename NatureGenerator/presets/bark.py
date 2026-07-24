@@ -1,6 +1,7 @@
 """Bark preset definition."""
 
 from .preset import NaturePreset, ParameterMetadata, ParameterRatioConstraint
+from .common import natural_parameter_groups
 
 
 BARK_PRESET = NaturePreset(
@@ -56,6 +57,9 @@ BARK_PRESET = NaturePreset(
             maximum_ratio=0.25,
             maximum_message="bark_depth must not exceed 25% of diameter",
         ),
+    ),
+    parameter_groups=natural_parameter_groups(
+        ("diameter", "height", "bark_depth", "groove_scale", "twist")
     ),
     available=True,
 )

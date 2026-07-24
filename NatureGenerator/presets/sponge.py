@@ -1,6 +1,7 @@
 """Sponge preset backed by the closed porous Sponge field."""
 
 from .preset import NaturePreset, ParameterMetadata
+from .common import natural_parameter_groups
 
 
 SPONGE_PRESET = NaturePreset(
@@ -43,5 +44,6 @@ SPONGE_PRESET = NaturePreset(
             description="Voxel samples per axis.",
         ),
     },
+    parameter_groups=natural_parameter_groups(("cell_size", "thickness")),
     available=True,
 )
