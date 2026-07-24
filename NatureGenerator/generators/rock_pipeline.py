@@ -62,6 +62,11 @@ class SurfaceDetailParameters:
     ridge_center: float
     ridge_amplitude_response: float
     ridge_response_power: float
+    strata_frequency: float = 0.0
+    strata_amplitude_base: float = 0.0
+    strata_amplitude_response: float = 0.0
+    strata_warp_frequency: float = 0.0
+    strata_warp_amplitude: float = 0.0
 
 
 DEFAULT_MACRO_PARAMETERS = MacroShapeParameters(
@@ -246,6 +251,10 @@ class SurfaceDetailDefinition:
     ridge_offset: Vector3
     ridge_center: float
     ridge_amplitude: float
+    strata_frequency: float = 0.0
+    strata_amplitude: float = 0.0
+    strata_warp_frequency: float = 0.0
+    strata_warp_amplitude: float = 0.0
 
     def fbm(
         self, normalized: Vector3, noise: DeterministicValueNoise
@@ -301,6 +310,23 @@ class SurfaceDetailDefinition:
             self.fbm_amplitude * self.fbm(normalized, noise),
             self.ridge_amplitude * self.ridged(normalized, noise),
         )
+
+    def stratified(
+        self, normalized: Vector3, noise: DeterministicValueNoise
+    ) -> float:
+        """Evaluate horizontal strata with low-frequency broken-edge warping."""
+
+        x, y, z = normalized
+        warp = noise.sample(
+            x * self.strata_warp_frequency + 19.7,
+            y * self.strata_warp_frequency - 8.3,
+            z * self.strata_warp_frequency + 4.1,
+        )
+        phase = self.strata_frequency * (
+            z + self.strata_warp_amplitude * warp
+        )
+        band = abs(math.sin(math.pi * phase))
+        return self.strata_amplitude * (0.42 - band)
 
 
 def build_macro_shape(
@@ -403,4 +429,11 @@ def build_surface_detail(
         ridge_amplitude=parameters.ridge_amplitude_response * math.pow(
             response, parameters.ridge_response_power
         ),
+        strata_frequency=parameters.strata_frequency,
+        strata_amplitude=(
+            parameters.strata_amplitude_base
+            + parameters.strata_amplitude_response * response
+        ),
+        strata_warp_frequency=parameters.strata_warp_frequency,
+        strata_warp_amplitude=parameters.strata_warp_amplitude,
     )

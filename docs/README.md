@@ -42,6 +42,7 @@
 - [SPRINT22_DESIGN.md](SPRINT22_DESIGN.md)
 - [SPRINT23_DESIGN.md](SPRINT23_DESIGN.md)
 - [SPRINT24_DESIGN.md](SPRINT24_DESIGN.md)
+- [SPRINT25_DESIGN.md](SPRINT25_DESIGN.md)
 
 Sprint design documents record the goal, scope, exclusions, architecture
 decisions, and Definition of Done for that Sprint.

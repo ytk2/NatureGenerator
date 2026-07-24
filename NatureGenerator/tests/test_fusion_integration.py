@@ -990,11 +990,12 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(
             [item.name for item in family_input.listItems.items],
             [
+                "Classic Rock", "Layered Rock", "Weathered Rock", "River Rock",
                 "Smooth", "Weathered", "Rugged", "River Stone",
                 "Granite", "Basalt", "Broken Rock",
             ],
         )
-        self.assertEqual(family_input.selectedItem.name, "Smooth")
+        self.assertEqual(family_input.selectedItem.name, "Classic Rock")
 
         sponge_item = next(
             item for item in preset_input.listItems.items if item.name == "Sponge"
@@ -1422,7 +1423,9 @@ class FusionRuntimeStartupTests(unittest.TestCase):
                 fire_preview(command)
 
         self.assertEqual(generate.call_count, 2)
-        self.assertEqual(generate.call_args_list[0].args[0].family_id, "smooth")
+        self.assertEqual(
+            generate.call_args_list[0].args[0].family_id, "classic_rock"
+        )
         self.assertEqual(generate.call_args_list[1].args[0].family_id, "river_stone")
         self.assertEqual(bodies[0].deleted, 1)
         self.assertEqual(bodies[1].deleted, 0)
@@ -1616,7 +1619,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(captured[0].preset_id, "rock")
         self.assertEqual(set(captured[0].parameter_overrides), {"size", "roughness", "seed"})
         self.assertEqual(captured[0].resolution, DEFAULT_RESOLUTION)
-        self.assertEqual(captured[0].family_id, "smooth")
+        self.assertEqual(captured[0].family_id, "classic_rock")
 
     def test_command_execute_builds_request_from_input_values(self):
         captured = []
