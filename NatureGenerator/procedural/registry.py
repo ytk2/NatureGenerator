@@ -8,6 +8,7 @@ from .operators import (
     PassThroughOperator,
     ProceduralOperator,
     SubdivisionOperator,
+    VoronoiSurfaceOperator,
 )
 
 
@@ -50,4 +51,5 @@ DEFAULT_OPERATOR_REGISTRY = ProceduralOperatorRegistry((
     PassThroughOperator(),
     NoiseDisplacementOperator(),
     SubdivisionOperator(),
+    VoronoiSurfaceOperator(),
 ))

@@ -47,6 +47,12 @@ with four winding-preserving children. Levels 1–3 increase density without
 smoothing or changing the piecewise-linear shape. See
 [`docs/SPRINT30_DESIGN.md`](docs/SPRINT30_DESIGN.md).
 
+Sprint 31 adds **Voronoi Surface**, the first cell-based operator. It evaluates
+deterministic jittered object-space lattice sites, derives a boundary mask from
+the nearest and second-nearest distances, and creates signed grooves or ridges
+without changing mesh connectivity. See
+[`docs/SPRINT31_DESIGN.md`](docs/SPRINT31_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

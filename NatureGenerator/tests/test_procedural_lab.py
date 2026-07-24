@@ -84,7 +84,10 @@ class ProceduralContractTests(unittest.TestCase):
             DEFAULT_OPERATOR_REGISTRY.get("gyroid")
         self.assertEqual(
             [item.operator_id for item in DEFAULT_OPERATOR_REGISTRY.list_all()],
-            ["pass_through", "noise_displacement", "subdivision"],
+            [
+                "pass_through", "noise_displacement",
+                "subdivision", "voronoi_surface",
+            ],
         )
 
     def test_parameter_validation_rejects_unknown_values(self):
