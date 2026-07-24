@@ -26,18 +26,17 @@ meshes.
 `PresetFactory` is the command/UI entry point. It uses explicit built-in
 registration rather than filesystem discovery, keeping startup deterministic in
 Fusion's Python environment. Sponge maps to the available `gyroid` generator
-ID. Coral, Rock, Bark, and Root are released through the `coral`, `rock`,
-`bark`, and `root` generator IDs; Bone remains visibly unavailable. Executable presets
-describe all Fusion inputs through ordered parameter metadata.
+ID. Coral, Rock, Bark, Root, and Bone are released through the `coral`, `rock`,
+`bark`, `root`, and `bone` generator IDs. Executable presets describe all
+Fusion inputs through ordered parameter metadata.
 
 Sprint 18 adds an immutable `PresetDefinition` association around each
 `NaturePreset` and its optional Family registry. `PresetCatalog` is the
 application composition root: Rock is associated with `RockFamilyRegistry`,
 Sprint 19 associates Bark with `BarkFamilyRegistry`, Sprint 20 associates Coral
 with `CoralFamilyRegistry`, and Sprint 21 associates Sponge with
-`SpongeFamilyRegistry`. Sprint 23 associates the final implemented preset,
-Root, with `RootFamilyRegistry`. Bone remains an explicit unavailable
-no-Family placeholder because it has no generator.
+`SpongeFamilyRegistry`. Sprint 23 associates Root with `RootFamilyRegistry`,
+and Sprint 24 adds Classic Bone through `BoneFamilyRegistry`.
 `PresetFactory` remains the stable metadata API used by generators, preserving
 existing public contracts and the rule that `presets/` never imports concrete
 generator code.
@@ -77,6 +76,9 @@ value-noise primitive.
 skeleton, then thickens it as a hard implicit union of tapered capsule-like
 segment fields and a compact crown. Segment count, tip radius, sampling margin,
 and resolution are bounded so extraction remains deterministic and connected.
+`BoneGenerator` smoothly blends a curved variable-radius shaft, asymmetric
+ellipsoidal ends, and secondary lobes, applies shallow deterministic detail,
+and intersects the result with a grounding half-space.
 The legacy
 generator-ID factory and public result-returning entry points remain compatible.
 The runtime uses explicit registration rather than filesystem discovery and
@@ -134,8 +136,12 @@ Sprint 23 completes the migration by associating Root with
 `RootFamilyRegistry`. Classic Root stores the nine accepted Root parameter
 values, including deterministic Seed and Resolution. Requests without a Family
 ID and requests selecting `classic_root` resolve to identical configuration and
-the exact accepted mesh. Every implemented preset now enters generation through
-a Family registry; only unavailable Bone has no registry.
+the exact accepted mesh.
+
+Sprint 24 makes Bone executable through `BoneFamilyRegistry`. Classic Bone
+stores Length, Shaft Radius, End Scale, Curvature, Asymmetry, Surface Detail,
+Seed, and Resolution. `BoneGenerator` owns the implicit construction; the
+Family owns only immutable parameter values.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing

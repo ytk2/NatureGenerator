@@ -21,6 +21,7 @@ from generators import (
     GenerationRequest,
     CoralGenerator,
     BarkGenerator,
+    BoneGenerator,
     RockGenerator,
     RootGenerator,
     build_root_skeleton,
@@ -76,10 +77,10 @@ class GeneratorFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate preset id"):
             GeneratorFactory.register_preset("sponge", SpongeGenerator)
 
-    def test_request_rejects_unavailable_preset(self):
-        request = GenerationRequest("bone", {}, DEFAULT_RESOLUTION)
-        with self.assertRaisesRegex(UnavailablePresetError, "not implemented"):
-            GeneratorFactory.generate_request(request)
+    def test_factory_resolves_bone_preset(self):
+        generator = GeneratorFactory.create_for_preset("bone")
+        self.assertIsInstance(generator, BoneGenerator)
+        self.assertEqual(generator.generator_id, "bone")
 
     def test_request_rejects_unknown_preset(self):
         request = GenerationRequest("missing", {}, DEFAULT_RESOLUTION)
@@ -839,6 +840,8 @@ class GeneratorRuntimeDependencyTests(unittest.TestCase):
             "gyroid_generator.py",
             "coral_generator.py",
             "bark_generator.py",
+            "bone_generator.py",
+            "bone_families.py",
             "value_noise.py",
             "root_generator.py",
             "sponge_generator.py",

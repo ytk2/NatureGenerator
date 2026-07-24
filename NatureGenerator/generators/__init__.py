@@ -13,6 +13,12 @@ from .generator import (
 from .generator_factory import GeneratorFactory
 from .coral_generator import CoralGenerator
 from .bark_generator import BarkGenerator
+from .bone_generator import BoneGenerator
+from .bone_families import (
+    BoneFamilyDefinition,
+    BoneFamilyRegistry,
+    CLASSIC_BONE_FAMILY,
+)
 from .sponge_generator import SpongeGenerator
 from .rock_generator import RockGenerator
 from .root_generator import RootGenerator, RootSegment, build_root_skeleton
@@ -35,6 +41,10 @@ __all__ = [
     "Generator",
     "CoralGenerator",
     "BarkGenerator",
+    "BoneGenerator",
+    "BoneFamilyDefinition",
+    "BoneFamilyRegistry",
+    "CLASSIC_BONE_FAMILY",
     "MeshGenerator",
     "SpongeGenerator",
     "RockGenerator",

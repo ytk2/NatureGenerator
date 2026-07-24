@@ -220,14 +220,22 @@ class GenerateNatureCommandTests(unittest.TestCase):
                 lambda mesh, name: None,
             )
 
-    def test_unavailable_preset_never_calls_adapter(self):
-        calls = []
-        with self.assertRaises(UnavailablePresetError):
-            generate_nature(
-                GenerationRequest("bone", {}, DEFAULT_RESOLUTION),
-                lambda mesh, name: calls.append(mesh),
+    def test_bone_command_passes_generated_mesh_to_adapter(self):
+        mesh = TriangleMesh(
+            ((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)
+        )
+        result = SimpleNamespace(mesh=mesh)
+        received = []
+        with patch(
+            "commands.generate_nature.GeneratorFactory.generate_request",
+            return_value=result,
+        ):
+            returned, body = generate_nature(
+                GenerationRequest("bone", {}, 33, "classic_bone"),
+                lambda value, name: received.append((value, name)) or object(),
             )
-        self.assertEqual(calls, [])
+        self.assertIs(returned, result)
+        self.assertEqual(received, [(mesh, "NatureGenerator Bone")])
 
 
 class MeshBodyAdapterTests(unittest.TestCase):
@@ -393,6 +401,12 @@ class FusionDependencyBoundaryTests(unittest.TestCase):
         for folder in ("commands", "fusion"):
             for module in (package_root / folder).glob("*.py"):
                 self.assertNotIn("RootGenerator", module.read_text(encoding="utf-8"))
+
+    def test_command_and_fusion_layers_do_not_reference_concrete_bone_generator(self):
+        package_root = Path(__file__).parents[1]
+        for folder in ("commands", "fusion"):
+            for module in (package_root / folder).glob("*.py"):
+                self.assertNotIn("BoneGenerator", module.read_text(encoding="utf-8"))
 
     def test_fusion_uses_preset_catalog_without_rock_registry_assumptions(self):
         source = (Path(__file__).parents[1] / "fusion" / "runtime.py").read_text(
@@ -631,8 +645,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         labels = [item.name for item in preset_input.listItems.items]
         self.assertIn("Sponge", labels)
         self.assertIn("Coral", labels)
-        for name in ("Bone",):
-            self.assertIn("{} — Coming Soon".format(name), labels)
+        self.assertIn("Bone", labels)
         self.assertIn("Bark", labels)
         self.assertIn("Rock", labels)
         self.assertIn("Root", labels)
@@ -885,8 +898,12 @@ class FusionRuntimeStartupTests(unittest.TestCase):
 
         preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
         preset_input.selectedItem = next(
-            item for item in preset_input.listItems.items if item.name.startswith("Bone")
+            item for item in preset_input.listItems.items if item.name == "Bone"
         )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        command.commandInputs.items[
+            runtime._parameter_input_id("bone", "length")
+        ].value = 0.0
         with patch("generators.GeneratorFactory.generate_request") as generate:
             fire_preview(command, preview_input)
         generate.assert_not_called()
@@ -1655,8 +1672,20 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(runtime._command_handler_groups, [])
 
-    def test_unavailable_selection_is_non_destructive(self):
-        app, ui, workspace, panel = self._start()
+    def test_bone_selection_uses_family_and_ok_execution(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=10, face_count=20),
+            elapsed_time=0.25,
+        )
+        body = SimpleNamespace(name="NatureGenerator Bone")
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, inserter: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
         definition = ui.commandDefinitions.items[runtime.COMMAND_ID]
         command = FakeCommand()
         definition.commandCreated.handlers[0].notify(
@@ -1666,13 +1695,47 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         preset_input.selectedItem = next(
             item
             for item in preset_input.listItems.items
-            if item.name.startswith("Bone")
+            if item.name == "Bone"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = command.commandInputs.items[runtime.FAMILY_INPUT_ID]
+        self.assertTrue(family_input.isVisible)
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items], ["Classic Bone"]
         )
         command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].preset_id, "bone")
+        self.assertEqual(captured[0].family_id, "classic_bone")
+        self.assertEqual(captured[0].resolution, 33)
 
-        self.assertEqual(len(ui.messages), 1)
-        self.assertIn("unavailable", ui.messages[0][0])
-        self.assertEqual(ui.messages[0][1], "Generate Nature")
+    def test_bone_family_preview_uses_existing_preview_pipeline(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items if item.name == "Bone"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "bone")
+        self.assertEqual(request.family_id, "classic_bone")
+        self.assertEqual(request.resolution, 33)
+        self.assertEqual(request.parameter_overrides["seed"], 7)
 
     def test_coral_selection_builds_a_coral_request(self):
         captured = []

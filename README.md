@@ -3,7 +3,7 @@
 > Generate manufacturable natural geometry directly inside Autodesk Fusion.
 
 NatureGenerator v0.11.0 is the stable Generator Variants release. Sponge,
-Coral, Rock, Bark, and Root are executable. Sprint 15 adds an internal Rock
+Coral, Rock, Bark, Root, and Bone are executable on current main. Sprint 15 adds an internal Rock
 Family architecture while preserving the released UI.
 
 ![Generate Nature dialog and generated Sponge mesh](docs/images/v0.5.0-generate-nature-dialog.png)
@@ -19,9 +19,9 @@ The project includes a Fusion-independent procedural geometry pipeline and a
 user-facing nature preset framework. Sponge is backed by the configurable
 gyroid scalar field, Coral uses a closed branching implicit solid, and Rock
 uses a deformed ellipsoid with dependency-free value noise. Bark uses a closed
-finite cylinder with directional, anisotropic surface variation. Unreleased
-Root uses a bounded deterministic skeleton and a union of tapered segment
-fields.
+finite cylinder with directional, anisotropic surface variation. Root uses a
+bounded deterministic skeleton and a union of tapered segment fields. Bone uses
+a curved variable-radius shaft smoothly joined to asymmetric rounded ends.
 
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
@@ -109,9 +109,8 @@ The catalog associates each `NaturePreset` with an optional Family registry.
 Rock points to `RockFamilyRegistry`, and Sprint 19 promotes Bark from a
 placeholder to `BarkFamilyRegistry`. Sprint 20 promotes Coral to
 `CoralFamilyRegistry`, and Sprint 21 promotes Sponge to
-`SpongeFamilyRegistry`. Sprint 23 completes the implemented-preset migration by
-associating Root with `RootFamilyRegistry`; only unavailable Bone remains
-without a Family registry. Fusion reads these associations generically and
+`SpongeFamilyRegistry`. Sprint 23 associates Root with `RootFamilyRegistry`,
+and Sprint 24 introduces Bone through `BoneFamilyRegistry`. Fusion reads these associations generically and
 does not import concrete Family registries directly. See
 [`docs/SPRINT18_DESIGN.md`](docs/SPRINT18_DESIGN.md).
 
@@ -192,6 +191,11 @@ implemented preset now follows the PresetCatalog → Family Registry →
 GenerationRequest → GeneratorFactory → GeneratedAsset path. See
 [`docs/SPRINT23_DESIGN.md`](docs/SPRINT23_DESIGN.md).
 
+Sprint 24 registers **Classic Bone** through `BoneFamilyRegistry`. It generates
+a grounded, watertight stylized long bone with a curved narrow shaft, enlarged
+asymmetric ends, deterministic surface detail, and the existing GeneratedAsset
+defaults. See [`docs/SPRINT24_DESIGN.md`](docs/SPRINT24_DESIGN.md).
+
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
 replaced the current configuration, manual edits selected Custom, Preset
@@ -202,7 +206,7 @@ duplicate controls were observed. Sprint 13 is released in `v0.11.0`.
 | --- | --- | --- | --- |
 | Coral | Aquatic | `coral` | Available |
 | Sponge | Aquatic | `gyroid` | Available |
-| Bone | Biological | `cellular` | Unavailable — generator not implemented |
+| Bone | Biological | `bone` | Available |
 | Bark | Botanical | `bark` | Available |
 | Root | Botanical | `root` | Available |
 | Rock | Geological | `rock` | Available |
@@ -294,10 +298,12 @@ The dialog exposes each preset's metadata-defined inputs:
 - **Root Length, Root Radius, Branch Count, Branching, Spread, Taper, Gravity,
   and Seed:** dimensions and repeatable staged branching controls. Root
   resolution is constrained to 37–41, with a default of 37.
+- **Bone Length, Shaft Radius, End Scale, Curvature, Asymmetry, Surface Detail,
+  and Seed:** dimensions and deterministic controls for a stylized long bone.
+  Bone resolution is constrained to 21–41, with a default of 33.
 
-Sponge, Coral, Rock, Bark, and Root are executable in v0.11.0. Bone
-appears as Coming Soon and produces no geometry when selected. Cancel also creates
-no geometry. Command orchestration remains Fusion-independent; Autodesk command
+Sponge, Coral, Rock, Bark, Root, and Bone are executable on current main.
+Cancel creates no geometry. Command orchestration remains Fusion-independent; Autodesk command
 inputs, event handling, and `MeshBody` construction are isolated in `fusion/`.
 See [`docs/SPRINT8_DESIGN.md`](docs/SPRINT8_DESIGN.md) for the multi-generator
 contract and the successful macOS Autodesk Fusion acceptance result. The
@@ -310,6 +316,8 @@ See [`docs/SPRINT10_DESIGN.md`](docs/SPRINT10_DESIGN.md) for Bark's exact capped
 cylinder field, anisotropic value-noise construction, bounds, and limitations.
 See [`docs/SPRINT11_DESIGN.md`](docs/SPRINT11_DESIGN.md) for Root's bounded
 skeleton, tapered implicit union, topology safeguards, and acceptance plan.
+See [`docs/SPRINT24_DESIGN.md`](docs/SPRINT24_DESIGN.md) for Bone's implicit
+composition, parameters, topology, performance, and limitations.
 
 Root passed real Autodesk Fusion acceptance on macOS: all nine metadata-driven
 inputs displayed, `NatureGenerator Root` MeshBodies were created, and parameter

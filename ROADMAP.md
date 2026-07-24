@@ -129,9 +129,19 @@ See [SPRINT22_DESIGN.md](docs/SPRINT22_DESIGN.md).
 - route the final implemented preset through the generic Family architecture
 - expose Root Family selection through the existing Fusion dropdown
 - preserve Root geometry, deterministic Seed, Preview, and legacy requests
-- leave unavailable Bone as the only explicit no-Family catalog entry
+- leave Bone implementation for its dedicated generator sprint
 
 See [SPRINT23_DESIGN.md](docs/SPRINT23_DESIGN.md).
+
+**Sprint 24 — Bone Preset MVP**
+
+- add Classic Bone and `BoneFamilyRegistry`
+- add a curved variable-radius long-bone implicit generator
+- provide enlarged asymmetric ends, shallow deterministic detail, and grounding
+- integrate Bone with Family, Preview, OK, and GeneratedAsset workflows
+- require closed, manifold, watertight, single-component printable output
+
+See [SPRINT24_DESIGN.md](docs/SPRINT24_DESIGN.md).
 
 ## Candidate Future Work
 
@@ -141,7 +151,6 @@ See [SPRINT23_DESIGN.md](docs/SPRINT23_DESIGN.md).
 - Progress and cancellation support
 - Additional generators and presets:
   - richer Coral models, including possible Gray-Scott growth
-  - Bone / Cellular or Voronoi
 - Bark v2: longitudinal crack and plate-based surface model
 - Safely debounced automatic preview when a host-supported timer is proven
 - Release packaging or installer
