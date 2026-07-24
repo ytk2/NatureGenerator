@@ -26,8 +26,8 @@ meshes.
 `PresetFactory` is the command/UI entry point. It uses explicit built-in
 registration rather than filesystem discovery, keeping startup deterministic in
 Fusion's Python environment. Sponge maps to the available `gyroid` generator
-ID. Coral, Rock, Bark, Root, and Bone are released through the `coral`, `rock`,
-`bark`, `root`, and `bone` generator IDs. Executable presets describe all
+ID. Coral, Rock, Bark, Root, Bone, and Crystal are released through the
+`coral`, `rock`, `bark`, `root`, `bone`, and `crystal` generator IDs. Executable presets describe all
 Fusion inputs through ordered parameter metadata.
 
 Sprint 18 adds an immutable `PresetDefinition` association around each
@@ -36,7 +36,8 @@ application composition root: Rock is associated with `RockFamilyRegistry`,
 Sprint 19 associates Bark with `BarkFamilyRegistry`, Sprint 20 associates Coral
 with `CoralFamilyRegistry`, and Sprint 21 associates Sponge with
 `SpongeFamilyRegistry`. Sprint 23 associates Root with `RootFamilyRegistry`,
-and Sprint 24 adds Classic Bone through `BoneFamilyRegistry`.
+Sprint 24 adds Classic Bone through `BoneFamilyRegistry`, and Sprint 26 adds
+Classic Crystal through `CrystalFamilyRegistry`.
 `PresetFactory` remains the stable metadata API used by generators, preserving
 existing public contracts and the rule that `presets/` never imports concrete
 generator code.
@@ -79,6 +80,9 @@ and resolution are bounded so extraction remains deterministic and connected.
 `BoneGenerator` smoothly blends a curved variable-radius shaft, asymmetric
 ellipsoidal ends, and secondary lobes, applies shallow deterministic detail,
 and intersects the result with a grounding half-space.
+`CrystalGenerator` directly constructs a closed indexed polygonal prism with
+seeded facet irregularity and a tapered point termination. It uses the existing
+`TriangleMesh` model and validation pipeline without adding a second mesh type.
 The legacy
 generator-ID factory and public result-returning entry points remain compatible.
 The runtime uses explicit registration rather than filesystem discovery and
@@ -146,6 +150,11 @@ Sprint 24 makes Bone executable through `BoneFamilyRegistry`. Classic Bone
 stores Length, Shaft Radius, End Scale, Curvature, Asymmetry, Surface Detail,
 Seed, and Resolution. `BoneGenerator` owns the implicit construction; the
 Family owns only immutable parameter values.
+
+Sprint 26 associates Crystal with `CrystalFamilyRegistry`. Classic Crystal
+stores Length, Width, Facet Count, Taper, Irregularity, Seed, and Resolution.
+`CrystalGenerator` owns the parametric indexed-mesh construction; the Family
+owns only immutable parameter values.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing

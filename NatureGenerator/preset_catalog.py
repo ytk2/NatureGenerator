@@ -5,6 +5,7 @@ from typing import Tuple
 from generators.bark_families import BarkFamilyRegistry
 from generators.bone_families import BoneFamilyRegistry
 from generators.coral_families import CoralFamilyRegistry
+from generators.crystal_families import CrystalFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
 from generators.root_families import RootFamilyRegistry
 from generators.sponge_families import SpongeFamilyRegistry
@@ -19,6 +20,7 @@ def _built_in_registry() -> PresetRegistry:
         BarkFamilyRegistry.preset_id: BarkFamilyRegistry,
         BoneFamilyRegistry.preset_id: BoneFamilyRegistry,
         CoralFamilyRegistry.preset_id: CoralFamilyRegistry,
+        CrystalFamilyRegistry.preset_id: CrystalFamilyRegistry,
         RockFamilyRegistry.preset_id: RockFamilyRegistry,
         RootFamilyRegistry.preset_id: RootFamilyRegistry,
         SpongeFamilyRegistry.preset_id: SpongeFamilyRegistry,

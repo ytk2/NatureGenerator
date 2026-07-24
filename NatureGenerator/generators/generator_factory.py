@@ -12,6 +12,7 @@ from presets.preset import NaturePreset
 from .coral_generator import CoralGenerator
 from .bark_generator import BarkGenerator
 from .bone_generator import BoneGenerator
+from .crystal_generator import CrystalGenerator
 from .generator import (
     Generator,
     MeshExtractionError,
@@ -64,6 +65,7 @@ class GeneratorFactory:
             cls.register_preset("rock", RockGenerator)
             cls.register_preset("bark", BarkGenerator)
             cls.register_preset("bone", BoneGenerator)
+            cls.register_preset("crystal", CrystalGenerator)
             cls.register_preset("root", RootGenerator)
             cls._builtins_registered = True
 

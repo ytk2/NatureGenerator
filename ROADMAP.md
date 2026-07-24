@@ -154,6 +154,17 @@ See [SPRINT24_DESIGN.md](docs/SPRINT24_DESIGN.md).
 
 See [SPRINT25_DESIGN.md](docs/SPRINT25_DESIGN.md).
 
+**Sprint 26 — Crystal Preset MVP**
+
+- add Classic Crystal and `CrystalFamilyRegistry`
+- add an elongated irregular polygonal prism with tapered termination
+- make Seed and all six shape/density controls geometrically meaningful
+- integrate Crystal with generic Family, Preview, OK, and GeneratedAsset paths
+- require deterministic watertight manifold single-component output
+- preserve all existing preset geometry digests and architecture boundaries
+
+See [SPRINT26_DESIGN.md](docs/SPRINT26_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

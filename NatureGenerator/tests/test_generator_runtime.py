@@ -22,6 +22,7 @@ from generators import (
     CoralGenerator,
     BarkGenerator,
     BoneGenerator,
+    CrystalGenerator,
     RockGenerator,
     RootGenerator,
     build_root_skeleton,
@@ -58,6 +59,7 @@ class GeneratorFactoryTests(unittest.TestCase):
             ("rock", RockGenerator),
             ("bark", BarkGenerator),
             ("root", RootGenerator),
+            ("crystal", CrystalGenerator),
         ):
             generator = GeneratorFactory.create_for_preset(preset_id)
             self.assertIsInstance(generator, expected_type)
@@ -81,6 +83,11 @@ class GeneratorFactoryTests(unittest.TestCase):
         generator = GeneratorFactory.create_for_preset("bone")
         self.assertIsInstance(generator, BoneGenerator)
         self.assertEqual(generator.generator_id, "bone")
+
+    def test_factory_resolves_crystal_preset(self):
+        generator = GeneratorFactory.create_for_preset("crystal")
+        self.assertIsInstance(generator, CrystalGenerator)
+        self.assertEqual(generator.generator_id, "crystal")
 
     def test_request_rejects_unknown_preset(self):
         request = GenerationRequest("missing", {}, DEFAULT_RESOLUTION)

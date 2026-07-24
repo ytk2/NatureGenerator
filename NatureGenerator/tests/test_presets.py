@@ -8,6 +8,7 @@ from generators.gyroid import GyroidField
 from generators.bark_families import BarkFamilyRegistry
 from generators.bone_families import BoneFamilyRegistry
 from generators.coral_families import CoralFamilyRegistry
+from generators.crystal_families import CrystalFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
 from generators.root_families import RootFamilyRegistry
 from generators.sponge_families import SpongeFamilyRegistry
@@ -96,6 +97,22 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(bone.parameter_metadata["shaft_radius"].unit, "mm")
         self.assertEqual(bone.parameter_metadata["resolution"].preview_resolutions,
                          (21, 25))
+
+    def test_crystal_is_available_with_focused_metadata_and_defaults(self):
+        crystal = PresetFactory.get("crystal")
+        self.assertTrue(crystal.available)
+        self.assertEqual(crystal.generator_id, "crystal")
+        self.assertEqual(
+            tuple(crystal.parameter_metadata),
+            (
+                "length", "width", "facet_count", "taper", "irregularity",
+                "seed", "resolution",
+            ),
+        )
+        self.assertEqual(crystal.parameter_metadata["length"].unit, "mm")
+        self.assertEqual(crystal.parameter_metadata["width"].unit, "mm")
+        self.assertEqual(crystal.parameter_metadata["facet_count"].value_type,
+                         "integer")
 
     def test_coral_maps_to_available_coral_generator(self):
         coral = PresetFactory.get("coral")
@@ -232,7 +249,7 @@ class PresetRegistryTests(unittest.TestCase):
     def test_factory_exposes_all_initial_presets(self):
         self.assertEqual(
             {preset.preset_id for preset in PresetFactory.list_all()},
-            {"coral", "bone", "bark", "sponge", "rock", "root"},
+            {"coral", "bone", "bark", "crystal", "sponge", "rock", "root"},
         )
 
     def test_catalog_composes_family_metadata_without_changing_preset_api(self):
@@ -256,13 +273,22 @@ class PresetRegistryTests(unittest.TestCase):
         }
         self.assertEqual(
             set(definitions),
-            {"coral", "bone", "bark", "sponge", "rock", "root"},
+            {"coral", "bone", "bark", "crystal", "sponge", "rock", "root"},
         )
         self.assertIs(definitions["bark"].families, BarkFamilyRegistry)
         self.assertIs(definitions["bone"].families, BoneFamilyRegistry)
         self.assertIs(definitions["coral"].families, CoralFamilyRegistry)
+        self.assertIs(definitions["crystal"].families, CrystalFamilyRegistry)
         self.assertIs(definitions["root"].families, RootFamilyRegistry)
         self.assertIs(definitions["sponge"].families, SpongeFamilyRegistry)
+
+    def test_crystal_catalog_exposes_classic_family_metadata(self):
+        definition = PresetCatalog.get("crystal")
+        self.assertIs(definition.families, CrystalFamilyRegistry)
+        families = definition.families.list_all()
+        self.assertEqual(len(families), 1)
+        self.assertEqual(families[0].family_id, "classic_crystal")
+        self.assertEqual(families[0].display_name, "Classic Crystal")
 
     def test_bone_catalog_exposes_classic_family_metadata(self):
         definition = PresetCatalog.get("bone")

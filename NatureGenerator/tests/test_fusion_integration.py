@@ -646,6 +646,7 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertIn("Sponge", labels)
         self.assertIn("Coral", labels)
         self.assertIn("Bone", labels)
+        self.assertIn("Crystal", labels)
         self.assertIn("Bark", labels)
         self.assertIn("Rock", labels)
         self.assertIn("Root", labels)
@@ -1739,6 +1740,70 @@ class FusionRuntimeStartupTests(unittest.TestCase):
         self.assertEqual(request.family_id, "classic_bone")
         self.assertEqual(request.resolution, 33)
         self.assertEqual(request.parameter_overrides["seed"], 7)
+
+    def test_crystal_selection_uses_family_and_ok_execution(self):
+        captured = []
+        result = SimpleNamespace(
+            statistics=SimpleNamespace(vertex_count=10, face_count=20),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="NatureGenerator Crystal")
+        app, ui, workspace, panel = fake_fusion_ui()
+        with patch(
+            "commands.generate_nature.generate_nature",
+            lambda request, inserter: (captured.append(request) or (result, body)),
+        ):
+            with patch.dict(sys.modules, fake_adsk_modules(app)):
+                runtime.start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items
+            if item.name == "Crystal"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        family_input = command.commandInputs.items[runtime.FAMILY_INPUT_ID]
+        self.assertEqual(
+            [item.name for item in family_input.listItems.items],
+            ["Classic Crystal"],
+        )
+        command.execute.handlers[0].notify(SimpleNamespace(command=command))
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].preset_id, "crystal")
+        self.assertEqual(captured[0].family_id, "classic_crystal")
+        self.assertEqual(captured[0].resolution, 33)
+
+    def test_crystal_family_preview_uses_existing_preview_pipeline(self):
+        app, ui, workspace, panel = self._start()
+        command = FakeCommand()
+        ui.commandDefinitions.items[runtime.COMMAND_ID].commandCreated.handlers[0].notify(
+            SimpleNamespace(command=command)
+        )
+        preset_input = command.commandInputs.items[runtime.PRESET_INPUT_ID]
+        preset_input.selectedItem = next(
+            item for item in preset_input.listItems.items
+            if item.name == "Crystal"
+        )
+        command.inputChanged.handlers[0].notify(SimpleNamespace(input=preset_input))
+        result = SimpleNamespace(
+            mesh=TriangleMesh(((0, 0, 0), (1, 0, 0), (0, 1, 0)), ((0, 1, 2),)),
+            statistics=SimpleNamespace(vertex_count=3, face_count=1),
+            elapsed_time=0.01,
+        )
+        body = SimpleNamespace(name="preview", isValid=True, deleteMe=lambda: None)
+        with patch(
+            "generators.GeneratorFactory.generate_request", return_value=result
+        ) as generate:
+            with patch("fusion.mesh_body.MeshBodyBuilder.build", return_value=body):
+                fire_preview(command)
+        request = generate.call_args.args[0]
+        self.assertEqual(request.preset_id, "crystal")
+        self.assertEqual(request.family_id, "classic_crystal")
+        self.assertEqual(request.resolution, 33)
+        self.assertEqual(request.parameter_overrides["seed"], 13)
 
     def test_coral_selection_builds_a_coral_request(self):
         captured = []
