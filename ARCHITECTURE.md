@@ -58,7 +58,8 @@ implementation ID matches the preset's stable `generator_id`.
 samples-per-axis resolution without Fusion types. A `MeshGenerator` implements
 `generate(request) -> TriangleMesh`. The factory validates that mesh and returns
 an immutable `GeneratorResult` containing the mesh, statistics, warnings, IDs,
-and elapsed time.
+elapsed time, and a renderer-neutral `GeneratedAsset`. The asset refers to the
+same mesh instance, so this layer does not introduce a second mesh model.
 
 `SpongeGenerator` produces a closed rounded body with deterministic spherical
 surface pores. The legacy `GyroidGenerator` remains available through its
@@ -143,6 +144,33 @@ conservative cleanup, face and vertex normals, topology validation and
 statistics, plus STL, OBJ, and PLY serialization. Optimization does not alter the
 surface through smoothing or decimation.
 
+### Generated assets (`assets/`)
+
+Sprint 22 composes validated geometry into an immutable `GeneratedAsset`:
+
+```text
+GeneratedAsset
+    -> existing TriangleMesh
+    -> MaterialDefinition
+    -> MappingDefinition
+    -> TextureSet
+    -> AssetMetadata
+```
+
+`MaterialDefinition` records numeric PBR-like procedural intent without Fusion
+appearances or renderer/file-format objects. `MappingDefinition` initially
+supports explicit object-space procedural coordinates with scale, rotation,
+offset, and optional projection metadata. `TextureSet` can carry typed baked
+image resources but is empty in Sprint 22 because no baking pipeline exists.
+`AssetMetadata` records stable preset/generator/family identity, generation
+request parameters, units, and schema version. Family identity and explicit
+overrides remain distinct so provenance does not mislabel Family-owned values.
+
+`AssetExporter`, `ExportRequest`, `ExportResult`, and `ExporterRegistry`
+separate serialization from generation and avoid format-selection branching.
+The format vocabulary includes the planned OBJ, glTF, GLB, USD, USDZ, and STL
+destinations, but no new production exporter is registered in Sprint 22.
+
 ### Application commands (`commands/`)
 
 Commands coordinate user intent without knowing algorithm classes or Autodesk
@@ -216,7 +244,8 @@ User / Fusion Command
     -> Voxel Grid
     -> Marching Tetrahedra
     -> Triangle Mesh
-        -> STL Export
+    -> Generated Asset
+        -> future Asset Exporter
         -> Fusion Adapter
             -> Fusion MeshBody
 ```
@@ -228,8 +257,11 @@ User / Fusion Command
 3. The implementation supplies a scalar field, such as `GyroidField`.
 4. The core samples the field into a regular voxel grid.
 5. Marching tetrahedra extracts a Fusion-independent indexed triangle mesh.
-6. The mesh can be validated, optimized, exported to STL, or passed to the
-   Fusion Adapter for insertion as a Fusion `MeshBody`.
+6. The validated mesh is composed with material, mapping, texture, and
+   provenance intent into a `GeneratedAsset`.
+7. Existing consumers can still read the same mesh directly; future file
+   exporters consume the complete asset, while Fusion inserts its mesh into a
+   `MeshBody`.
 
 The sampling, extraction, and mesh stages should use explicit tolerances and
 deterministic iteration. Manufacturability checks—such as minimum feature size,
@@ -253,9 +285,13 @@ Generator Runtime
     -> Generator implementation
     -> ScalarField
     -> core
+    -> assets
 
 Fusion Adapter
     -> core
+
+Future File Export Adapter
+    -> assets
 ```
 
 Dependencies point toward the Fusion-independent geometry core. `core/` never

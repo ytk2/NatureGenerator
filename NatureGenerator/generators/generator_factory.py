@@ -4,6 +4,7 @@ import re
 from time import perf_counter
 from typing import Any, Callable, Dict, Mapping, Optional
 
+from assets import GeneratedAssetFactory
 from core.mesh_validator import MeshValidator
 from presets import PresetFactory
 from presets.preset import NaturePreset
@@ -182,6 +183,16 @@ class GeneratorFactory:
             generator_id=generator.generator_id,
             preset_id=preset.preset_id,
             elapsed_time=perf_counter() - started,
+            asset=GeneratedAssetFactory.create(
+                mesh=mesh,
+                preset=preset,
+                generator_id=generator.generator_id,
+                family_id=request.family_id,
+                parameters=dict(
+                    request.parameter_overrides,
+                    resolution=request.resolution,
+                ),
+            ),
         )
 
     @classmethod

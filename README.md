@@ -38,7 +38,12 @@ Nature Preset
     -> Voxel Grid
     -> Marching Tetrahedra
     -> Triangle Mesh
-        -> STL Export
+    -> Generated Asset
+        -> Material Intent
+        -> Object-space Mapping
+        -> Texture Resources (currently empty)
+        -> Asset Metadata
+        -> Future Asset Exporters
         -> Fusion Adapter
             -> Fusion MeshBody
 ```
@@ -55,6 +60,8 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
 - `commands/`: command definitions and UI coordination.
 - `core/`: Fusion-independent geometry primitives, sampled grids, meshes, and
   STL serialization.
+- `assets/`: renderer-neutral generated assets, material and mapping intent,
+  texture resources, provenance metadata, and future exporter contracts.
 - `generators/`: procedural form generation algorithms.
 - `presets/`: user-facing natural-form definitions and availability metadata.
 - `preset_catalog.py`: application composition of presets and optional Family
@@ -209,6 +216,7 @@ request = GenerationRequest(
 result = GeneratorFactory.generate_request(request)
 
 print(result.statistics.face_count)
+print(result.asset.material.display_name)
 print(result.elapsed_time)
 print(result.warnings)
 ```
@@ -218,6 +226,15 @@ extracts a `TriangleMesh` with marching tetrahedra, validates it, and returns an
 immutable `GeneratorResult`. The legacy finite Gyroid crop remains available
 through this stable API. Classic Sponge instead uses a closed porous field and
 requires watertight validation.
+
+Sprint 22 adds a `GeneratedAsset` to every `GeneratorResult`. The asset
+references the exact same `TriangleMesh` instance as `result.mesh`, then
+associates renderer-neutral material intent, object-space procedural mapping,
+an initially empty baked texture set, and immutable generation provenance.
+Existing mesh consumers and Fusion insertion remain compatible. An explicit
+exporter interface and registry establish the future file-export boundary, but
+Sprint 22 does not add OBJ/MTL, glTF/GLB, USD/USDZ, UV unwrapping, texture
+baking, or new STL production behavior.
 
 `CoralGenerator` uses the same Geometry Core to extract a connected union of
 branch capsules. Its surface stays inside the sampled domain and must pass

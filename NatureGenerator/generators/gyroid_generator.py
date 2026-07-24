@@ -4,6 +4,7 @@ import math
 from time import perf_counter
 from typing import Any, Mapping, Optional, Tuple
 
+from assets import GeneratedAssetFactory
 from core.marching_tetrahedra import extract_isosurface
 from core.mesh_validator import MeshValidator
 from core.voxel_grid import VoxelGrid
@@ -123,6 +124,12 @@ class GyroidGenerator(Generator):
             generator_id=self.generator_id,
             preset_id=preset.preset_id,
             elapsed_time=elapsed,
+            asset=GeneratedAssetFactory.create(
+                mesh=mesh,
+                preset=preset,
+                generator_id=self.generator_id,
+                parameters=dict(configured, resolution=resolution),
+            ),
         )
 
     @staticmethod
