@@ -6,7 +6,7 @@ import hashlib
 import math
 import re
 from types import MappingProxyType
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, Mapping, Optional, Sequence, Tuple
 
 from core.mesh import MeshStatistics, Point3, TriangleMesh
 
@@ -110,6 +110,47 @@ class ProceduralRequest:
         object.__setattr__(self, "operator_parameters", _metadata(
             self.operator_parameters, "operator_parameters"
         ))
+
+
+@dataclass(frozen=True)
+class OperatorInvocation:
+    """One immutable operator and parameter set inside an ordered stack."""
+
+    operator_id: str
+    operator_parameters: Mapping[str, Any] = field(
+        default_factory=lambda: _EMPTY
+    )
+
+    def __post_init__(self) -> None:
+        _identifier(self.operator_id, "operator_id")
+        object.__setattr__(self, "operator_parameters", _metadata(
+            self.operator_parameters, "operator_parameters"
+        ))
+
+
+@dataclass(frozen=True)
+class ProceduralStackRequest:
+    """One input and an ordered, non-empty operator invocation tuple."""
+
+    input_geometry: ProceduralInputGeometry
+    invocations: Tuple[OperatorInvocation, ...]
+    execution_context: ExecutionContext = ExecutionContext.FINAL
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.input_geometry, ProceduralInputGeometry):
+            raise TypeError("input_geometry must be ProceduralInputGeometry")
+        if not isinstance(self.invocations, Sequence) or isinstance(
+            self.invocations, (str, bytes)
+        ):
+            raise TypeError("invocations must be a sequence")
+        invocations = tuple(self.invocations)
+        if not invocations or len(invocations) > 3:
+            raise ValueError("operator stack must contain between one and three operators")
+        if any(not isinstance(item, OperatorInvocation) for item in invocations):
+            raise TypeError("invocations must contain OperatorInvocation values")
+        if not isinstance(self.execution_context, ExecutionContext):
+            raise TypeError("execution_context must be an ExecutionContext")
+        object.__setattr__(self, "invocations", invocations)
 
 
 @dataclass(frozen=True)

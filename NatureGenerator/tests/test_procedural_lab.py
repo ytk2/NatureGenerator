@@ -125,8 +125,14 @@ class PassThroughTests(unittest.TestCase):
     def test_pipeline_order_is_an_immutable_future_compatible_tuple(self):
         pipeline = OperatorPipeline(("pass_through",))
         self.assertEqual(pipeline.operator_ids, ("pass_through",))
-        with self.assertRaisesRegex(ValueError, "exactly one"):
-            OperatorPipeline(("pass_through", "pass_through"))
+        self.assertEqual(
+            OperatorPipeline(
+                ("pass_through", "pass_through")
+            ).operator_ids,
+            ("pass_through", "pass_through"),
+        )
+        with self.assertRaisesRegex(ValueError, "one and three"):
+            OperatorPipeline(())
 
     def test_pipeline_has_no_hidden_result_state(self):
         pipeline = OperatorPipeline(("pass_through",))

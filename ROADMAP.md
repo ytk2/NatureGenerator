@@ -215,6 +215,16 @@ See [SPRINT30_DESIGN.md](docs/SPRINT30_DESIGN.md).
 
 See [SPRINT31_DESIGN.md](docs/SPRINT31_DESIGN.md).
 
+**Sprint 32 — Procedural Operator Stack**
+
+- add three fixed registry-driven operator slots
+- isolate parameter values independently per slot
+- execute active stages top-to-bottom through OperatorPipeline
+- preserve single-operator APIs and default behavior
+- keep Preview and Apply ownership focused on one final MeshBody
+
+See [SPRINT32_DESIGN.md](docs/SPRINT32_DESIGN.md).
+
 ## Candidate Future Work
 
 - Procedural Lab operator stack and real geometry operators

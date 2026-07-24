@@ -213,35 +213,36 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
         self.assertFalse(
             DEFAULT_OPERATOR_REGISTRY.get("pass_through").parameter_definitions
         )
-        self.assertEqual(len(self.controls), 13)
+        self.assertEqual(len(self.controls), 39)
 
     def test_visibility_tracks_operator_without_noise_specific_branch(self):
-        _set_parameter_visibility(self.controls, "noise_displacement")
-        for (operator_id, _), control in self.controls.items():
+        _set_parameter_visibility(self.controls, 2, "noise_displacement")
+        for (slot_index, operator_id, _), control in self.controls.items():
             self.assertEqual(
-                control.isVisible, operator_id == "noise_displacement"
+                control.isVisible,
+                slot_index == 2 and operator_id == "noise_displacement",
             )
-        _set_parameter_visibility(self.controls, "pass_through")
+        _set_parameter_visibility(self.controls, 2, "pass_through")
         self.assertFalse(any(
             control.isVisible for control in self.controls.values()
         ))
 
     def test_subdivision_level_is_rendered_and_other_controls_are_hidden(self):
         subdivision = DEFAULT_OPERATOR_REGISTRY.get("subdivision")
-        _set_parameter_visibility(self.controls, "subdivision")
+        _set_parameter_visibility(self.controls, 1, "subdivision")
         visible = [
             key for key, control in self.controls.items()
             if control.isVisible
         ]
-        self.assertEqual(visible, [("subdivision", "level")])
+        self.assertEqual(visible, [(1, "subdivision", "level")])
         self.assertEqual(
-            _read_operator_parameters(subdivision, self.controls),
+            _read_operator_parameters(subdivision, self.controls, 1),
             {"level": 1},
         )
 
     def test_voronoi_parameters_render_and_hide_unrelated_controls(self):
         voronoi = DEFAULT_OPERATOR_REGISTRY.get("voronoi_surface")
-        _set_parameter_visibility(self.controls, "voronoi_surface")
+        _set_parameter_visibility(self.controls, 3, "voronoi_surface")
         visible = [
             key for key, control in self.controls.items()
             if control.isVisible
@@ -249,16 +250,16 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
         self.assertEqual(
             visible,
             [
-                ("voronoi_surface", "cell_size"),
-                ("voronoi_surface", "depth"),
-                ("voronoi_surface", "edge_width"),
-                ("voronoi_surface", "falloff"),
-                ("voronoi_surface", "jitter"),
-                ("voronoi_surface", "seed"),
+                (3, "voronoi_surface", "cell_size"),
+                (3, "voronoi_surface", "depth"),
+                (3, "voronoi_surface", "edge_width"),
+                (3, "voronoi_surface", "falloff"),
+                (3, "voronoi_surface", "jitter"),
+                (3, "voronoi_surface", "seed"),
             ],
         )
         self.assertEqual(
-            _read_operator_parameters(voronoi, self.controls),
+            _read_operator_parameters(voronoi, self.controls, 3),
             {
                 "cell_size": 20.0,
                 "depth": 2.0,
@@ -271,7 +272,32 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
 
     def test_fusion_length_values_are_read_back_in_millimeters(self):
         noise = DEFAULT_OPERATOR_REGISTRY.get("noise_displacement")
-        values = _read_operator_parameters(noise, self.controls)
+        values = _read_operator_parameters(noise, self.controls, 1)
         self.assertEqual(values["amplitude"], 2.0)
         self.assertEqual(values["scale"], 20.0)
         self.assertEqual(values["octaves"], 3)
+
+    def test_slot_parameters_are_independent_and_visibility_is_isolated(self):
+        noise = DEFAULT_OPERATOR_REGISTRY.get("noise_displacement")
+        self.controls[(1, "noise_displacement", "amplitude")].value = 0.4
+        self.controls[(2, "noise_displacement", "amplitude")].value = 0.7
+        _set_parameter_visibility(self.controls, 1, "noise_displacement")
+        _set_parameter_visibility(self.controls, 2, "voronoi_surface")
+
+        self.assertEqual(
+            _read_operator_parameters(noise, self.controls, 1)["amplitude"],
+            4.0,
+        )
+        self.assertEqual(
+            _read_operator_parameters(noise, self.controls, 2)["amplitude"],
+            7.0,
+        )
+        self.assertTrue(
+            self.controls[(1, "noise_displacement", "amplitude")].isVisible
+        )
+        self.assertTrue(
+            self.controls[(2, "voronoi_surface", "depth")].isVisible
+        )
+        self.assertFalse(
+            self.controls[(3, "noise_displacement", "amplitude")].isVisible
+        )

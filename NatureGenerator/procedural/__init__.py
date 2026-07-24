@@ -2,9 +2,11 @@
 
 from .models import (
     ExecutionContext,
+    OperatorInvocation,
     ProceduralInputGeometry,
     ProceduralRequest,
     ProceduralResult,
+    ProceduralStackRequest,
     SourceType,
     canonical_mesh_digest,
 )
@@ -30,6 +32,7 @@ __all__ = [
     "DEFAULT_OPERATOR_REGISTRY",
     "ExecutionContext",
     "OperatorPipeline",
+    "OperatorInvocation",
     "NoiseDisplacementOperator",
     "ParameterDefinition",
     "PassThroughOperator",
@@ -39,6 +42,7 @@ __all__ = [
     "ProceduralPipelineError",
     "ProceduralRequest",
     "ProceduralResult",
+    "ProceduralStackRequest",
     "SourceType",
     "SubdivisionOperator",
     "UnknownOperatorError",
