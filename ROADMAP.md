@@ -114,6 +114,15 @@ See [SPRINT20_DESIGN.md](docs/SPRINT20_DESIGN.md).
 
 See [SPRINT21_DESIGN.md](docs/SPRINT21_DESIGN.md).
 
+**Sprint 22 — Generated Asset and Export Architecture**
+
+- add a renderer-neutral `GeneratedAsset` around the existing mesh
+- separate material, mapping, baked resource, and provenance intent
+- preserve generator geometry and legacy mesh consumers
+- establish future asset-export adapter contracts without implementing formats
+
+See [SPRINT22_DESIGN.md](docs/SPRINT22_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel
