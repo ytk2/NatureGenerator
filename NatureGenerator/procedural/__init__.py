@@ -8,7 +8,13 @@ from .models import (
     SourceType,
     canonical_mesh_digest,
 )
-from .operators import ParameterDefinition, PassThroughOperator, ProceduralOperator
+from .noise import fractal_value_noise, value_noise, vertex_normals
+from .operators import (
+    NoiseDisplacementOperator,
+    ParameterDefinition,
+    PassThroughOperator,
+    ProceduralOperator,
+)
 from .pipeline import OperatorPipeline, ProceduralPipelineError
 from .registry import (
     DEFAULT_OPERATOR_REGISTRY,
@@ -20,6 +26,7 @@ __all__ = [
     "DEFAULT_OPERATOR_REGISTRY",
     "ExecutionContext",
     "OperatorPipeline",
+    "NoiseDisplacementOperator",
     "ParameterDefinition",
     "PassThroughOperator",
     "ProceduralInputGeometry",
@@ -31,4 +38,7 @@ __all__ = [
     "SourceType",
     "UnknownOperatorError",
     "canonical_mesh_digest",
+    "fractal_value_noise",
+    "value_noise",
+    "vertex_normals",
 ]

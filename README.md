@@ -30,6 +30,17 @@ runs a registered operator pipeline. The initial Pass Through operator proves
 Preview and permanent MeshBody insertion without changing the source. See
 [`docs/SPRINT28_DESIGN.md`](docs/SPRINT28_DESIGN.md).
 
+Sprint 29 adds **Noise Displacement**, which evaluates deterministic
+object-space fractal value noise and moves each vertex along an area-weighted
+normal without changing mesh connectivity. Its six controls are rendered from
+operator metadata rather than a Noise-specific dialog branch. See
+[`docs/SPRINT29_DESIGN.md`](docs/SPRINT29_DESIGN.md).
+
+The Fusion adapter accepts calculated BRep triangle meshes and imported
+MeshBody polygon meshes, preferring triangulated display data and
+deterministically triangulating original quads or polygons when necessary.
+Unusable per-vertex normal accumulations use finite deterministic fallbacks.
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

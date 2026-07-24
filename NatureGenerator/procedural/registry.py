@@ -3,7 +3,11 @@
 from types import MappingProxyType
 from typing import Dict, Iterable, Tuple
 
-from .operators import PassThroughOperator, ProceduralOperator
+from .operators import (
+    NoiseDisplacementOperator,
+    PassThroughOperator,
+    ProceduralOperator,
+)
 
 
 class UnknownOperatorError(KeyError):
@@ -41,4 +45,7 @@ class ProceduralOperatorRegistry:
         return tuple(self._operators.values())
 
 
-DEFAULT_OPERATOR_REGISTRY = ProceduralOperatorRegistry((PassThroughOperator(),))
+DEFAULT_OPERATOR_REGISTRY = ProceduralOperatorRegistry((
+    PassThroughOperator(),
+    NoiseDisplacementOperator(),
+))
