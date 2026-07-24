@@ -4,6 +4,7 @@ from types import MappingProxyType
 from typing import Dict, Iterable, Tuple
 
 from .operators import (
+    GyroidSurfaceOperator,
     NoiseDisplacementOperator,
     PassThroughOperator,
     ProceduralOperator,
@@ -52,4 +53,5 @@ DEFAULT_OPERATOR_REGISTRY = ProceduralOperatorRegistry((
     NoiseDisplacementOperator(),
     SubdivisionOperator(),
     VoronoiSurfaceOperator(),
+    GyroidSurfaceOperator(),
 ))

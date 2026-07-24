@@ -12,7 +12,7 @@ operators can work with denser triangle meshes.
 ## Scope
 
 - register `subdivision` beside Pass Through and Noise Displacement
-- expose registry-defined Subdivision Level values 1–3
+- expose registry-defined Subdivision Level values 1–5
 - split every triangle into four using shared edge midpoints
 - preserve the piecewise-linear surface, winding, components, manifold state,
   units, and source provenance
@@ -29,7 +29,9 @@ operators can work with denser triangle meshes.
 
 - every level multiplies face count by four
 - adjacent faces reuse exactly one midpoint for their shared edge
-- levels 1–3 are deterministic and non-recursive
+- levels 1–5 are deterministic and non-recursive
+- predict `input_face_count * (4 ** level)` before allocating output
+- cap Preview at 500,000 faces and Apply at 1,000,000 faces
 - closed manifold and disconnected/open topology remain consistent
 - Pass Through, Noise Displacement, and Nature Library regressions remain green
 - Preview replacement and Apply use the existing command lifecycle

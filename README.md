@@ -43,8 +43,9 @@ Unusable per-vertex normal accumulations use finite deterministic fallbacks.
 
 Sprint 30 adds **Subdivision**, the first topology-changing Procedural Lab
 operator. Each level creates shared edge midpoints and replaces every triangle
-with four winding-preserving children. Levels 1–3 increase density without
-smoothing or changing the piecewise-linear shape. See
+with four winding-preserving children. Levels 1–5 increase density without
+smoothing or changing the piecewise-linear shape. Output grows as `4^Level`,
+so Preview is limited to 500,000 predicted faces and Apply to 1,000,000. See
 [`docs/SPRINT30_DESIGN.md`](docs/SPRINT30_DESIGN.md).
 
 Sprint 31 adds **Voronoi Surface**, the first cell-based operator. It evaluates
@@ -59,6 +60,13 @@ Active operators execute top-to-bottom in one Preview or Apply operation, with
 only the final mesh inserted into Fusion. Existing single-operator workflows
 remain supported. See
 [`docs/SPRINT32_DESIGN.md`](docs/SPRINT32_DESIGN.md).
+
+Sprint 33 adds **Gyroid Surface**, a TPMS-inspired surface deformation. It
+samples an analytical object-space gyroid field and smoothly displaces existing
+vertices around a configurable isovalue band. It preserves indexed topology
+and works in every stack slot. This is not volumetric gyroid infill and does
+not create holes or replace the source volume. See
+[`docs/SPRINT33_DESIGN.md`](docs/SPRINT33_DESIGN.md).
 
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
@@ -101,8 +109,8 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
   shared natural-material discovery metadata, future thumbnail references,
   texture resources, provenance metadata, and future exporter contracts.
 - `generators/`: procedural form generation algorithms.
-- `procedural/`: Fusion-independent selected-geometry contracts, operator
-  registry, Pass Through operator, and pipeline.
+- `procedural/`: Fusion-independent selected-geometry contracts, analytical
+  fields, registry-driven operators, and ordered pipeline.
 - `presets/`: user-facing natural-form definitions and availability metadata.
 - `preset_catalog.py`: application composition of presets and optional Family
   registries.

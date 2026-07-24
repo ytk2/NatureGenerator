@@ -8,9 +8,11 @@ from typing import Any, Tuple
 
 from core.mesh import TriangleMesh
 
+from .gyroid import gyroid_field, gyroid_response
 from .models import ProceduralRequest, ProceduralResult, canonical_mesh_digest
 from .noise import fractal_value_noise, vertex_normals
 from .subdivision import subdivide
+from .subdivision_policy import validate_subdivision_size
 from .voronoi import boundary_mask, nearest_site_distances
 
 
@@ -32,12 +34,16 @@ class ParameterDefinition:
             raise ValueError("parameter_id must be a lowercase stable identifier")
         if not isinstance(self.display_name, str) or not self.display_name:
             raise ValueError("display_name must be non-empty")
-        if self.value_type not in ("float", "integer", "length"):
+        if self.value_type not in ("boolean", "float", "integer", "length"):
             raise ValueError("unsupported parameter value_type")
         self.validate(self.default_value)
 
     def validate(self, value: Any) -> Any:
-        if self.value_type == "integer":
+        if self.value_type == "boolean":
+            if not isinstance(value, bool):
+                raise TypeError("{} must be boolean".format(self.display_name))
+            normalized = value
+        elif self.value_type == "integer":
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError("{} must be an integer".format(self.display_name))
             normalized = value
@@ -215,7 +221,7 @@ class SubdivisionOperator(ProceduralOperator):
     display_name = "Subdivision"
     parameter_definitions = (
         ParameterDefinition(
-            "level", "Subdivision Level", "integer", 1, 1, 3
+            "level", "Subdivision Level", "integer", 1, 1, 5
         ),
     )
 
@@ -223,6 +229,9 @@ class SubdivisionOperator(ProceduralOperator):
         parameters = self.parameters(request)
         source = request.input_geometry
         level = parameters["level"]
+        predicted_faces = validate_subdivision_size(
+            len(source.mesh.faces), level, request.execution_context
+        )
         output = subdivide(source.mesh, level)
         provenance = dict(source.provenance)
         provenance.update({
@@ -239,6 +248,7 @@ class SubdivisionOperator(ProceduralOperator):
                 "execution_context": request.execution_context.value,
                 "level": level,
                 "operator_display_name": self.display_name,
+                "predicted_face_count": predicted_faces,
             },
             units=source.units,
             input_digest=source.digest,
@@ -312,6 +322,89 @@ class VoronoiSurfaceOperator(ProceduralOperator):
                 "jitter": parameters["jitter"],
                 "operator_display_name": self.display_name,
                 "seed": parameters["seed"],
+            },
+            units=source.units,
+            input_digest=source.digest,
+            output_digest=canonical_mesh_digest(output),
+        )
+
+
+class GyroidSurfaceOperator(ProceduralOperator):
+    """Displace vertices within a smooth object-space gyroid isovalue band."""
+
+    operator_id = "gyroid_surface"
+    display_name = "Gyroid Surface"
+    parameter_definitions = (
+        ParameterDefinition(
+            "period", "Period", "length", 20.0, 1.0, 500.0, "mm"
+        ),
+        ParameterDefinition(
+            "amplitude", "Amplitude", "length", 2.0, -50.0, 50.0, "mm"
+        ),
+        ParameterDefinition(
+            "threshold", "Threshold", "float", 0.0, -1.5, 1.5
+        ),
+        ParameterDefinition(
+            "band_width", "Band Width", "float", 0.35, 0.01, 2.0
+        ),
+        ParameterDefinition(
+            "phase_x", "Phase X", "float", 0.0, -6.283, 6.283, "rad"
+        ),
+        ParameterDefinition(
+            "phase_y", "Phase Y", "float", 0.0, -6.283, 6.283, "rad"
+        ),
+        ParameterDefinition(
+            "phase_z", "Phase Z", "float", 0.0, -6.283, 6.283, "rad"
+        ),
+        ParameterDefinition("invert", "Invert", "boolean", False),
+    )
+
+    def execute(self, request: ProceduralRequest) -> ProceduralResult:
+        parameters = self.parameters(request)
+        source = request.input_geometry
+        normals = vertex_normals(source.mesh)
+        amplitude = parameters["amplitude"]
+        direction = -1.0 if parameters["invert"] else 1.0
+        output_vertices = []
+        for position, normal in zip(source.mesh.vertices, normals):
+            field = gyroid_field(
+                position,
+                parameters["period"],
+                parameters["phase_x"],
+                parameters["phase_y"],
+                parameters["phase_z"],
+            )
+            mask = gyroid_response(
+                field, parameters["threshold"], parameters["band_width"]
+            )
+            displacement = direction * amplitude * mask
+            output_vertices.append(tuple(
+                position[axis] + normal[axis] * displacement
+                for axis in range(3)
+            ))
+        output = TriangleMesh(tuple(output_vertices), tuple(source.mesh.faces))
+        provenance = dict(source.provenance)
+        provenance.update({
+            "source_identifier": source.source_identifier,
+            "source_name": source.source_name,
+            "source_type": source.source_type.value,
+        })
+        return ProceduralResult(
+            mesh=output,
+            statistics=output.statistics(),
+            operator_id=self.operator_id,
+            source_provenance=provenance,
+            execution_metadata={
+                "amplitude_mm": amplitude,
+                "band_width": parameters["band_width"],
+                "execution_context": request.execution_context.value,
+                "invert": parameters["invert"],
+                "operator_display_name": self.display_name,
+                "period_mm": parameters["period"],
+                "phase_x_rad": parameters["phase_x"],
+                "phase_y_rad": parameters["phase_y"],
+                "phase_z_rad": parameters["phase_z"],
+                "threshold": parameters["threshold"],
             },
             units=source.units,
             input_digest=source.digest,
