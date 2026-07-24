@@ -110,9 +110,13 @@ Rock families are immutable bundles containing current UI parameter values and
 one parameter set per Rock stage. `RockFamilyRegistry` resolves those bundles,
 and `RockGenerator` feeds them through the same field composition, sampling,
 and extraction path. Families do not own algorithms. The Registry-driven
-Fusion Family input exposes Smooth, Weathered, Rugged, River Stone, Granite,
-Basalt, and Broken Rock. New families change only immutable stage parameters
-and existing public Rock defaults.
+Fusion Family input exposes Classic Rock, Layered Rock, Weathered Rock, River
+Rock, and the seven earlier definitions: Smooth, Weathered, Rugged, River
+Stone, Granite, Basalt, and Broken Rock. Sprint 25 adds optional object-height
+strata parameters to Surface Detail; zero defaults and conditional evaluation
+preserve the exact arithmetic and digests of every earlier definition. New
+families otherwise change only immutable stage parameters and existing public
+Rock defaults.
 
 Sprint 19 applies the same preset-level association to Bark.
 `BarkFamilyRegistry` initially exposes Classic Bark, an immutable bundle of the

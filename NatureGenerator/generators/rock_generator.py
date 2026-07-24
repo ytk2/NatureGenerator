@@ -62,6 +62,8 @@ class _RockField:
         variation = (
             macro_terms[0] + macro_terms[1] + detail_terms[0] + detail_terms[1]
         )
+        if self.surface_detail.strata_amplitude != 0.0:
+            variation += self.surface_detail.stratified(normalized, self.noise)
         field = radius - (1.0 + variation)
         field = self.facet_layout.apply(field, normalized)
         return self.macro_shape.apply_ground(field, nz)

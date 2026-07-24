@@ -8,7 +8,11 @@ import unittest
 
 from generators import GenerationRequest, GeneratorFactory
 from generators.rock_families import (
+    CLASSIC_ROCK_FAMILY,
     DEFAULT_ROCK_FAMILY,
+    EXPANDED_WEATHERED_ROCK_FAMILY,
+    LAYERED_ROCK_FAMILY,
+    RIVER_ROCK_FAMILY,
     RIVER_STONE_FAMILY,
     RockFamilyRegistry,
 )
@@ -31,6 +35,7 @@ class RockFamilyDefinitionTests(unittest.TestCase):
         self.assertEqual(
             tuple(item.family_id for item in RockFamilyRegistry.list_all()),
             (
+                "classic_rock", "layered_rock", "weathered_rock", "river_rock",
                 "smooth", "weathered", "rugged", "river_stone",
                 "granite", "basalt", "broken_rock",
             ),
@@ -38,6 +43,7 @@ class RockFamilyDefinitionTests(unittest.TestCase):
         self.assertEqual(
             tuple(item.display_name for item in RockFamilyRegistry.list_all()),
             (
+                "Classic Rock", "Layered Rock", "Weathered Rock", "River Rock",
                 "Smooth", "Weathered", "Rugged", "River Stone",
                 "Granite", "Basalt", "Broken Rock",
             ),
@@ -50,6 +56,24 @@ class RockFamilyDefinitionTests(unittest.TestCase):
             RockFamilyRegistry._definitions["changed"] = RIVER_STONE_FAMILY
         with self.assertRaises(KeyError):
             RockFamilyRegistry.get("limestone")
+
+    def test_sprint25_families_are_immutable_parameter_definitions(self):
+        expected = {
+            "classic_rock": CLASSIC_ROCK_FAMILY,
+            "layered_rock": LAYERED_ROCK_FAMILY,
+            "weathered_rock": EXPANDED_WEATHERED_ROCK_FAMILY,
+            "river_rock": RIVER_ROCK_FAMILY,
+        }
+        for family_id, definition in expected.items():
+            self.assertIs(RockFamilyRegistry.get(family_id), definition)
+            self.assertEqual(
+                set(definition.parameter_values),
+                {"size", "roughness", "seed", "resolution"},
+            )
+            with self.assertRaises(TypeError):
+                definition.parameter_values["seed"] = 2
+            with self.assertRaises(FrozenInstanceError):
+                definition.display_name = "Changed"
 
     def test_river_stone_uses_all_three_existing_pipeline_stages(self):
         field = _RockField(40.0, 0.35, 1, RIVER_STONE_FAMILY)
@@ -187,6 +211,91 @@ class RiverStoneGenerationTests(unittest.TestCase):
                 "rock", parameters, resolution, family_id
             ))
             self.assertEqual(_digest(result.mesh), expected)
+
+
+class Sprint25RockFamilyTests(unittest.TestCase):
+    _EXPECTED = {
+        "classic_rock": (
+            "30a709c32fb7dd16b87f0388f21c6e24e12b6ad990b2872dd31f9549956e7c1d"
+        ),
+        "layered_rock": (
+            "fb12347ba4fd3beddc7d9fda0677e995bb47922017c8510592143c7515748121"
+        ),
+        "weathered_rock": (
+            "311163e791bbe31b52ab647b5814c03933f4957c41cb183eed25180bc774509e"
+        ),
+        "river_rock": (
+            "e9695ac624cf0d42a804598bd62d8b17139c3ff504432fee5553e7d653af7f88"
+        ),
+    }
+
+    @staticmethod
+    def _generate(family_id, resolution=None, seed=None):
+        family = RockFamilyRegistry.get(family_id)
+        parameters = dict(family.parameter_values)
+        family_resolution = parameters.pop("resolution")
+        if seed is not None:
+            parameters["seed"] = seed
+        return GeneratorFactory.generate_request(GenerationRequest(
+            "rock",
+            parameters,
+            family_resolution if resolution is None else resolution,
+            family_id,
+        ))
+
+    def test_classic_rock_is_the_unchanged_existing_geometry(self):
+        classic = self._generate("classic_rock")
+        legacy = GeneratorFactory.generate_request(GenerationRequest(
+            "rock", {"size": 40.0, "roughness": 0.35, "seed": 1}, 17
+        ))
+        self.assertEqual(classic.mesh, legacy.mesh)
+        self.assertEqual(_digest(classic.mesh), self._EXPECTED["classic_rock"])
+
+    def test_new_family_digests_and_manufacturable_topology(self):
+        for family_id, expected_digest in self._EXPECTED.items():
+            result = self._generate(family_id)
+            statistics = result.statistics
+            self.assertEqual(_digest(result.mesh), expected_digest)
+            self.assertTrue(statistics.is_watertight)
+            self.assertTrue(statistics.is_manifold)
+            self.assertEqual(statistics.connected_component_count, 1)
+            self.assertEqual(statistics.boundary_edge_count, 0)
+            self.assertEqual(statistics.nonmanifold_edge_count, 0)
+            self.assertEqual(statistics.nonmanifold_vertex_count, 0)
+            self.assertEqual(statistics.inconsistent_winding_edge_count, 0)
+            self.assertEqual(statistics.degenerate_face_count, 0)
+
+    def test_new_families_are_deterministic_and_seed_sensitive(self):
+        for family_id in ("layered_rock", "weathered_rock", "river_rock"):
+            first = self._generate(family_id, resolution=17)
+            repeated = self._generate(family_id, resolution=17)
+            changed = self._generate(
+                family_id,
+                resolution=17,
+                seed=RockFamilyRegistry.get(
+                    family_id
+                ).parameter_values["seed"] + 1,
+            )
+            self.assertEqual(first.mesh, repeated.mesh)
+            self.assertNotEqual(first.mesh.vertices, changed.mesh.vertices)
+
+    def test_family_geometry_intent_is_encoded_in_pipeline_parameters(self):
+        layered = LAYERED_ROCK_FAMILY
+        weathered = EXPANDED_WEATHERED_ROCK_FAMILY
+        river = RIVER_ROCK_FAMILY
+        self.assertGreater(layered.surface.strata_amplitude_base, 0.0)
+        self.assertGreater(layered.surface.strata_frequency, 1.0)
+        self.assertLess(weathered.facets.plane_count, layered.facets.plane_count)
+        self.assertGreater(
+            weathered.surface.fbm_amplitude_response,
+            layered.surface.fbm_amplitude_response,
+        )
+        self.assertEqual(river.facets.plane_count, 0)
+        self.assertLess(
+            river.surface.fbm_frequency,
+            weathered.surface.fbm_frequency,
+        )
+        self.assertEqual(river.surface.ridge_amplitude_response, 0.0)
 
 
 class DiverseRockFamilyTests(unittest.TestCase):

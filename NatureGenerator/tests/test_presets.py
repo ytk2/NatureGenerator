@@ -243,6 +243,7 @@ class PresetRegistryTests(unittest.TestCase):
         self.assertEqual(
             tuple(family.display_name for family in rock.families.list_all()),
             (
+                "Classic Rock", "Layered Rock", "Weathered Rock", "River Rock",
                 "Smooth", "Weathered", "Rugged", "River Stone",
                 "Granite", "Basalt", "Broken Rock",
             ),

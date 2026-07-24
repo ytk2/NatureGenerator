@@ -143,6 +143,17 @@ See [SPRINT23_DESIGN.md](docs/SPRINT23_DESIGN.md).
 
 See [SPRINT24_DESIGN.md](docs/SPRINT24_DESIGN.md).
 
+**Sprint 25 — Rock Family Expansion**
+
+- expose the accepted canonical geometry as Classic Rock
+- add Layered Rock, Weathered Rock, and River Rock as immutable definitions
+- add optional zero-default horizontal strata to the existing surface stage
+- preserve all seven earlier Rock Family IDs and exact digests
+- retain generic Family, Preview, OK, GeneratedAsset, and request workflows
+- require deterministic watertight single-component output
+
+See [SPRINT25_DESIGN.md](docs/SPRINT25_DESIGN.md).
+
 ## Candidate Future Work
 
 - Dedicated Utilities > Nature Generator panel

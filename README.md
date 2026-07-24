@@ -196,6 +196,13 @@ a grounded, watertight stylized long bone with a curved narrow shaft, enlarged
 asymmetric ends, deterministic surface detail, and the existing GeneratedAsset
 defaults. See [`docs/SPRINT24_DESIGN.md`](docs/SPRINT24_DESIGN.md).
 
+Sprint 25 expands `RockFamilyRegistry` with **Classic Rock**, **Layered Rock**,
+**Weathered Rock**, and **River Rock**. Classic Rock is byte-identical to the
+accepted canonical result; all seven earlier Rock Family IDs and digests remain
+available. The new families use the same generic dropdown, Preview, OK,
+`GenerationRequest`, `RockGenerator`, and `GeneratedAsset` paths. See
+[`docs/SPRINT25_DESIGN.md`](docs/SPRINT25_DESIGN.md).
+
 Sprint 13 passed real Autodesk Fusion acceptance on macOS. One filtered Variant
 dropdown appeared, named selections updated parameters, Preview used and
 replaced the current configuration, manual edits selected Custom, Preset
