@@ -6,6 +6,7 @@ import unittest
 
 from generators.gyroid import GyroidField
 from generators.bark_families import BarkFamilyRegistry
+from generators.bone_families import BoneFamilyRegistry
 from generators.coral_families import CoralFamilyRegistry
 from generators.rock_families import RockFamilyRegistry
 from generators.root_families import RootFamilyRegistry
@@ -80,12 +81,21 @@ class NaturePresetTests(unittest.TestCase):
         self.assertEqual(preset.default_parameters, {"scale": 1.0})
         self.assertEqual(preset.parameter_metadata, {"scale": scale_metadata})
 
-    def test_unavailable_presets_are_explicit(self):
-        for preset_id in ("bone",):
-            preset = PresetFactory.get(preset_id)
-            self.assertFalse(preset.available)
-            self.assertTrue(preset.unavailable_reason)
-            self.assertNotEqual(preset.generator_id, "gyroid")
+    def test_bone_is_available_with_stable_metadata_and_defaults(self):
+        bone = PresetFactory.get("bone")
+        self.assertTrue(bone.available)
+        self.assertEqual(bone.generator_id, "bone")
+        self.assertEqual(
+            tuple(bone.parameter_metadata),
+            (
+                "length", "shaft_radius", "end_scale", "curvature",
+                "asymmetry", "surface_detail", "seed", "resolution",
+            ),
+        )
+        self.assertEqual(bone.parameter_metadata["length"].unit, "mm")
+        self.assertEqual(bone.parameter_metadata["shaft_radius"].unit, "mm")
+        self.assertEqual(bone.parameter_metadata["resolution"].preview_resolutions,
+                         (21, 25))
 
     def test_coral_maps_to_available_coral_generator(self):
         coral = PresetFactory.get("coral")
@@ -248,10 +258,18 @@ class PresetRegistryTests(unittest.TestCase):
             {"coral", "bone", "bark", "sponge", "rock", "root"},
         )
         self.assertIs(definitions["bark"].families, BarkFamilyRegistry)
+        self.assertIs(definitions["bone"].families, BoneFamilyRegistry)
         self.assertIs(definitions["coral"].families, CoralFamilyRegistry)
         self.assertIs(definitions["root"].families, RootFamilyRegistry)
         self.assertIs(definitions["sponge"].families, SpongeFamilyRegistry)
-        self.assertIsNone(definitions["bone"].families)
+
+    def test_bone_catalog_exposes_classic_family_metadata(self):
+        definition = PresetCatalog.get("bone")
+        self.assertIs(definition.families, BoneFamilyRegistry)
+        families = definition.families.list_all()
+        self.assertEqual(len(families), 1)
+        self.assertEqual(families[0].family_id, "classic_bone")
+        self.assertEqual(families[0].display_name, "Classic Bone")
 
     def test_root_catalog_exposes_classic_family_metadata(self):
         definition = PresetCatalog.get("root")
