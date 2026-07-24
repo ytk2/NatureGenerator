@@ -15,6 +15,31 @@ an STL writer, or another adapter.
 
 ## Layer boundaries
 
+### Product surfaces
+
+The Fusion add-in exposes two independent command lifecycles. **Generate
+Nature** routes a preset request through `GeneratorFactory`. **Procedural Lab**
+adapts one existing Fusion body and routes a `ProceduralRequest` through an
+operator pipeline. Operators are not presets or Families, and Procedural Lab
+does not use `PresetCatalog`.
+
+```text
+Fusion BRepBody or MeshBody
+    -> FusionSelectionAdapter
+    -> ProceduralInputGeometry
+    -> OperatorPipeline
+    -> ProceduralOperatorRegistry
+    -> ProceduralResult
+    -> existing TriangleMesh
+    -> Fusion MeshBody
+```
+
+The `procedural/` package is immutable and Fusion-independent. Sprint 28
+registers only Pass Through. Its ordered pipeline tuple provides the boundary
+for later operator stacks without exposing a stack UI today. Procedural
+results deliberately do not force natural-material or preset identity into
+selected user geometry.
+
 ### Nature presets (`presets/`)
 
 Defines the stable user-facing vocabulary of natural forms. Each immutable

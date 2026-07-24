@@ -24,6 +24,12 @@ bounded deterministic skeleton and a union of tapered segment fields. Bone uses
 a curved variable-radius shaft smoothly joined to asymmetric rounded ends.
 Crystal uses a seeded irregular polygonal prism with a tapered termination.
 
+Sprint 28 adds **Procedural Lab** as a separate Fusion command. Unlike Generate
+Nature, it selects one existing solid or mesh, adapts it to `TriangleMesh`, and
+runs a registered operator pipeline. The initial Pass Through operator proves
+Preview and permanent MeshBody insertion without changing the source. See
+[`docs/SPRINT28_DESIGN.md`](docs/SPRINT28_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all
@@ -65,6 +71,8 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
   shared natural-material discovery metadata, future thumbnail references,
   texture resources, provenance metadata, and future exporter contracts.
 - `generators/`: procedural form generation algorithms.
+- `procedural/`: Fusion-independent selected-geometry contracts, operator
+  registry, Pass Through operator, and pipeline.
 - `presets/`: user-facing natural-form definitions and availability metadata.
 - `preset_catalog.py`: application composition of presets and optional Family
   registries.
