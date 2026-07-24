@@ -53,6 +53,13 @@ the nearest and second-nearest distances, and creates signed grooves or ridges
 without changing mesh connectivity. See
 [`docs/SPRINT31_DESIGN.md`](docs/SPRINT31_DESIGN.md).
 
+Sprint 32 adds a fixed three-slot **Operator Stack**. Each slot independently
+selects None or any registered operator and retains its own parameter values.
+Active operators execute top-to-bottom in one Preview or Apply operation, with
+only the final mesh inserted into Fusion. Existing single-operator workflows
+remain supported. See
+[`docs/SPRINT32_DESIGN.md`](docs/SPRINT32_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

@@ -45,9 +45,25 @@ evaluates nearest and second-nearest deterministic virtual lattice sites using
 only 27 neighboring cells per vertex and displaces existing vertices along the
 shared robust normal implementation. Operator parameter definitions own their
 types, units, defaults, and ranges; Fusion renders them generically. The
-ordered pipeline tuple provides the boundary for later operator stacks without
-exposing a stack UI today. Procedural results deliberately do not force
+ordered pipeline tuple becomes a fixed three-slot operator stack in Sprint 32.
+Immutable `OperatorInvocation` values isolate parameters per slot, and
+`ProceduralStackRequest` feeds each stage's immutable output mesh into the next
+operator. Operators retain their existing single-stage contracts and remain
+unaware of UI slots or Fusion. Procedural results deliberately do not force
 natural-material or preset identity into selected user geometry.
+
+```text
+ProceduralStackRequest
+    -> OperatorPipeline
+        -> OperatorInvocation 1
+        -> OperatorInvocation 2
+        -> OperatorInvocation 3
+    -> final ProceduralResult
+```
+
+The Fusion UI renders three independent registry-driven selector and parameter
+banks. Preview and Apply insert only the final stack mesh. The legacy
+single-operator request and command APIs delegate through the same pipeline.
 
 ### Nature presets (`presets/`)
 
