@@ -41,6 +41,12 @@ MeshBody polygon meshes, preferring triangulated display data and
 deterministically triangulating original quads or polygons when necessary.
 Unusable per-vertex normal accumulations use finite deterministic fallbacks.
 
+Sprint 30 adds **Subdivision**, the first topology-changing Procedural Lab
+operator. Each level creates shared edge midpoints and replaces every triangle
+with four winding-preserving children. Levels 1–3 increase density without
+smoothing or changing the piecewise-linear shape. See
+[`docs/SPRINT30_DESIGN.md`](docs/SPRINT30_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

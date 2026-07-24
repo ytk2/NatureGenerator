@@ -195,6 +195,16 @@ See [SPRINT28_DESIGN.md](docs/SPRINT28_DESIGN.md).
 
 See [SPRINT29_DESIGN.md](docs/SPRINT29_DESIGN.md).
 
+**Sprint 30 — Subdivision Operator**
+
+- add the first topology-changing Procedural Lab operator
+- split every triangle into four using shared deterministic edge midpoints
+- expose registry-driven Subdivision Level values 1–3
+- preserve winding, components, manifold adjacency, units, and source geometry
+- prepare denser inputs for later Noise, Relax, Smooth, Voronoi, and Erosion
+
+See [SPRINT30_DESIGN.md](docs/SPRINT30_DESIGN.md).
+
 ## Candidate Future Work
 
 - Procedural Lab operator stack and real geometry operators

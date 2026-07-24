@@ -10,6 +10,7 @@ from core.mesh import TriangleMesh
 
 from .models import ProceduralRequest, ProceduralResult, canonical_mesh_digest
 from .noise import fractal_value_noise, vertex_normals
+from .subdivision import subdivide
 
 
 @dataclass(frozen=True)
@@ -199,6 +200,44 @@ class NoiseDisplacementOperator(ProceduralOperator):
                 "persistence": parameters["persistence"],
                 "scale_mm": parameters["scale"],
                 "seed": parameters["seed"],
+            },
+            units=source.units,
+            input_digest=source.digest,
+            output_digest=canonical_mesh_digest(output),
+        )
+
+
+class SubdivisionOperator(ProceduralOperator):
+    """Increase triangle density without moving the piecewise-linear surface."""
+
+    operator_id = "subdivision"
+    display_name = "Subdivision"
+    parameter_definitions = (
+        ParameterDefinition(
+            "level", "Subdivision Level", "integer", 1, 1, 3
+        ),
+    )
+
+    def execute(self, request: ProceduralRequest) -> ProceduralResult:
+        parameters = self.parameters(request)
+        source = request.input_geometry
+        level = parameters["level"]
+        output = subdivide(source.mesh, level)
+        provenance = dict(source.provenance)
+        provenance.update({
+            "source_identifier": source.source_identifier,
+            "source_name": source.source_name,
+            "source_type": source.source_type.value,
+        })
+        return ProceduralResult(
+            mesh=output,
+            statistics=output.statistics(),
+            operator_id=self.operator_id,
+            source_provenance=provenance,
+            execution_metadata={
+                "execution_context": request.execution_context.value,
+                "level": level,
+                "operator_display_name": self.display_name,
             },
             units=source.units,
             input_digest=source.digest,

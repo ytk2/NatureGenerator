@@ -7,6 +7,7 @@ from .operators import (
     NoiseDisplacementOperator,
     PassThroughOperator,
     ProceduralOperator,
+    SubdivisionOperator,
 )
 
 
@@ -48,4 +49,5 @@ class ProceduralOperatorRegistry:
 DEFAULT_OPERATOR_REGISTRY = ProceduralOperatorRegistry((
     PassThroughOperator(),
     NoiseDisplacementOperator(),
+    SubdivisionOperator(),
 ))

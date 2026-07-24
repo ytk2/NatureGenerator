@@ -213,17 +213,31 @@ class RegistryDrivenParameterUiTests(unittest.TestCase):
         self.assertFalse(
             DEFAULT_OPERATOR_REGISTRY.get("pass_through").parameter_definitions
         )
-        self.assertEqual(len(self.controls), 6)
+        self.assertEqual(len(self.controls), 7)
 
     def test_visibility_tracks_operator_without_noise_specific_branch(self):
         _set_parameter_visibility(self.controls, "noise_displacement")
-        self.assertTrue(all(
-            control.isVisible for control in self.controls.values()
-        ))
+        for (operator_id, _), control in self.controls.items():
+            self.assertEqual(
+                control.isVisible, operator_id == "noise_displacement"
+            )
         _set_parameter_visibility(self.controls, "pass_through")
         self.assertFalse(any(
             control.isVisible for control in self.controls.values()
         ))
+
+    def test_subdivision_level_is_rendered_and_other_controls_are_hidden(self):
+        subdivision = DEFAULT_OPERATOR_REGISTRY.get("subdivision")
+        _set_parameter_visibility(self.controls, "subdivision")
+        visible = [
+            key for key, control in self.controls.items()
+            if control.isVisible
+        ]
+        self.assertEqual(visible, [("subdivision", "level")])
+        self.assertEqual(
+            _read_operator_parameters(subdivision, self.controls),
+            {"level": 1},
+        )
 
     def test_fusion_length_values_are_read_back_in_millimeters(self):
         noise = DEFAULT_OPERATOR_REGISTRY.get("noise_displacement")
