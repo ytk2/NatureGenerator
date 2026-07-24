@@ -14,7 +14,9 @@ from .operators import (
     ParameterDefinition,
     PassThroughOperator,
     ProceduralOperator,
+    SubdivisionOperator,
 )
+from .subdivision import subdivide, subdivide_once
 from .pipeline import OperatorPipeline, ProceduralPipelineError
 from .registry import (
     DEFAULT_OPERATOR_REGISTRY,
@@ -36,9 +38,12 @@ __all__ = [
     "ProceduralRequest",
     "ProceduralResult",
     "SourceType",
+    "SubdivisionOperator",
     "UnknownOperatorError",
     "canonical_mesh_digest",
     "fractal_value_noise",
+    "subdivide",
+    "subdivide_once",
     "value_noise",
     "vertex_normals",
 ]

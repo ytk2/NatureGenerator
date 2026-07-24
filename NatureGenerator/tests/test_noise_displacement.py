@@ -192,7 +192,7 @@ class NoiseDisplacementTests(unittest.TestCase):
     def test_registry_contains_both_sprint_29_operators(self):
         self.assertEqual(
             tuple(item.operator_id for item in DEFAULT_OPERATOR_REGISTRY.list_all()),
-            ("pass_through", "noise_displacement"),
+            ("pass_through", "noise_displacement", "subdivision"),
         )
         self.assertIsInstance(
             DEFAULT_OPERATOR_REGISTRY.get("noise_displacement"),
