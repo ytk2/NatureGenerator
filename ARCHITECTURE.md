@@ -35,10 +35,13 @@ Fusion BRepBody or MeshBody
 ```
 
 The `procedural/` package is immutable and Fusion-independent. Sprint 28
-registers only Pass Through. Its ordered pipeline tuple provides the boundary
-for later operator stacks without exposing a stack UI today. Procedural
-results deliberately do not force natural-material or preset identity into
-selected user geometry.
+registers Pass Through. Sprint 29 adds Noise Displacement using object-space
+fractal value noise and area-weighted vertex normals while copying face
+connectivity exactly. Operator parameter definitions own their types, units,
+defaults, and ranges; Fusion renders them generically. The ordered pipeline
+tuple provides the boundary for later operator stacks without exposing a stack
+UI today. Procedural results deliberately do not force natural-material or
+preset identity into selected user geometry.
 
 ### Nature presets (`presets/`)
 

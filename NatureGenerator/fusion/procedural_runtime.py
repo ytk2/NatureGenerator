@@ -13,6 +13,7 @@ SOURCE_INPUT_ID = "proceduralSource"
 SOURCE_TYPE_INPUT_ID = "proceduralSourceType"
 OPERATOR_INPUT_ID = "proceduralOperator"
 PREVIEW_INPUT_ID = "proceduralPreview"
+PARAMETER_INPUT_PREFIX = "proceduralParameter_"
 PREVIEW_NAME = "NatureGenerator Procedural Preview — {}"
 FINAL_NAME = "NatureGenerator Procedural — {}"
 
@@ -24,6 +25,81 @@ _started = False
 
 class ProceduralFusionError(RuntimeError):
     pass
+
+
+def _parameter_input_id(operator_id, parameter_id):
+    return "{}{}_{}".format(
+        PARAMETER_INPUT_PREFIX, operator_id, parameter_id
+    )
+
+
+def _create_parameter_inputs(inputs, adsk_core, registry):
+    """Render all operator parameters from registry metadata."""
+
+    created = {}
+    for operator in registry.list_all():
+        for definition in operator.parameter_definitions:
+            input_id = _parameter_input_id(
+                operator.operator_id, definition.parameter_id
+            )
+            if definition.value_type == "length":
+                value = adsk_core.ValueInput.createByString(
+                    "{} {}".format(definition.default_value, definition.unit)
+                )
+                control = inputs.addValueInput(
+                    input_id, definition.display_name, definition.unit, value
+                )
+            elif definition.value_type == "integer":
+                control = inputs.addIntegerSpinnerCommandInput(
+                    input_id,
+                    definition.display_name,
+                    int(definition.minimum),
+                    int(definition.maximum),
+                    1,
+                    int(definition.default_value),
+                )
+            elif definition.value_type == "float":
+                step = max(
+                    0.01,
+                    (float(definition.maximum) - float(definition.minimum)) / 100.0,
+                )
+                control = inputs.addFloatSpinnerCommandInput(
+                    input_id,
+                    definition.display_name,
+                    definition.unit,
+                    float(definition.minimum),
+                    float(definition.maximum),
+                    step,
+                    float(definition.default_value),
+                )
+            else:
+                raise ValueError("unsupported procedural parameter type")
+            control.isVisible = False
+            created[(operator.operator_id, definition.parameter_id)] = control
+    return created
+
+
+def _set_parameter_visibility(parameter_inputs, operator_id):
+    for (owner_id, _), control in parameter_inputs.items():
+        control.isVisible = owner_id == operator_id
+
+
+def _read_operator_parameters(operator, parameter_inputs):
+    values = {}
+    for definition in operator.parameter_definitions:
+        control = parameter_inputs[
+            (operator.operator_id, definition.parameter_id)
+        ]
+        value = control.value
+        # Fusion stores length command values in internal centimetres.
+        if definition.value_type == "length" and definition.unit == "mm":
+            value = float(value) * 10.0
+        elif definition.value_type == "integer":
+            value = int(value)
+        else:
+            value = float(value)
+        values[definition.parameter_id] = definition.validate(value)
+    return values
 
 
 def _panel(ui, workspace):
@@ -77,11 +153,15 @@ def start(context=None) -> None:
             raise ValueError("operator lookup failed") from error
 
     class ExecuteHandler(adsk.core.CommandEventHandler):
-        def __init__(self, source, operator_input, operator_ids, controller):
+        def __init__(
+            self, source, operator_input, operator_ids, parameter_inputs,
+            controller,
+        ):
             super().__init__()
             self.source = source
             self.operator_input = operator_input
             self.operator_ids = operator_ids
+            self.parameter_inputs = parameter_inputs
             self.controller = controller
 
         def notify(self, args):
@@ -91,8 +171,11 @@ def start(context=None) -> None:
                     self.source, preview=False
                 )
                 operator = chosen_operator(self.operator_input, self.operator_ids)
+                parameters = _read_operator_parameters(
+                    operator, self.parameter_inputs
+                )
                 request = ProceduralRequest(
-                    geometry, operator.operator_id, {},
+                    geometry, operator.operator_id, parameters,
                     ExecutionContext.FINAL,
                 )
                 result, body = execute_procedural(
@@ -123,13 +206,15 @@ def start(context=None) -> None:
     class InputChangedHandler(adsk.core.InputChangedEventHandler):
         def __init__(
             self, source, source_status, operator_input, preview_input,
-            controller, trigger,
+            operator_ids, parameter_inputs, controller, trigger,
         ):
             super().__init__()
             self.source = source
             self.source_status = source_status
             self.operator_input = operator_input
             self.preview_input = preview_input
+            self.operator_ids = operator_ids
+            self.parameter_inputs = parameter_inputs
             self.controller = controller
             self.trigger = trigger
 
@@ -138,9 +223,25 @@ def start(context=None) -> None:
             if changed_id == PREVIEW_INPUT_ID:
                 self.trigger.pending = True
                 return
-            if changed_id not in (SOURCE_INPUT_ID, OPERATOR_INPUT_ID):
+            if (
+                changed_id not in (SOURCE_INPUT_ID, OPERATOR_INPUT_ID)
+                and not (
+                    changed_id
+                    and changed_id.startswith(PARAMETER_INPUT_PREFIX)
+                )
+            ):
                 return
             self.controller.cleanup()
+            if changed_id == OPERATOR_INPUT_ID:
+                try:
+                    operator = chosen_operator(
+                        self.operator_input, self.operator_ids
+                    )
+                    _set_parameter_visibility(
+                        self.parameter_inputs, operator.operator_id
+                    )
+                except Exception:
+                    _set_parameter_visibility(self.parameter_inputs, "")
             try:
                 label = FusionSelectionAdapter().source_label(self.source)
                 self.source_status.text = label
@@ -151,12 +252,14 @@ def start(context=None) -> None:
 
     class PreviewHandler(adsk.core.CommandEventHandler):
         def __init__(
-            self, source, operator_input, operator_ids, controller, trigger
+            self, source, operator_input, operator_ids, parameter_inputs,
+            controller, trigger,
         ):
             super().__init__()
             self.source = source
             self.operator_input = operator_input
             self.operator_ids = operator_ids
+            self.parameter_inputs = parameter_inputs
             self.controller = controller
             self.trigger = trigger
 
@@ -171,8 +274,11 @@ def start(context=None) -> None:
                     self.source, preview=True
                 )
                 operator = chosen_operator(self.operator_input, self.operator_ids)
+                parameters = _read_operator_parameters(
+                    operator, self.parameter_inputs
+                )
                 request = ProceduralRequest(
-                    geometry, operator.operator_id, {},
+                    geometry, operator.operator_id, parameters,
                     ExecutionContext.PREVIEW,
                 )
 
@@ -200,16 +306,22 @@ def start(context=None) -> None:
                 )
 
     class ValidateHandler(adsk.core.ValidateInputsEventHandler):
-        def __init__(self, source, operator_input, operator_ids):
+        def __init__(
+            self, source, operator_input, operator_ids, parameter_inputs
+        ):
             super().__init__()
             self.source = source
             self.operator_input = operator_input
             self.operator_ids = operator_ids
+            self.parameter_inputs = parameter_inputs
 
         def notify(self, args):
             try:
                 FusionSelectionAdapter().source_label(self.source)
-                chosen_operator(self.operator_input, self.operator_ids)
+                operator = chosen_operator(
+                    self.operator_input, self.operator_ids
+                )
+                _read_operator_parameters(operator, self.parameter_inputs)
                 args.areInputsValid = True
             except Exception:
                 args.areInputsValid = False
@@ -255,6 +367,13 @@ def start(context=None) -> None:
                     operator.display_name, index == 0, ""
                 )
                 operator_ids[operator.display_name] = operator.operator_id
+            parameter_inputs = _create_parameter_inputs(
+                inputs, adsk.core, DEFAULT_OPERATOR_REGISTRY
+            )
+            initial_operator = DEFAULT_OPERATOR_REGISTRY.list_all()[0]
+            _set_parameter_visibility(
+                parameter_inputs, initial_operator.operator_id
+            )
             preview_input = inputs.addBoolValueInput(
                 PREVIEW_INPUT_ID, "Preview", False, "", False
             )
@@ -263,16 +382,20 @@ def start(context=None) -> None:
             trigger = Trigger()
             retained: List[object] = []
             execute = ExecuteHandler(
-                source, operator_input, operator_ids, controller
+                source, operator_input, operator_ids, parameter_inputs,
+                controller,
             )
             changed = InputChangedHandler(
                 source, source_status, operator_input, preview_input,
-                controller, trigger,
+                operator_ids, parameter_inputs, controller, trigger,
             )
             preview = PreviewHandler(
-                source, operator_input, operator_ids, controller, trigger
+                source, operator_input, operator_ids, parameter_inputs,
+                controller, trigger,
             )
-            validate = ValidateHandler(source, operator_input, operator_ids)
+            validate = ValidateHandler(
+                source, operator_input, operator_ids, parameter_inputs
+            )
             destroy = DestroyHandler(retained, controller)
             command.execute.add(execute)
             command.inputChanged.add(changed)

@@ -14,7 +14,7 @@ class ProceduralPipelineError(RuntimeError):
 class OperatorPipeline:
     """Execute an immutable ordered operator representation.
 
-    Sprint 28 accepts one operator. The tuple representation deliberately
+    The current UI accepts one operator. The tuple representation deliberately
     reserves ordering for a later modifier-stack UI.
     """
 
@@ -26,7 +26,7 @@ class OperatorPipeline:
         if not isinstance(operator_ids, tuple):
             raise TypeError("operator_ids must be a tuple")
         if len(operator_ids) != 1:
-            raise ValueError("Sprint 28 pipelines require exactly one operator")
+            raise ValueError("current pipelines require exactly one operator")
         self._operator_ids = operator_ids
         self._registry = registry or DEFAULT_OPERATOR_REGISTRY
 

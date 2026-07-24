@@ -185,6 +185,16 @@ See [SPRINT27_DESIGN.md](docs/SPRINT27_DESIGN.md).
 
 See [SPRINT28_DESIGN.md](docs/SPRINT28_DESIGN.md).
 
+**Sprint 29 — Noise Displacement Operator**
+
+- add deterministic object-space fractal value noise
+- displace vertices along safe area-weighted normals
+- expose registry-driven operator parameter controls
+- preserve connectivity, winding, components, and Pass Through behavior
+- retain MeshBody-only Preview and Apply routing
+
+See [SPRINT29_DESIGN.md](docs/SPRINT29_DESIGN.md).
+
 ## Candidate Future Work
 
 - Procedural Lab operator stack and real geometry operators
