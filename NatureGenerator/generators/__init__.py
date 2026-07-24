@@ -16,6 +16,11 @@ from .bark_generator import BarkGenerator
 from .sponge_generator import SpongeGenerator
 from .rock_generator import RockGenerator
 from .root_generator import RootGenerator, RootSegment, build_root_skeleton
+from .root_families import (
+    CLASSIC_ROOT_FAMILY,
+    RootFamilyDefinition,
+    RootFamilyRegistry,
+)
 from .gyroid import GyroidField
 from .gyroid_generator import GyroidGenerator
 from .result import GeneratorResult
@@ -34,6 +39,9 @@ __all__ = [
     "SpongeGenerator",
     "RockGenerator",
     "RootGenerator",
+    "RootFamilyDefinition",
+    "RootFamilyRegistry",
+    "CLASSIC_ROOT_FAMILY",
     "RootSegment",
     "build_root_skeleton",
     "GeneratorError",

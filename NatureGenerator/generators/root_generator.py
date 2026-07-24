@@ -11,6 +11,7 @@ from presets import PresetFactory
 
 from .generator import InvalidGeneratorParameters, MeshExtractionError, MeshGenerator
 from .request import GenerationRequest
+from .root_families import CLASSIC_ROOT_FAMILY, RootFamilyRegistry
 from .value_noise import DeterministicValueNoise
 
 
@@ -220,6 +221,14 @@ class RootGenerator(MeshGenerator):
             raise InvalidGeneratorParameters("request preset_id does not match 'root'")
         preset = PresetFactory.get(self.preset_id)
         configured = dict(preset.default_parameters)
+        try:
+            family = (
+                RootFamilyRegistry.get(request.family_id)
+                if request.family_id else CLASSIC_ROOT_FAMILY
+            )
+        except KeyError as error:
+            raise InvalidGeneratorParameters(str(error)) from error
+        configured.update(family.parameter_values)
         configured.pop("resolution", None)
         configured.update(request.parameter_overrides)
         unknown = set(configured) - self._PARAMETER_IDS

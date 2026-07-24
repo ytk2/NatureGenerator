@@ -35,7 +35,9 @@ Sprint 18 adds an immutable `PresetDefinition` association around each
 application composition root: Rock is associated with `RockFamilyRegistry`,
 Sprint 19 associates Bark with `BarkFamilyRegistry`, Sprint 20 associates Coral
 with `CoralFamilyRegistry`, and Sprint 21 associates Sponge with
-`SpongeFamilyRegistry`. Root and Bone remain explicit no-Family placeholders.
+`SpongeFamilyRegistry`. Sprint 23 associates the final implemented preset,
+Root, with `RootFamilyRegistry`. Bone remains an explicit unavailable
+no-Family placeholder because it has no generator.
 `PresetFactory` remains the stable metadata API used by generators, preserving
 existing public contracts and the rule that `presets/` never imports concrete
 generator code.
@@ -127,6 +129,13 @@ Cell Size, Thickness, Seed, and Resolution metadata. `SpongeGenerator` samples
 a rounded-box field with exterior-connected spherical cavities, producing a
 closed single-component porous mesh through the existing voxel and marching
 pipeline.
+
+Sprint 23 completes the migration by associating Root with
+`RootFamilyRegistry`. Classic Root stores the nine accepted Root parameter
+values, including deterministic Seed and Resolution. Requests without a Family
+ID and requests selecting `classic_root` resolve to identical configuration and
+the exact accepted mesh. Every implemented preset now enters generation through
+a Family registry; only unavailable Bone has no registry.
 
 Generator implementations may depend on the scalar-field contract and geometry
 core, but must remain independent of Fusion 360. They do not contain user-facing
@@ -223,13 +232,15 @@ Real Fusion acceptance on macOS verified filtered dropdown rebuilding, generic
 parameter application, Custom transitions, Preview replacement, Preset
 switching, and OK/Cancel behavior without recursive events or duplicate UI.
 
-Sprint 16 replaces Variant with Family only for Rock. Sprint 18 preserves that
+Sprint 16 first replaces Variant with Family for Rock. Sprint 18 preserves that
 presentation while removing the Fusion runtime's direct Rock registry
-dependency. The runtime resolves an optional Family registry from
+dependency. Later migrations register Bark, Coral, Sponge, and finally Root.
+The runtime resolves each implemented preset's Family registry from
 `PresetCatalog`, applies its immutable parameter values, and stores the selected
 stable family ID in `GenerationRequest`. Preview copies that ID while changing
-only density; Final uses the requested density. Non-Rock presets retain the
-Sprint 13 Variant behavior.
+only density; Final uses the requested density. The legacy Variant API remains
+available for compatibility, but Fusion no longer uses it for implemented
+presets.
 
 ## Runtime pipeline
 

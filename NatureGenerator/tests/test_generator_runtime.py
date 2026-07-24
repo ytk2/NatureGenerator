@@ -747,6 +747,27 @@ class RootGeneratorTests(unittest.TestCase):
             "889e8603de8b33404d6d1939cfb53dfd3bd9d1fa0abf7f21e2b7efe7de1e8b59",
         )
 
+    def test_classic_family_matches_legacy_request_and_preserves_asset(self):
+        legacy = self._generate()
+        family = GeneratorFactory.generate_request(GenerationRequest(
+            "root", {}, 37, "classic_root"
+        ))
+        self.assertEqual(legacy.mesh.vertices, family.mesh.vertices)
+        self.assertEqual(legacy.mesh.faces, family.mesh.faces)
+        self.assertIs(family.asset.mesh, family.mesh)
+        self.assertEqual(family.asset.metadata.family_id, "classic_root")
+        self.assertEqual(family.asset.material.material_id, "natural_root")
+        self.assertEqual(family.asset.mapping.mode.value, "object_space")
+        self.assertEqual(family.asset.textures.resources, ())
+
+    def test_unknown_root_family_is_rejected(self):
+        with self.assertRaisesRegex(
+            InvalidGeneratorParameters, "unknown root family"
+        ):
+            GeneratorFactory.generate_request(GenerationRequest(
+                "root", {}, 37, "missing_root"
+            ))
+
     def test_parameters_and_resolution_affect_geometry(self):
         short = self._generate({"length": 60.0})
         long = self._generate({"length": 160.0, "root_radius": 16.0})
