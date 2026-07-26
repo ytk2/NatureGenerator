@@ -90,6 +90,13 @@ the exact Sprint 35 geometry. Output remains a MeshBody rather than an
 automatically converted BRep solid. See
 [`docs/SPRINT36_DESIGN.md`](docs/SPRINT36_DESIGN.md).
 
+Sprint 37 adds **Preview Quality** to Gyroid Volume. Draft, Standard, and Final
+use deterministic per-axis scales of 0.50, 0.75, and 1.00 while the displayed
+resolution remains the final Apply resolution. Apply always uses full
+resolution. Immutable pre-allocation cost estimates and stage timings make
+safety and performance observable without changing Sprint 36 geometry. See
+[`docs/SPRINT37_DESIGN.md`](docs/SPRINT37_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

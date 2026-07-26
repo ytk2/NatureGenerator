@@ -22,6 +22,12 @@ class GeometryMode(Enum):
     THICKENED = "thickened"
 
 
+class PreviewQuality(Enum):
+    DRAFT = "draft"
+    STANDARD = "standard"
+    FINAL = "final"
+
+
 @dataclass(frozen=True)
 class VolumeParameterDefinition:
     parameter_id: str
@@ -93,6 +99,17 @@ class VolumeParameterDefinition:
 
 VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
     VolumeParameterDefinition(
+        "preview_quality",
+        "Preview Quality",
+        "enum",
+        "standard",
+        choices=(
+            ("draft", "Draft"),
+            ("standard", "Standard"),
+            ("final", "Final"),
+        ),
+    ),
+    VolumeParameterDefinition(
         "geometry_mode",
         "Geometry Mode",
         "enum",
@@ -132,6 +149,7 @@ VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
 
 @dataclass(frozen=True)
 class GyroidVolumeRequest:
+    preview_quality: PreviewQuality = PreviewQuality.STANDARD
     geometry_mode: GeometryMode = GeometryMode.SURFACE
     wall_thickness: float = 1.0
     width: float = 60.0
@@ -153,6 +171,7 @@ class GyroidVolumeRequest:
         for definition in VOLUME_PARAMETER_DEFINITIONS:
             raw = getattr(self, definition.parameter_id)
             enum_type = {
+                "preview_quality": PreviewQuality,
                 "geometry_mode": GeometryMode,
                 "boundary_mode": BoundaryMode,
             }.get(definition.parameter_id)
@@ -185,6 +204,7 @@ class GyroidVolumeRequest:
             )
         for name, value in values.items():
             enum_type = {
+                "preview_quality": PreviewQuality,
                 "geometry_mode": GeometryMode,
                 "boundary_mode": BoundaryMode,
             }.get(name)
