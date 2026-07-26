@@ -8,10 +8,53 @@ from .volume_request import VolumeExecutionContext
 VOLUME_PREVIEW_MAX_SAMPLES = 750_000
 VOLUME_APPLY_MAX_SAMPLES = 2_000_000
 SCALAR_BYTES_PER_SAMPLE = 8
+VOLUME_PREVIEW_MAX_CAP_TRIANGLES = 500_000
+VOLUME_APPLY_MAX_CAP_TRIANGLES = 1_000_000
 
 
 class VolumeSafetyLimitError(ValueError):
     pass
+
+
+def estimate_cap_triangles(
+    resolution_x: int, resolution_y: int, resolution_z: int
+) -> int:
+    """Return a conservative bound for clipped rectangular-face triangles."""
+
+    return 4 * (
+        (resolution_x - 1) * (resolution_y - 1)
+        + (resolution_x - 1) * (resolution_z - 1)
+        + (resolution_y - 1) * (resolution_z - 1)
+    )
+
+
+def validate_cap_complexity(
+    resolution_x: int,
+    resolution_y: int,
+    resolution_z: int,
+    context: VolumeExecutionContext,
+) -> int:
+    predicted = estimate_cap_triangles(
+        resolution_x, resolution_y, resolution_z
+    )
+    limit = (
+        VOLUME_PREVIEW_MAX_CAP_TRIANGLES
+        if context is VolumeExecutionContext.PREVIEW
+        else VOLUME_APPLY_MAX_CAP_TRIANGLES
+    )
+    if predicted > limit:
+        operation = (
+            "Preview"
+            if context is VolumeExecutionContext.PREVIEW
+            else "Apply"
+        )
+        raise VolumeSafetyLimitError(
+            "Boundary Cap may require up to {:,} triangles, exceeding the {} "
+            "cap limit of {:,}. Reduce one or more resolution values.".format(
+                predicted, operation, limit
+            )
+        )
+    return predicted
 
 
 @dataclass(frozen=True)

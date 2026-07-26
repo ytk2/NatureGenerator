@@ -247,10 +247,21 @@ See [SPRINT33_DESIGN.md](docs/SPRINT33_DESIGN.md).
 
 See [SPRINT34_DESIGN.md](docs/SPRINT34_DESIGN.md).
 
+**Sprint 35 — Gyroid Volume Boundary Closure**
+
+- preserve the exact Sprint 34 Open output as the default
+- add metadata-driven Open and Cap boundary modes
+- validate and deterministically close Gyroid contours at all six box faces
+- measure and require watertight, manifold, consistently wound Cap output
+- enforce separate centralized Preview and Apply cap-complexity limits
+- defer wall thickness, BRep solid conversion, and general mesh repair
+
+See [SPRINT35_DESIGN.md](docs/SPRINT35_DESIGN.md).
+
 ## Candidate Future Work
 
 - additional Procedural Lab geometry operators and variable stack workflows
-- watertight capping or thickened-wall TPMS volume generation
+- thickened-wall TPMS generation and optional BRep conversion
 
 - Dedicated Utilities > Nature Generator panel
 - Command icon and resource assets

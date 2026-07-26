@@ -12,26 +12,45 @@ class VolumeExecutionContext(Enum):
     APPLY = "apply"
 
 
+class BoundaryMode(Enum):
+    OPEN = "open"
+    CAP = "cap"
+
+
 @dataclass(frozen=True)
 class VolumeParameterDefinition:
     parameter_id: str
     display_name: str
     value_type: str
     default_value: Any
-    minimum: Any
-    maximum: Any
+    minimum: Any = None
+    maximum: Any = None
     unit: str = ""
+    choices: Tuple[Tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if re.fullmatch(r"[a-z][a-z0-9_]*", self.parameter_id) is None:
             raise ValueError("parameter_id must be a stable identifier")
         if not self.display_name:
             raise ValueError("display_name must be non-empty")
-        if self.value_type not in ("float", "integer", "length"):
+        if self.value_type not in ("enum", "float", "integer", "length"):
             raise ValueError("unsupported volume parameter type")
+        if self.value_type == "enum" and not self.choices:
+            raise ValueError("enum parameters require choices")
         self.validate(self.default_value)
 
     def validate(self, value: Any) -> Any:
+        if self.value_type == "enum":
+            if not isinstance(value, str):
+                raise TypeError("{} must be a string".format(
+                    self.display_name
+                ))
+            allowed = {item[0] for item in self.choices}
+            if value not in allowed:
+                raise ValueError("{} must be one of {}".format(
+                    self.display_name, ", ".join(sorted(allowed))
+                ))
+            return value
         if self.value_type == "integer":
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError("{} must be an integer".format(
@@ -44,7 +63,11 @@ class VolumeParameterDefinition:
             normalized = float(value)
             if not math.isfinite(normalized):
                 raise ValueError("{} must be finite".format(self.display_name))
-        if normalized < self.minimum or normalized > self.maximum:
+        if (
+            self.minimum is not None and normalized < self.minimum
+        ) or (
+            self.maximum is not None and normalized > self.maximum
+        ):
             raise ValueError(
                 "{} must be between {} and {}".format(
                     self.display_name, self.minimum, self.maximum
@@ -65,6 +88,13 @@ VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
     VolumeParameterDefinition("phase_x", "Phase X", "float", 0.0, -6.283, 6.283, "rad"),
     VolumeParameterDefinition("phase_y", "Phase Y", "float", 0.0, -6.283, 6.283, "rad"),
     VolumeParameterDefinition("phase_z", "Phase Z", "float", 0.0, -6.283, 6.283, "rad"),
+    VolumeParameterDefinition(
+        "boundary_mode",
+        "Boundary Mode",
+        "enum",
+        "open",
+        choices=(("open", "Open"), ("cap", "Cap")),
+    ),
 )
 
 
@@ -81,21 +111,28 @@ class GyroidVolumeRequest:
     phase_x: float = 0.0
     phase_y: float = 0.0
     phase_z: float = 0.0
+    boundary_mode: BoundaryMode = BoundaryMode.OPEN
     execution_context: VolumeExecutionContext = VolumeExecutionContext.APPLY
 
     def __post_init__(self) -> None:
-        values = {
-            definition.parameter_id: definition.validate(
-                getattr(self, definition.parameter_id)
-            )
-            for definition in VOLUME_PARAMETER_DEFINITIONS
-        }
+        values = {}
+        for definition in VOLUME_PARAMETER_DEFINITIONS:
+            raw = getattr(self, definition.parameter_id)
+            if definition.parameter_id == "boundary_mode":
+                if not isinstance(raw, BoundaryMode):
+                    raise TypeError("boundary_mode must be a BoundaryMode")
+                raw = raw.value
+            values[definition.parameter_id] = definition.validate(raw)
         if not isinstance(self.execution_context, VolumeExecutionContext):
             raise TypeError(
                 "execution_context must be a VolumeExecutionContext"
             )
         for name, value in values.items():
-            object.__setattr__(self, name, value)
+            object.__setattr__(
+                self,
+                name,
+                BoundaryMode(value) if name == "boundary_mode" else value,
+            )
 
     @property
     def resolution(self) -> Tuple[int, int, int]:
