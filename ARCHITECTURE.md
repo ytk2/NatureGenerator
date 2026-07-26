@@ -95,9 +95,12 @@ GyroidVolumeRequest
 
 The package reuses stable `core/` sampling, extraction, and mesh primitives but
 does not import Fusion, Procedural Lab, presets, or generators. The rectangular
-domain is centered at the origin. The extracted Gyroid sheet is clipped open at
-the bounds, and its boundary, manifold, winding, area, and other claims come
-from `MeshStatistics`.
+domain is centered at the origin. Open mode retains the Sprint 34 sheet clipped
+at the bounds. Sprint 35 adds a Fusion-independent optional boundary-closure
+stage that validates box-face contours and triangulates the scalar-domain
+inside region with outward winding. It accepts Cap only when `MeshStatistics`
+measures a clean watertight manifold. Boundary, manifold, winding, area, and
+volume claims therefore remain measured rather than inferred.
 
 Fusion's `Gyroid Volume` command has a separate definition, metadata-driven
 inputs, Preview owner, final insertion, and stop cleanup. No source body is

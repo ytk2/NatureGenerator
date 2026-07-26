@@ -75,6 +75,13 @@ open zero-thickness surface clipped at the requested bounds; it is not a
 watertight solid or a deformation of user geometry. See
 [`docs/SPRINT34_DESIGN.md`](docs/SPRINT34_DESIGN.md).
 
+Sprint 35 adds an optional **Cap** boundary mode to Gyroid Volume. Open remains
+the default and preserves the exact Sprint 34 geometry. Cap deterministically
+triangulates the scalar-domain region on all six rectangular faces, shares
+boundary vertices, and returns geometry only when measured as a clean
+watertight manifold. It does not add wall thickness or BRep conversion. See
+[`docs/SPRINT35_DESIGN.md`](docs/SPRINT35_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

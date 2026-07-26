@@ -69,6 +69,16 @@ def _create_parameter_inputs(inputs, adsk_core, definitions):
                 step,
                 float(definition.default_value),
             )
+        elif definition.value_type == "enum":
+            control = inputs.addDropDownCommandInput(
+                input_id,
+                definition.display_name,
+                adsk_core.DropDownStyles.TextListDropDownStyle,
+            )
+            for value, display_name in definition.choices:
+                control.listItems.add(
+                    display_name, value == definition.default_value, ""
+                )
         else:
             raise ValueError("unsupported volume parameter type")
         created[definition.parameter_id] = control
@@ -78,12 +88,30 @@ def _create_parameter_inputs(inputs, adsk_core, definitions):
 def _read_parameter_values(parameter_inputs, definitions):
     values = {}
     for definition in definitions:
-        value = parameter_inputs[definition.parameter_id].value
+        control = parameter_inputs[definition.parameter_id]
+        if definition.value_type == "enum":
+            selected = control.selectedItem
+            if selected is None:
+                raise ValueError(
+                    "select {}".format(definition.display_name)
+                )
+            labels = {
+                display_name: value
+                for value, display_name in definition.choices
+            }
+            try:
+                value = labels[selected.name]
+            except KeyError as error:
+                raise ValueError(
+                    "unsupported {}".format(definition.display_name)
+                ) from error
+        else:
+            value = control.value
         if definition.value_type == "length" and definition.unit == "mm":
             value = float(value) * 10.0
         elif definition.value_type == "integer":
             value = int(value)
-        else:
+        elif definition.value_type != "enum":
             value = float(value)
         values[definition.parameter_id] = definition.validate(value)
     return values
@@ -111,6 +139,7 @@ def start(context=None):
     from fusion.gyroid_volume_preview import GyroidVolumePreviewController
     from fusion.volume_mesh_builder import VolumeMeshBuilder
     from volume import (
+        BoundaryMode,
         GyroidVolumeRequest,
         VOLUME_PARAMETER_DEFINITIONS,
         VolumeExecutionContext,
@@ -133,7 +162,9 @@ def start(context=None):
             parameter_inputs, VOLUME_PARAMETER_DEFINITIONS
         )
         return GyroidVolumeRequest(
-            execution_context=execution_context, **values
+            execution_context=execution_context,
+            boundary_mode=BoundaryMode(values.pop("boundary_mode")),
+            **values
         )
 
     class ExecuteHandler(adsk.core.CommandEventHandler):

@@ -19,6 +19,7 @@ from tests.test_fusion_integration import (
     fake_fusion_ui,
 )
 from volume import (
+    BoundaryMode,
     GyroidVolumeField,
     GyroidVolumeRequest,
     VOLUME_APPLY_MAX_SAMPLES,
@@ -77,19 +78,24 @@ class GyroidVolumeRequestTests(unittest.TestCase):
             item.parameter_id: item
             for item in VOLUME_PARAMETER_DEFINITIONS
         }
-        self.assertEqual(len(definitions), 11)
+        self.assertEqual(len(definitions), 12)
         self.assertEqual(definitions["width"].default_value, 60.0)
         self.assertEqual(definitions["period"].unit, "mm")
         self.assertEqual(definitions["iso_value"].minimum, -1.5)
         self.assertEqual(definitions["resolution_x"].minimum, 8)
         self.assertEqual(definitions["resolution_x"].maximum, 160)
         self.assertEqual(definitions["phase_z"].unit, "rad")
+        self.assertEqual(
+            definitions["boundary_mode"].choices,
+            (("open", "Open"), ("cap", "Cap")),
+        )
 
     def test_request_is_centered_and_validated(self):
         value = GyroidVolumeRequest()
         self.assertEqual(value.minimum, (-30.0, -30.0, -30.0))
         self.assertEqual(value.maximum, (30.0, 30.0, 30.0))
         self.assertEqual(value.resolution, (40, 40, 40))
+        self.assertIs(value.boundary_mode, BoundaryMode.OPEN)
         with self.assertRaisesRegex(ValueError, "Width"):
             GyroidVolumeRequest(width=0.0)
         with self.assertRaisesRegex(ValueError, "Resolution X"):
@@ -244,11 +250,31 @@ class FakeParameterInputs:
             input_id, name, "", minimum, maximum, step, initial
         )
 
+    def addDropDownCommandInput(self, input_id, name, style):
+        control = SimpleNamespace(
+            id=input_id, name=name, selectedItem=None
+        )
+        items = []
+
+        def add(display_name, selected, icon):
+            item = SimpleNamespace(name=display_name)
+            items.append(item)
+            if selected:
+                control.selectedItem = item
+            return item
+
+        control.listItems = SimpleNamespace(add=add, items=items)
+        self.created[input_id] = control
+        return control
+
 
 class VolumeFusionBoundaryTests(unittest.TestCase):
     def test_metadata_drives_all_ui_parameters(self):
         inputs = FakeParameterInputs()
         adsk_core = SimpleNamespace(
+            DropDownStyles=SimpleNamespace(
+                TextListDropDownStyle="text-list"
+            ),
             ValueInput=SimpleNamespace(
                 createByString=lambda expression: SimpleNamespace(
                     value=float(expression.split()[0]) / 10.0
@@ -271,6 +297,7 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
         self.assertEqual(values["width"], 60.0)
         self.assertEqual(values["resolution_z"], 40)
         self.assertEqual(values["phase_x"], 0.0)
+        self.assertEqual(values["boundary_mode"], "open")
 
     def test_apply_inserts_exactly_one_final_mesh(self):
         inserted = []
@@ -370,12 +397,24 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
                 self.assertEqual(len(bodies), 1)
                 self.assertFalse(bodies[0].deleted)
 
-                phase = command.commandInputs.items[
-                    volume_runtime._parameter_input_id("phase_x")
+                phase_values = {
+                    "phase_x": 0.31,
+                    "phase_y": -0.17,
+                    "phase_z": 0.23,
+                }
+                for parameter_id, value in phase_values.items():
+                    command.commandInputs.items[
+                        volume_runtime._parameter_input_id(parameter_id)
+                    ].value = value
+                boundary_mode = command.commandInputs.items[
+                    volume_runtime._parameter_input_id("boundary_mode")
                 ]
-                phase.value = 0.5
+                boundary_mode.selectedItem = next(
+                    item for item in boundary_mode.listItems.items
+                    if item.name == "Cap"
+                )
                 command.inputChanged.handlers[0].notify(
-                    SimpleNamespace(input=phase)
+                    SimpleNamespace(input=boundary_mode)
                 )
                 self.assertTrue(bodies[0].deleted)
                 command.inputChanged.handlers[0].notify(
@@ -385,6 +424,7 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
                     SimpleNamespace(isValidResult=None)
                 )
                 self.assertEqual(len(bodies), 2)
+                self.assertTrue(bodies[1].mesh.statistics().is_watertight)
 
                 command.execute.handlers[0].notify(SimpleNamespace())
                 self.assertTrue(bodies[1].deleted)
