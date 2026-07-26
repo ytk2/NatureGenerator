@@ -27,6 +27,7 @@ _TETRAHEDRA = (
 )
 
 _TETRAHEDRON_EDGES = ((0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3))
+ISO_CLASSIFICATION_ULPS = 8
 
 
 def _subtract(a: Point3, b: Point3) -> Point3:
@@ -86,7 +87,11 @@ def _ordered_polygon(
     return ordered
 
 
-def extract_isosurface(grid: VoxelGrid, iso_value: float = 0.0) -> TriangleMesh:
+def extract_isosurface(
+    grid: VoxelGrid,
+    iso_value: float = 0.0,
+    _symbolic_equality: bool = False,
+) -> TriangleMesh:
     """Extract an isosurface from *grid* using marching tetrahedra.
 
     Values strictly below ``iso_value`` are inside. Triangle normals point from
@@ -102,6 +107,34 @@ def extract_isosurface(grid: VoxelGrid, iso_value: float = 0.0) -> TriangleMesh:
     faces: List[Face] = []
     edge_vertices: Dict[EdgeKey, int] = {}
     sample_vertices: Dict[int, int] = {}
+    scalar_scale = max(
+        1.0,
+        abs(iso_value),
+        max(abs(value) for value in grid.values),
+    )
+    classification_tolerance = (
+        math.ulp(scalar_scale) * ISO_CLASSIFICATION_ULPS
+    )
+
+    def classified_value(sample: int) -> float:
+        """Snap numerical equality to the iso value before classification.
+
+        Analytical fields can be mathematically equal to the isovalue at a
+        grid sample while floating-point evaluation differs by a few ULPs.
+        Treating those roundoff signs as topology creates collapsed polygons.
+        Values within eight ULPs of the request's scalar scale are therefore
+        deterministically classified as equal (and, by the existing strict
+        lower-than rule, outside). The sampled grid itself remains immutable.
+        """
+
+        value = grid.values[sample]
+        if not _symbolic_equality:
+            return value
+        return (
+            iso_value
+            if abs(value - iso_value) <= classification_tolerance
+            else value
+        )
 
     def intersection(sample_a: int, sample_b: int) -> int:
         key = (sample_a, sample_b) if sample_a < sample_b else (sample_b, sample_a)
@@ -109,8 +142,8 @@ def extract_isosurface(grid: VoxelGrid, iso_value: float = 0.0) -> TriangleMesh:
         if cached is not None:
             return cached
 
-        value_a = grid.values[sample_a]
-        value_b = grid.values[sample_b]
+        value_a = classified_value(sample_a)
+        value_b = classified_value(sample_b)
         denominator = value_b - value_a
         if denominator == 0.0:
             fraction = 0.5
@@ -165,7 +198,9 @@ def extract_isosurface(grid: VoxelGrid, iso_value: float = 0.0) -> TriangleMesh:
         for tetrahedron in _TETRAHEDRA:
             samples = tuple(corners[index] for index in tetrahedron)
             points = tuple(corner_points[index] for index in tetrahedron)
-            inside = tuple(grid.values[index] < iso_value for index in samples)
+            inside = tuple(
+                classified_value(index) < iso_value for index in samples
+            )
             inside_count = sum(inside)
             if inside_count == 0 or inside_count == 4:
                 continue
@@ -193,7 +228,17 @@ def extract_isosurface(grid: VoxelGrid, iso_value: float = 0.0) -> TriangleMesh:
                 if _dot(_cross(_subtract(b, a), _subtract(c, a)), direction) > 1e-24:
                     faces.append(face)
 
-    return TriangleMesh(tuple(vertices), tuple(faces))
+    result = TriangleMesh(tuple(vertices), tuple(faces))
+    statistics = result.statistics()
+    if (
+        not _symbolic_equality
+        and (
+            statistics.degenerate_face_count
+            or statistics.nonmanifold_vertex_count
+        )
+    ):
+        return extract_isosurface(grid, iso_value, True)
+    return result
 
 
 def extract_field(

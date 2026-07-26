@@ -81,7 +81,7 @@ class GyroidVolumeRequestTests(unittest.TestCase):
             item.parameter_id: item
             for item in VOLUME_PARAMETER_DEFINITIONS
         }
-        self.assertEqual(len(definitions), 15)
+        self.assertEqual(len(definitions), 16)
         self.assertEqual(
             definitions["preview_quality"].choices,
             (
@@ -93,6 +93,16 @@ class GyroidVolumeRequestTests(unittest.TestCase):
         self.assertEqual(
             definitions["preview_quality"].default_value, "standard"
         )
+        self.assertEqual(
+            definitions["tpms_type"].choices,
+            (
+                ("gyroid", "Gyroid"),
+                ("schwarz_p", "Schwarz P"),
+                ("diamond", "Diamond"),
+                ("neovius", "Neovius"),
+            ),
+        )
+        self.assertEqual(definitions["tpms_type"].default_value, "gyroid")
         self.assertEqual(
             definitions["geometry_mode"].choices,
             (("surface", "Surface"), ("thickened", "Thickened")),
@@ -440,6 +450,18 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
                 self.assertEqual(len(bodies), 1)
                 self.assertFalse(bodies[0].deleted)
 
+                tpms_type = command.commandInputs.items[
+                    volume_runtime._parameter_input_id("tpms_type")
+                ]
+                tpms_type.selectedItem = next(
+                    item for item in tpms_type.listItems.items
+                    if item.name == "Schwarz P"
+                )
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=tpms_type)
+                )
+                self.assertTrue(bodies[0].deleted)
+
                 preview_quality = command.commandInputs.items[
                     volume_runtime._parameter_input_id("preview_quality")
                 ]
@@ -523,7 +545,7 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
                 self.assertTrue(bodies[3].deleted)
                 self.assertEqual(len(bodies), 5)
                 self.assertEqual(
-                    bodies[4].name, "NatureGenerator — Gyroid Volume"
+                    bodies[4].name, "NatureGenerator — TPMS — Schwarz P"
                 )
 
                 command.destroy.handlers[0].notify(SimpleNamespace())

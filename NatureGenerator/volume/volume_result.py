@@ -40,3 +40,6 @@ class GyroidVolumeResult:
             and not isinstance(self.timings, VolumeGenerationTimings)
         ):
             raise TypeError("timings must be VolumeGenerationTimings")
+
+
+TPMSVolumeResult = GyroidVolumeResult

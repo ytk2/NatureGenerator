@@ -1,4 +1,4 @@
-"""Finite-thickness Gyroid band represented as a scalar field."""
+"""Finite-thickness TPMS band represented as paired scalar fields."""
 
 from dataclasses import dataclass
 import math
@@ -6,25 +6,27 @@ from typing import Sequence, Tuple
 
 from core.mesh import TriangleMesh
 from core.voxel_grid import VoxelGrid
-from .gyroid_field import GyroidVolumeField
 
 
 @dataclass(frozen=True)
-class ThickenedGyroidField:
-    """Approximate a physical wall around a Gyroid iso-surface.
+class ThickenedTPMSField:
+    """Approximate a physical wall around a TPMS iso-surface.
 
     The zero set is ``abs(g - iso) - half_thickness * |gradient(g)| = 0``.
     The analytical gradient is measured in inverse millimetres, so the second
     term is dimensionless and represents a first-order physical offset.
     """
 
-    field: GyroidVolumeField
+    field: object
     iso_value: float
     wall_thickness: float
 
     def __post_init__(self) -> None:
-        if not isinstance(self.field, GyroidVolumeField):
-            raise TypeError("field must be a GyroidVolumeField")
+        if not all(
+            hasattr(self.field, name)
+            for name in ("sample", "gradient", "period", "type_id")
+        ):
+            raise TypeError("field must implement the TPMS field contract")
         values = (self.iso_value, self.wall_thickness)
         if any(
             isinstance(value, bool)
@@ -67,15 +69,15 @@ class ThickenedGyroidField:
 
 
 def sample_thickened_band_grids(
-    field: ThickenedGyroidField,
+    field: ThickenedTPMSField,
     minimum: Sequence[float],
     maximum: Sequence[float],
     shape: Sequence[int],
 ) -> Tuple[VoxelGrid, VoxelGrid]:
     """Sample both wall boundaries in one deterministic coordinate pass."""
 
-    if not isinstance(field, ThickenedGyroidField):
-        raise TypeError("field must be a ThickenedGyroidField")
+    if not isinstance(field, ThickenedTPMSField):
+        raise TypeError("field must be a ThickenedTPMSField")
     if len(minimum) != 3 or len(maximum) != 3 or len(shape) != 3:
         raise ValueError("bounds and shape must contain three values")
     lower = tuple(float(value) for value in minimum)
@@ -133,3 +135,7 @@ def combine_wall_surfaces(
             for face in lower_mesh.faces
         ),
     )
+
+
+# Compatibility name retained for Sprint 36/37 consumers.
+ThickenedGyroidField = ThickenedTPMSField

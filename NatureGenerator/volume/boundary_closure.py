@@ -4,7 +4,12 @@ from collections import Counter, defaultdict
 import math
 from typing import Dict, Iterable, List, Sequence, Tuple
 
-from core.mesh import Face, Point3, TriangleMesh
+from core.mesh import (
+    Face,
+    MINIMUM_VALID_DOUBLED_AREA,
+    Point3,
+    TriangleMesh,
+)
 from core.voxel_grid import VoxelGrid
 
 
@@ -20,6 +25,115 @@ def boundary_tolerance(grid: VoxelGrid) -> float:
     """Derive the boundary tolerance from the smallest voxel spacing."""
 
     return max(min(grid.spacing) * 1e-7, 1e-12)
+
+
+def _cross_length(a: Point3, b: Point3, c: Point3) -> float:
+    ab = tuple(b[axis] - a[axis] for axis in range(3))
+    ac = tuple(c[axis] - a[axis] for axis in range(3))
+    cross = (
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    )
+    return math.sqrt(sum(value * value for value in cross))
+
+
+def _repair_boundary_sliver_faces(
+    mesh: TriangleMesh,
+    minimum: Point3,
+    maximum: Point3,
+    tolerance: float,
+) -> TriangleMesh:
+    """Move a near-boundary sliver's interior vertex deterministically inward.
+
+    Marching tetrahedra can produce a nonzero triangle whose boundary edge is
+    extremely short and whose third vertex is only a few floating-point
+    tolerances inside the domain. Such a face is topologically required but
+    can fall below ``TriangleMesh.statistics`` geometric-area semantics.
+
+    Only a face already classified as degenerate is considered. Exactly two
+    vertices must lie on one rectangular plane, and the third must be within a
+    scale-aware repair band. Moving that third vertex along the inward plane
+    normal preserves the boundary edge, connectivity, winding, and cap
+    coverage. Ordinary meshes return unchanged, preserving canonical digests.
+    """
+
+    if mesh.statistics().degenerate_face_count == 0:
+        return mesh
+    domain_scale = math.sqrt(sum(
+        (maximum[axis] - minimum[axis]) ** 2 for axis in range(3)
+    ))
+    repair_limit = max(tolerance * 64.0, domain_scale * 1e-10)
+    target_area = MINIMUM_VALID_DOUBLED_AREA * 1.10
+    vertices = list(mesh.vertices)
+    planes = _planes(minimum, maximum)
+
+    for face_index, face in enumerate(mesh.faces):
+        points = tuple(vertices[index] for index in face)
+        if _cross_length(*points) > MINIMUM_VALID_DOUBLED_AREA:
+            continue
+        candidates = []
+        for plane in planes:
+            on_plane = [
+                offset for offset, point in enumerate(points)
+                if _on_plane(point, plane, tolerance)
+            ]
+            if len(on_plane) == 2:
+                interior = next(
+                    offset for offset in range(3)
+                    if offset not in on_plane
+                )
+                distance = abs(points[interior][plane[1]] - plane[2])
+                if distance <= repair_limit:
+                    candidates.append((plane, on_plane, interior, distance))
+        if len(candidates) != 1:
+            raise BoundaryClosureError(
+                "near-degenerate extracted face {} cannot be repaired "
+                "without changing boundary topology".format(face_index)
+            )
+        plane, boundary_offsets, interior_offset, current_distance = (
+            candidates[0]
+        )
+        boundary_points = (
+            points[boundary_offsets[0]], points[boundary_offsets[1]]
+        )
+        edge_length = math.sqrt(sum(
+            (boundary_points[1][axis] - boundary_points[0][axis]) ** 2
+            for axis in range(3)
+        ))
+        if edge_length == 0.0:
+            raise BoundaryClosureError(
+                "near-degenerate extracted face {} has a zero-length "
+                "boundary edge".format(face_index)
+            )
+        required_distance = max(
+            current_distance, target_area / edge_length
+        )
+        if required_distance > repair_limit:
+            raise BoundaryClosureError(
+                "near-degenerate extracted face {} exceeds the scale-aware "
+                "boundary repair limit".format(face_index)
+            )
+        vertex_index = face[interior_offset]
+        point = list(vertices[vertex_index])
+        inward = 1.0 if plane[2] == minimum[plane[1]] else -1.0
+        point[plane[1]] = plane[2] + inward * required_distance
+        vertices[vertex_index] = tuple(point)
+
+    result = TriangleMesh(tuple(vertices), mesh.faces)
+    if result.statistics().degenerate_face_count:
+        raise BoundaryClosureError(
+            "scale-aware boundary sliver repair left a degenerate face"
+        )
+    return result
+
+
+def _triangle_exceeds_validator_area(
+    a: Point3, b: Point3, c: Point3
+) -> bool:
+    """Use exactly the final mesh validator's default area semantics."""
+
+    return _cross_length(a, b, c) > MINIMUM_VALID_DOUBLED_AREA
 
 
 def _boundary_edges(mesh: TriangleMesh) -> Tuple[Edge, ...]:
@@ -342,6 +456,9 @@ def close_rectangular_boundary(
         for axis in range(3)
     )
     tolerance = boundary_tolerance(grid)
+    mesh = _repair_boundary_sliver_faces(
+        mesh, minimum, maximum, tolerance
+    )
     classified = classify_boundary_edges(
         mesh, minimum, maximum, tolerance
     )
@@ -372,7 +489,6 @@ def close_rectangular_boundary(
         cache[point_key].append(index)
         return index
 
-    area_epsilon_squared = tolerance ** 4
     for triangle in _face_sample_triangles(grid):
         polygon = _clip_triangle(triangle, iso_value)
         if len(polygon) < 3:
@@ -383,14 +499,7 @@ def close_rectangular_boundary(
             if len(set(face)) < 3:
                 continue
             a, b, c = (vertices[index] for index in face)
-            ab = tuple(b[axis] - a[axis] for axis in range(3))
-            ac = tuple(c[axis] - a[axis] for axis in range(3))
-            cross = (
-                ab[1] * ac[2] - ab[2] * ac[1],
-                ab[2] * ac[0] - ab[0] * ac[2],
-                ab[0] * ac[1] - ab[1] * ac[0],
-            )
-            if sum(value * value for value in cross) > area_epsilon_squared:
+            if _triangle_exceeds_validator_area(a, b, c):
                 faces.append(face)
 
     result = TriangleMesh(tuple(vertices), tuple(faces))
@@ -473,6 +582,9 @@ def close_rectangular_band_boundary(
         for axis in range(3)
     )
     tolerance = boundary_tolerance(upper_grid)
+    mesh = _repair_boundary_sliver_faces(
+        mesh, minimum, maximum, tolerance
+    )
     classified = classify_boundary_edges(
         mesh, minimum, maximum, tolerance
     )
@@ -503,7 +615,6 @@ def close_rectangular_band_boundary(
         cache[point_key].append(index)
         return index
 
-    area_epsilon_squared = tolerance ** 4
     upper_triangles = _face_sample_triangles(upper_grid)
     lower_triangles = _face_sample_triangles(lower_grid)
     for upper_triangle, lower_triangle in zip(
@@ -532,14 +643,7 @@ def close_rectangular_band_boundary(
             if len(set(face)) < 3:
                 continue
             a, b, c = (vertices[index] for index in face)
-            ab = tuple(b[axis] - a[axis] for axis in range(3))
-            ac = tuple(c[axis] - a[axis] for axis in range(3))
-            cross = (
-                ab[1] * ac[2] - ab[2] * ac[1],
-                ab[2] * ac[0] - ab[0] * ac[2],
-                ab[0] * ac[1] - ab[1] * ac[0],
-            )
-            if sum(value * value for value in cross) > area_epsilon_squared:
+            if _triangle_exceeds_validator_area(a, b, c):
                 faces.append(face)
 
     result = TriangleMesh(tuple(vertices), tuple(faces))

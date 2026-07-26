@@ -281,6 +281,17 @@ See [SPRINT36_DESIGN.md](docs/SPRINT36_DESIGN.md).
 
 See [SPRINT37_DESIGN.md](docs/SPRINT37_DESIGN.md).
 
+**Sprint 38 — TPMS Family**
+
+- generalize Gyroid Volume into a registry-driven TPMS Volume pipeline
+- add Schwarz P, Diamond/Schwarz D, and Neovius alongside released Gyroid
+- use explicit normalization and analytical world gradients for every type
+- support Surface/Thickened, Open/Cap, and every Preview Quality
+- preserve stable Gyroid APIs, digests, safety, timings, and ownership
+- rename the user-facing command while preserving its stable Fusion command ID
+
+See [SPRINT38_DESIGN.md](docs/SPRINT38_DESIGN.md).
+
 ## Candidate Future Work
 
 - additional Procedural Lab geometry operators and variable stack workflows

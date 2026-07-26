@@ -10,6 +10,8 @@ Vector3 = Point3
 Face = Tuple[int, int, int]
 Triangle = Tuple[Point3, Point3, Point3]
 Edge = Tuple[int, int]
+DEFAULT_AREA_EPSILON = 1e-12
+MINIMUM_VALID_DOUBLED_AREA = DEFAULT_AREA_EPSILON * 2.0
 
 
 def _cross(a: Vector3, b: Vector3) -> Vector3:
@@ -159,7 +161,9 @@ class TriangleMesh:
                 normals.append(tuple(component / length for component in vector))
         return tuple(normals)  # type: ignore[return-value]
 
-    def statistics(self, area_epsilon: float = 1e-12) -> MeshStatistics:
+    def statistics(
+        self, area_epsilon: float = DEFAULT_AREA_EPSILON
+    ) -> MeshStatistics:
         """Compute topology, area, signed volume, components, and bounds."""
 
         area_epsilon = float(area_epsilon)

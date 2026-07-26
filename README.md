@@ -97,6 +97,14 @@ resolution. Immutable pre-allocation cost estimates and stage timings make
 safety and performance observable without changing Sprint 36 geometry. See
 [`docs/SPRINT37_DESIGN.md`](docs/SPRINT37_DESIGN.md).
 
+Sprint 38 generalizes the independent volume command to **TPMS Volume** and
+adds Gyroid, Schwarz P, Diamond/Schwarz D, and Neovius. One analytical field
+factory feeds the existing sampling, extraction, closure, Preview Quality,
+safety, and timing pipeline. Gyroid remains the default and preserves all
+released geometry digests. The existing Gyroid Surface deformation operator
+remains separate. See
+[`docs/SPRINT38_DESIGN.md`](docs/SPRINT38_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

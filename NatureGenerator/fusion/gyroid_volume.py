@@ -1,18 +1,34 @@
-"""Fusion lifecycle for the independent Gyroid Volume command."""
+"""Fusion lifecycle for the independent TPMS Volume command."""
 
 import traceback
 from typing import List
 
 
 COMMAND_ID = "NatureGeneratorGyroidVolume"
-COMMAND_NAME = "Gyroid Volume"
-COMMAND_DESCRIPTION = "Generate a volumetric Gyroid iso-surface MeshBody."
+COMMAND_NAME = "TPMS Volume"
+COMMAND_DESCRIPTION = "Generate an analytical TPMS volume MeshBody."
 WORKSPACE_ID = "FusionSolidEnvironment"
 PANEL_ID = "SolidScriptsAddinsPanel"
 PARAMETER_PREFIX = "gyroidVolume_"
 PREVIEW_INPUT_ID = "gyroidVolumePreview"
-PREVIEW_NAME = "NatureGenerator Preview — Gyroid Volume"
-FINAL_NAME = "NatureGenerator — Gyroid Volume"
+PREVIEW_NAME = "NatureGenerator Preview — TPMS — Gyroid"
+FINAL_NAME = "NatureGenerator — TPMS — Gyroid"
+
+_TYPE_DISPLAY_NAMES = {
+    "gyroid": "Gyroid",
+    "schwarz_p": "Schwarz P",
+    "diamond": "Diamond",
+    "neovius": "Neovius",
+}
+
+
+def _body_name(tpms_type, preview):
+    prefix = (
+        "NatureGenerator Preview — TPMS — "
+        if preview
+        else "NatureGenerator — TPMS — "
+    )
+    return prefix + _TYPE_DISPLAY_NAMES[tpms_type.value]
 
 _handlers: List[object] = []
 _command_handler_groups: List[List[object]] = []
@@ -164,7 +180,7 @@ def _delete_command(ui, panel):
 def start(context=None):
     import adsk.core  # type: ignore[import-not-found]
 
-    from commands.gyroid_volume import execute_gyroid_volume
+    from commands.gyroid_volume import execute_tpms_volume
     from fusion.gyroid_volume_preview import GyroidVolumePreviewController
     from fusion.volume_mesh_builder import VolumeMeshBuilder
     from volume import (
@@ -172,6 +188,7 @@ def start(context=None):
         GeometryMode,
         GyroidVolumeRequest,
         PreviewQuality,
+        TPMSType,
         VOLUME_PARAMETER_DEFINITIONS,
         VolumeExecutionContext,
     )
@@ -197,6 +214,7 @@ def start(context=None):
             boundary_mode=BoundaryMode(values.pop("boundary_mode")),
             geometry_mode=GeometryMode(values.pop("geometry_mode")),
             preview_quality=PreviewQuality(values.pop("preview_quality")),
+            tpms_type=TPMSType(values.pop("tpms_type")),
             **values
         )
 
@@ -211,10 +229,11 @@ def start(context=None):
             else ""
         )
         app.log(
-            "{}{}\nResolution: {} × {} × {}\nSamples: {:,}\n"
+            "{}\nType: {}{}\nResolution: {} × {} × {}\nSamples: {:,}\n"
             "Faces: {:,}\nCore generation: {:.3f}s\n"
             "Fusion insertion: {:.3f}s\nTotal: {:.3f}s".format(
                 label,
+                _TYPE_DISPLAY_NAMES[estimate.tpms_type.value],
                 quality,
                 resolution[0],
                 resolution[1],
@@ -240,14 +259,14 @@ def start(context=None):
                 )
                 self.controller.cleanup()
                 insertion = []
-                result, body = execute_gyroid_volume(
+                result, body = execute_tpms_volume(
                     request,
                     VolumeMeshBuilder().build,
-                    FINAL_NAME,
+                    _body_name(request.tpms_type, False),
                     insertion.append,
                 )
                 log_completion(
-                    "Gyroid Volume Apply — {!r}".format(body.name),
+                    "TPMS Volume Apply — {!r}".format(body.name),
                     result,
                     insertion[0],
                 )
@@ -255,8 +274,8 @@ def start(context=None):
                 self.controller.cleanup()
                 app.log(traceback.format_exc())
                 ui.messageBox(
-                    "Gyroid Volume failed: {}".format(error),
-                    "Gyroid Volume",
+                    "TPMS Volume failed: {}".format(error),
+                    "TPMS Volume",
                 )
 
     class InputChangedHandler(adsk.core.InputChangedEventHandler):
@@ -311,14 +330,14 @@ def start(context=None):
 
                 def create():
                     insertion = []
-                    result, body = execute_gyroid_volume(
+                    result, body = execute_tpms_volume(
                         request,
                         VolumeMeshBuilder().build,
-                        PREVIEW_NAME,
+                        _body_name(request.tpms_type, True),
                         insertion.append,
                     )
                     log_completion(
-                        "Gyroid Volume Preview", result, insertion[0]
+                        "TPMS Volume Preview", result, insertion[0]
                     )
                     return body
 
@@ -328,7 +347,7 @@ def start(context=None):
                 app.log(traceback.format_exc())
                 ui.messageBox(
                     "Preview failed: {}".format(error),
-                    "Gyroid Volume Preview",
+                    "TPMS Volume Preview",
                 )
 
     class ValidateHandler(adsk.core.ValidateInputsEventHandler):

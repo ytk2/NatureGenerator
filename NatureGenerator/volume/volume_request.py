@@ -1,4 +1,4 @@
-"""Validated immutable request and metadata for Gyroid Volume generation."""
+"""Validated immutable request and metadata for TPMS Volume generation."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -26,6 +26,13 @@ class PreviewQuality(Enum):
     DRAFT = "draft"
     STANDARD = "standard"
     FINAL = "final"
+
+
+class TPMSType(Enum):
+    GYROID = "gyroid"
+    SCHWARZ_P = "schwarz_p"
+    DIAMOND = "diamond"
+    NEOVIUS = "neovius"
 
 
 @dataclass(frozen=True)
@@ -110,6 +117,18 @@ VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
         ),
     ),
     VolumeParameterDefinition(
+        "tpms_type",
+        "TPMS Type",
+        "enum",
+        "gyroid",
+        choices=(
+            ("gyroid", "Gyroid"),
+            ("schwarz_p", "Schwarz P"),
+            ("diamond", "Diamond"),
+            ("neovius", "Neovius"),
+        ),
+    ),
+    VolumeParameterDefinition(
         "geometry_mode",
         "Geometry Mode",
         "enum",
@@ -150,6 +169,7 @@ VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
 @dataclass(frozen=True)
 class GyroidVolumeRequest:
     preview_quality: PreviewQuality = PreviewQuality.STANDARD
+    tpms_type: TPMSType = TPMSType.GYROID
     geometry_mode: GeometryMode = GeometryMode.SURFACE
     wall_thickness: float = 1.0
     width: float = 60.0
@@ -172,6 +192,7 @@ class GyroidVolumeRequest:
             raw = getattr(self, definition.parameter_id)
             enum_type = {
                 "preview_quality": PreviewQuality,
+                "tpms_type": TPMSType,
                 "geometry_mode": GeometryMode,
                 "boundary_mode": BoundaryMode,
             }.get(definition.parameter_id)
@@ -205,6 +226,7 @@ class GyroidVolumeRequest:
         for name, value in values.items():
             enum_type = {
                 "preview_quality": PreviewQuality,
+                "tpms_type": TPMSType,
                 "geometry_mode": GeometryMode,
                 "boundary_mode": BoundaryMode,
             }.get(name)
@@ -225,3 +247,8 @@ class GyroidVolumeRequest:
     @property
     def maximum(self) -> Tuple[float, float, float]:
         return (self.width * 0.5, self.depth * 0.5, self.height * 0.5)
+
+
+# Backward-compatible default-Gyroid request name and generalized TPMS name
+# intentionally share one immutable implementation.
+TPMSVolumeRequest = GyroidVolumeRequest
