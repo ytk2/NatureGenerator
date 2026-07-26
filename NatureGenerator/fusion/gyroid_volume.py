@@ -171,6 +171,7 @@ def start(context=None):
         BoundaryMode,
         GeometryMode,
         GyroidVolumeRequest,
+        PreviewQuality,
         VOLUME_PARAMETER_DEFINITIONS,
         VolumeExecutionContext,
     )
@@ -195,7 +196,35 @@ def start(context=None):
             execution_context=execution_context,
             boundary_mode=BoundaryMode(values.pop("boundary_mode")),
             geometry_mode=GeometryMode(values.pop("geometry_mode")),
+            preview_quality=PreviewQuality(values.pop("preview_quality")),
             **values
+        )
+
+    def log_completion(label, result, insertion_time):
+        estimate = result.cost_estimate
+        resolution = estimate.effective_resolution
+        quality = (
+            "\nQuality: {}".format(
+                estimate.preview_quality.value.title()
+            )
+            if estimate.preview_quality is not None
+            else ""
+        )
+        app.log(
+            "{}{}\nResolution: {} × {} × {}\nSamples: {:,}\n"
+            "Faces: {:,}\nCore generation: {:.3f}s\n"
+            "Fusion insertion: {:.3f}s\nTotal: {:.3f}s".format(
+                label,
+                quality,
+                resolution[0],
+                resolution[1],
+                resolution[2],
+                estimate.total_scalar_samples,
+                result.statistics.face_count,
+                result.timings.total_core,
+                insertion_time,
+                result.timings.total_core + insertion_time,
+            )
         )
 
     class ExecuteHandler(adsk.core.CommandEventHandler):
@@ -210,17 +239,17 @@ def start(context=None):
                     self.parameter_inputs, VolumeExecutionContext.APPLY
                 )
                 self.controller.cleanup()
+                insertion = []
                 result, body = execute_gyroid_volume(
-                    request, VolumeMeshBuilder().build, FINAL_NAME
+                    request,
+                    VolumeMeshBuilder().build,
+                    FINAL_NAME,
+                    insertion.append,
                 )
-                app.log(
-                    "Gyroid Volume created {!r}: {} vertices, {} faces, "
-                    "{:.3f}s".format(
-                        body.name,
-                        result.statistics.vertex_count,
-                        result.statistics.face_count,
-                        result.elapsed_time,
-                    )
+                log_completion(
+                    "Gyroid Volume Apply — {!r}".format(body.name),
+                    result,
+                    insertion[0],
                 )
             except Exception as error:
                 self.controller.cleanup()
@@ -281,16 +310,15 @@ def start(context=None):
                 )
 
                 def create():
+                    insertion = []
                     result, body = execute_gyroid_volume(
-                        request, VolumeMeshBuilder().build, PREVIEW_NAME
+                        request,
+                        VolumeMeshBuilder().build,
+                        PREVIEW_NAME,
+                        insertion.append,
                     )
-                    app.log(
-                        "Gyroid Volume preview: {} vertices, {} faces, "
-                        "{:.3f}s".format(
-                            result.statistics.vertex_count,
-                            result.statistics.face_count,
-                            result.elapsed_time,
-                        )
+                    log_completion(
+                        "Gyroid Volume Preview", result, insertion[0]
                     )
                     return body
 

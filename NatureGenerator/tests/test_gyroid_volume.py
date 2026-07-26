@@ -28,6 +28,7 @@ from volume import (
     VOLUME_PARAMETER_DEFINITIONS,
     VOLUME_PREVIEW_MAX_SAMPLES,
     VolumeExecutionContext,
+    PreviewQuality,
     VolumeSafetyLimitError,
     enforce_volume_sample_limit,
     estimate_volume_size,
@@ -80,7 +81,18 @@ class GyroidVolumeRequestTests(unittest.TestCase):
             item.parameter_id: item
             for item in VOLUME_PARAMETER_DEFINITIONS
         }
-        self.assertEqual(len(definitions), 14)
+        self.assertEqual(len(definitions), 15)
+        self.assertEqual(
+            definitions["preview_quality"].choices,
+            (
+                ("draft", "Draft"),
+                ("standard", "Standard"),
+                ("final", "Final"),
+            ),
+        )
+        self.assertEqual(
+            definitions["preview_quality"].default_value, "standard"
+        )
         self.assertEqual(
             definitions["geometry_mode"].choices,
             (("surface", "Surface"), ("thickened", "Thickened")),
@@ -179,6 +191,7 @@ class VolumeSafetyPolicyTests(unittest.TestCase):
             resolution_y=100,
             resolution_z=100,
             execution_context=VolumeExecutionContext.PREVIEW,
+            preview_quality=PreviewQuality.FINAL,
         )
         with patch("volume.VoxelGrid.sample") as sample:
             with self.assertRaises(VolumeSafetyLimitError):
@@ -327,6 +340,7 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
         self.assertEqual(values["phase_x"], 0.0)
         self.assertEqual(values["boundary_mode"], "open")
         self.assertEqual(values["geometry_mode"], "surface")
+        self.assertEqual(values["preview_quality"], "standard")
 
     def test_apply_inserts_exactly_one_final_mesh(self):
         inserted = []
@@ -425,6 +439,18 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
                 )
                 self.assertEqual(len(bodies), 1)
                 self.assertFalse(bodies[0].deleted)
+
+                preview_quality = command.commandInputs.items[
+                    volume_runtime._parameter_input_id("preview_quality")
+                ]
+                preview_quality.selectedItem = next(
+                    item for item in preview_quality.listItems.items
+                    if item.name == "Draft"
+                )
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=preview_quality)
+                )
+                self.assertTrue(bodies[0].deleted)
 
                 phase_values = {
                     "phase_x": 0.31,

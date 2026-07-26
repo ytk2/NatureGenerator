@@ -115,6 +115,15 @@ Fusion's `Gyroid Volume` command has a separate definition, metadata-driven
 inputs, Preview owner, final insertion, and stop cleanup. No source body is
 selected or modified.
 
+Sprint 37 inserts a Fusion-independent effective-resolution policy and
+immutable cost estimate before allocation. Preview scales each axis from the
+retained final resolution; Apply always selects final resolution. Central
+safety checks consume the same effective resolution as sampling. Results carry
+immutable per-stage core timings, while the command boundary measures Fusion
+MeshBody insertion separately. Intermediate caching is deferred because Cap
+requires retaining scalar grids—two for Thickened mode—and needs a broader
+bounded-memory ownership design.
+
 ### Nature presets (`presets/`)
 
 Defines the stable user-facing vocabulary of natural forms. Each immutable

@@ -21,10 +21,12 @@ def validate_wall_thickness_resolution(request, estimate) -> float:
 
     if request.geometry_mode is GeometryMode.SURFACE:
         return request.wall_thickness
-    spacing = (
-        request.width / (request.resolution_x - 1),
-        request.depth / (request.resolution_y - 1),
-        request.height / (request.resolution_z - 1),
+    resolution = getattr(estimate, "effective_resolution", request.resolution)
+    spacing = tuple(
+        dimension / (axis - 1)
+        for dimension, axis in zip(
+            (request.width, request.depth, request.height), resolution
+        )
     )
     minimum_reliable = max(spacing) / 16.0
     if request.wall_thickness < minimum_reliable:
@@ -35,11 +37,15 @@ def validate_wall_thickness_resolution(request, estimate) -> float:
             "resolution. The request would sample {:,} values.".format(
                 request.wall_thickness,
                 request.period,
-                request.resolution_x,
-                request.resolution_y,
-                request.resolution_z,
+                resolution[0],
+                resolution[1],
+                resolution[2],
                 minimum_reliable,
-                estimate.sample_count,
+                (
+                    estimate.scalar_samples_per_field
+                    if hasattr(estimate, "scalar_samples_per_field")
+                    else estimate.sample_count
+                ),
             )
         )
     return request.wall_thickness
@@ -48,53 +54,69 @@ def validate_wall_thickness_resolution(request, estimate) -> float:
 def validate_volume_request_size(request):
     """Validate allocation cost with thickened-request context when relevant."""
 
-    try:
-        estimate = validate_volume_size(
-            request.resolution_x,
-            request.resolution_y,
-            request.resolution_z,
-            request.execution_context,
-        )
-    except VolumeSafetyLimitError as error:
-        if request.geometry_mode is GeometryMode.SURFACE:
-            raise
+    from .cost_estimate import estimate_volume_cost
+
+    cost = estimate_volume_cost(request)
+    validate_volume_cost(request, cost)
+    return VolumeSizeEstimate(
+        cost.scalar_samples_per_field,
+        cost.cell_count,
+        cost.estimated_scalar_grid_bytes,
+    )
+
+
+def _resolution_text(resolution) -> str:
+    return "{} × {} × {}".format(*resolution)
+
+
+def validate_volume_cost(request, estimate):
+    """Reject estimated effective work before allocating scalar grids."""
+
+    operation = (
+        "Preview"
+        if request.execution_context is VolumeExecutionContext.PREVIEW
+        else "Apply"
+    )
+    quality = (
+        " ({})".format(request.preview_quality.value.title())
+        if request.execution_context is VolumeExecutionContext.PREVIEW
+        else ""
+    )
+    if estimate.total_scalar_samples > estimate.active_sample_limit:
         raise VolumeSafetyLimitError(
-            "Geometry Mode Thickened with Wall Thickness {:.6g} mm, Period "
-            "{:.6g} mm, and resolution {} × {} × {} exceeds the volume "
-            "safety policy: {}".format(
-                request.wall_thickness,
-                request.period,
-                request.resolution_x,
-                request.resolution_y,
-                request.resolution_z,
-                error,
+            "{}{} requested final resolution {} and effective resolution {}. "
+            "The request needs {:,} scalar samples (approximately {:.2f} MiB "
+            "of scalar-grid payload), exceeding the active limit of {:,}. "
+            "Reduce the final resolution or choose a lower Preview Quality."
+            .format(
+                operation,
+                quality,
+                _resolution_text(estimate.final_resolution),
+                _resolution_text(estimate.effective_resolution),
+                estimate.total_scalar_samples,
+                estimate.estimated_known_bytes / (1024.0 * 1024.0),
+                estimate.active_sample_limit,
             )
-        ) from error
-    if request.geometry_mode is GeometryMode.THICKENED:
-        effective_samples = estimate.sample_count * 2
-        try:
-            enforce_volume_sample_limit(
-                effective_samples,
-                request.resolution,
-                request.execution_context,
+        )
+    if (
+        estimate.estimated_cap_triangles
+        > estimate.active_cap_triangle_limit
+    ):
+        raise VolumeSafetyLimitError(
+            "{}{} requested final resolution {} and effective resolution {}. "
+            "Boundary closure may require up to {:,} triangles, exceeding the "
+            "active cap limit of {:,}. The request uses {:,} scalar samples "
+            "(approximately {:.2f} MiB of known grid payload). Reduce the "
+            "final resolution or choose a lower Preview Quality.".format(
+                operation,
+                quality,
+                _resolution_text(estimate.final_resolution),
+                _resolution_text(estimate.effective_resolution),
+                estimate.estimated_cap_triangles,
+                estimate.active_cap_triangle_limit,
+                estimate.total_scalar_samples,
+                estimate.estimated_known_bytes / (1024.0 * 1024.0),
             )
-        except VolumeSafetyLimitError as error:
-            raise VolumeSafetyLimitError(
-                "Geometry Mode Thickened requires two scalar grids for Wall "
-                "Thickness {:.6g} mm, Period {:.6g} mm, and resolution {} × {} "
-                "× {}: {}".format(
-                    request.wall_thickness,
-                    request.period,
-                    request.resolution_x,
-                    request.resolution_y,
-                    request.resolution_z,
-                    error,
-                )
-            ) from error
-        return VolumeSizeEstimate(
-            estimate.sample_count,
-            estimate.cell_count,
-            estimate.scalar_bytes * 2,
         )
     return estimate
 

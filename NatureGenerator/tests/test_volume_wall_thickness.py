@@ -11,6 +11,7 @@ from volume import (
     GyroidVolumeRequest,
     ThickenedGyroidField,
     VolumeExecutionContext,
+    PreviewQuality,
     VolumeSafetyLimitError,
     generate_gyroid_volume,
 )
@@ -134,6 +135,7 @@ class WallThicknessValidationTests(unittest.TestCase):
             resolution_y=100,
             resolution_z=100,
             execution_context=VolumeExecutionContext.PREVIEW,
+            preview_quality=PreviewQuality.FINAL,
         )
         with patch("volume.VoxelGrid.sample") as sample:
             with self.assertRaises(VolumeSafetyLimitError):
@@ -147,10 +149,11 @@ class WallThicknessValidationTests(unittest.TestCase):
             resolution_y=80,
             resolution_z=50,
             execution_context=VolumeExecutionContext.PREVIEW,
+            preview_quality=PreviewQuality.FINAL,
         )
         with patch("volume.sample_thickened_band_grids") as sample:
             with self.assertRaisesRegex(
-                VolumeSafetyLimitError, "requires two scalar grids"
+                VolumeSafetyLimitError, "scalar samples"
             ):
                 generate_gyroid_volume(request)
             sample.assert_not_called()

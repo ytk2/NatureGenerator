@@ -270,6 +270,17 @@ See [SPRINT35_DESIGN.md](docs/SPRINT35_DESIGN.md).
 
 See [SPRINT36_DESIGN.md](docs/SPRINT36_DESIGN.md).
 
+**Sprint 37 — Gyroid Volume Preview Optimization**
+
+- add Draft, Standard, and Final metadata-driven Preview Quality
+- keep final resolution values independent from effective Preview resolution
+- add immutable pre-allocation cost estimates and effective-cost validation
+- add stage-level core timings and separate Fusion insertion measurement
+- preserve all Sprint 36 geometry digests and lifecycle behavior
+- defer scalar-grid cache retention pending bounded-memory ownership design
+
+See [SPRINT37_DESIGN.md](docs/SPRINT37_DESIGN.md).
+
 ## Candidate Future Work
 
 - additional Procedural Lab geometry operators and variable stack workflows
