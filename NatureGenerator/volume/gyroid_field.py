@@ -25,8 +25,21 @@ class GyroidVolumeField:
         if self.period <= 0.0:
             raise ValueError("period must be greater than zero")
 
+    @property
+    def type_id(self) -> str:
+        return "gyroid"
+
+    @property
+    def normalization_factor(self) -> float:
+        return 1.0
+
     def sample(self, x: float, y: float, z: float) -> float:
         gx, gy, gz = self.gyroid_coordinates(x, y, z)
+        return self.normalized_sample(gx, gy, gz)
+
+    def normalized_sample(self, gx: float, gy: float, gz: float) -> float:
+        """Evaluate the released raw Gyroid formula in normalized coordinates."""
+
         return (
             math.sin(gx) * math.cos(gy)
             + math.sin(gy) * math.cos(gz)
@@ -42,6 +55,9 @@ class GyroidVolumeField:
             scale * y + float(self.phase_y),
             scale * z + float(self.phase_z),
         )
+
+    def coordinates(self, x: float, y: float, z: float):
+        return self.gyroid_coordinates(x, y, z)
 
     def gradient(self, x: float, y: float, z: float):
         """Return the analytical world-space gradient in inverse millimetres."""

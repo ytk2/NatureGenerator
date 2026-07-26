@@ -8,6 +8,7 @@ from .cost_estimate import VolumeCostEstimate, estimate_volume_cost
 from .gyroid_field import GyroidVolumeField
 from .thickened_field import (
     ThickenedGyroidField,
+    ThickenedTPMSField,
     combine_wall_surfaces,
     sample_thickened_band_grids,
 )
@@ -46,11 +47,19 @@ from .volume_request import (
     GeometryMode,
     GyroidVolumeRequest,
     PreviewQuality,
+    TPMSType,
+    TPMSVolumeRequest,
     VOLUME_PARAMETER_DEFINITIONS,
     VolumeExecutionContext,
     VolumeParameterDefinition,
 )
-from .volume_result import GyroidVolumeResult
+from .volume_result import GyroidVolumeResult, TPMSVolumeResult
+from .tpms_field import (
+    AnalyticalTPMSField,
+    TPMSFieldFactory,
+    TPMS_NORMALIZATION_FACTORS,
+    TPMS_TYPE_ORDER,
+)
 from .resolution_policy import (
     PREVIEW_QUALITY_SCALES,
     VolumeResolutionSelection,
@@ -68,8 +77,8 @@ def canonical_volume_mesh_digest(mesh) -> str:
     ).hexdigest()
 
 
-def generate_gyroid_volume(request: GyroidVolumeRequest) -> GyroidVolumeResult:
-    """Generate one deterministic Surface or Thickened Gyroid volume mesh."""
+def generate_tpms_volume(request: TPMSVolumeRequest) -> TPMSVolumeResult:
+    """Generate one deterministic Surface or Thickened TPMS volume mesh."""
 
     if not isinstance(request, GyroidVolumeRequest):
         raise TypeError("request must be a GyroidVolumeRequest")
@@ -82,7 +91,8 @@ def generate_gyroid_volume(request: GyroidVolumeRequest) -> GyroidVolumeResult:
     effective_resolution = estimate.effective_resolution
 
     stage_started = time.perf_counter()
-    surface_field = GyroidVolumeField(
+    surface_field = TPMSFieldFactory.create(
+        request.tpms_type,
         request.period,
         request.phase_x,
         request.phase_y,
@@ -92,7 +102,7 @@ def generate_gyroid_volume(request: GyroidVolumeRequest) -> GyroidVolumeResult:
     extraction_iso_value = request.iso_value
     band_grids = None
     if request.geometry_mode is GeometryMode.THICKENED:
-        field = ThickenedGyroidField(
+        field = ThickenedTPMSField(
             surface_field, request.iso_value, request.wall_thickness
         )
         extraction_iso_value = 0.0
@@ -226,15 +236,29 @@ def generate_gyroid_volume(request: GyroidVolumeRequest) -> GyroidVolumeResult:
     )
 
 
+def generate_gyroid_volume(request: GyroidVolumeRequest) -> GyroidVolumeResult:
+    """Backward-compatible entry point using the shared TPMS pipeline."""
+
+    return generate_tpms_volume(request)
+
+
 __all__ = [
     "GyroidVolumeField",
     "BoundaryClosureError",
     "BoundaryMode",
     "GeometryMode",
     "PreviewQuality",
+    "TPMSType",
+    "TPMSVolumeRequest",
+    "TPMSVolumeResult",
     "GyroidVolumeRequest",
     "GyroidVolumeResult",
     "ThickenedGyroidField",
+    "ThickenedTPMSField",
+    "AnalyticalTPMSField",
+    "TPMSFieldFactory",
+    "TPMS_NORMALIZATION_FACTORS",
+    "TPMS_TYPE_ORDER",
     "Point3",
     "SCALAR_BYTES_PER_SAMPLE",
     "ScalarField",
@@ -260,6 +284,7 @@ __all__ = [
     "evaluate",
     "extract_isosurface",
     "generate_gyroid_volume",
+    "generate_tpms_volume",
     "validate_volume_size",
     "validate_volume_request_size",
     "validate_cap_complexity",

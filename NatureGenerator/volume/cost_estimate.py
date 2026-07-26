@@ -1,4 +1,4 @@
-"""Immutable, pre-allocation Gyroid Volume generation cost estimates."""
+"""Immutable, pre-allocation TPMS Volume generation cost estimates."""
 
 from dataclasses import dataclass
 from typing import Optional, Tuple
@@ -9,6 +9,7 @@ from .volume_request import (
     GeometryMode,
     GyroidVolumeRequest,
     PreviewQuality,
+    TPMSType,
     VolumeExecutionContext,
 )
 
@@ -34,6 +35,7 @@ class VolumeCostEstimate:
     execution_context: VolumeExecutionContext
     active_sample_limit: int
     active_cap_triangle_limit: int
+    tpms_type: TPMSType
 
     @property
     def estimated_known_bytes(self) -> int:
@@ -90,4 +92,5 @@ def estimate_volume_cost(request: GyroidVolumeRequest) -> VolumeCostEstimate:
             if preview
             else VOLUME_APPLY_MAX_CAP_TRIANGLES
         ),
+        tpms_type=request.tpms_type,
     )

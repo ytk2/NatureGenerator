@@ -129,7 +129,8 @@ class VolumeCostEstimateTests(unittest.TestCase):
         self.assertEqual(apply_estimate.effective_resolution, (160, 160, 160))
         with self.assertRaisesRegex(
             VolumeSafetyLimitError,
-            "Apply requested final resolution 160 × 160 × 160.*"
+            "Apply for TPMS Type gyroid.*"
+            "requested final resolution 160 × 160 × 160.*"
             "4,096,000 scalar samples.*active limit of 2,000,000",
         ):
             validate_volume_cost(apply, apply_estimate)

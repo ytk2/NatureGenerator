@@ -124,6 +124,15 @@ MeshBody insertion separately. Intermediate caching is deferred because Cap
 requires retaining scalar grids—two for Thickened mode—and needs a broader
 bounded-memory ownership design.
 
+Sprint 38 presents that command as **TPMS Volume** while retaining its stable
+Fusion command ID and toolbar location. `TPMSFieldFactory` resolves a stable
+type to the released `GyroidVolumeField` or a normalized analytical Schwarz P,
+Diamond, or Neovius field. The shared pipeline depends only on field sampling,
+world-gradient, period, and stable type identity. Compatibility request,
+result, command, and generation names delegate to this one implementation.
+Type participates in metadata, immutable cost estimates, diagnostics, body
+names, and safety context.
+
 ### Nature presets (`presets/`)
 
 Defines the stable user-facing vocabulary of natural forms. Each immutable

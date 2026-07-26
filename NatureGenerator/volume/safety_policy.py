@@ -82,15 +82,29 @@ def validate_volume_cost(request, estimate):
         if request.execution_context is VolumeExecutionContext.PREVIEW
         else ""
     )
+    context = (
+        "TPMS Type {}, Geometry Mode {}, Boundary Mode {}".format(
+            request.tpms_type.value,
+            request.geometry_mode.value,
+            request.boundary_mode.value,
+        )
+        + (
+            ", Wall Thickness {:.6g} mm".format(request.wall_thickness)
+            if request.geometry_mode is GeometryMode.THICKENED
+            else ""
+        )
+    )
     if estimate.total_scalar_samples > estimate.active_sample_limit:
         raise VolumeSafetyLimitError(
-            "{}{} requested final resolution {} and effective resolution {}. "
+            "{}{} for {} requested final resolution {} and effective "
+            "resolution {}. "
             "The request needs {:,} scalar samples (approximately {:.2f} MiB "
             "of scalar-grid payload), exceeding the active limit of {:,}. "
             "Reduce the final resolution or choose a lower Preview Quality."
             .format(
                 operation,
                 quality,
+                context,
                 _resolution_text(estimate.final_resolution),
                 _resolution_text(estimate.effective_resolution),
                 estimate.total_scalar_samples,
@@ -103,13 +117,15 @@ def validate_volume_cost(request, estimate):
         > estimate.active_cap_triangle_limit
     ):
         raise VolumeSafetyLimitError(
-            "{}{} requested final resolution {} and effective resolution {}. "
+            "{}{} for {} requested final resolution {} and effective "
+            "resolution {}. "
             "Boundary closure may require up to {:,} triangles, exceeding the "
             "active cap limit of {:,}. The request uses {:,} scalar samples "
             "(approximately {:.2f} MiB of known grid payload). Reduce the "
             "final resolution or choose a lower Preview Quality.".format(
                 operation,
                 quality,
+                context,
                 _resolution_text(estimate.final_resolution),
                 _resolution_text(estimate.effective_resolution),
                 estimate.estimated_cap_triangles,
