@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from .volume_request import VolumeExecutionContext
+from .volume_request import GeometryMode, VolumeExecutionContext
 
 
 VOLUME_PREVIEW_MAX_SAMPLES = 750_000
@@ -14,6 +14,89 @@ VOLUME_APPLY_MAX_CAP_TRIANGLES = 1_000_000
 
 class VolumeSafetyLimitError(ValueError):
     pass
+
+
+def validate_wall_thickness_resolution(request, estimate) -> float:
+    """Reject thickened requests that the regular grid cannot represent."""
+
+    if request.geometry_mode is GeometryMode.SURFACE:
+        return request.wall_thickness
+    spacing = (
+        request.width / (request.resolution_x - 1),
+        request.depth / (request.resolution_y - 1),
+        request.height / (request.resolution_z - 1),
+    )
+    minimum_reliable = max(spacing) / 16.0
+    if request.wall_thickness < minimum_reliable:
+        raise VolumeSafetyLimitError(
+            "Geometry Mode Thickened with Wall Thickness {:.6g} mm, Period "
+            "{:.6g} mm, and resolution {} × {} × {} is too thin for the "
+            "current voxel spacing. Use at least {:.6g} mm or increase the "
+            "resolution. The request would sample {:,} values.".format(
+                request.wall_thickness,
+                request.period,
+                request.resolution_x,
+                request.resolution_y,
+                request.resolution_z,
+                minimum_reliable,
+                estimate.sample_count,
+            )
+        )
+    return request.wall_thickness
+
+
+def validate_volume_request_size(request):
+    """Validate allocation cost with thickened-request context when relevant."""
+
+    try:
+        estimate = validate_volume_size(
+            request.resolution_x,
+            request.resolution_y,
+            request.resolution_z,
+            request.execution_context,
+        )
+    except VolumeSafetyLimitError as error:
+        if request.geometry_mode is GeometryMode.SURFACE:
+            raise
+        raise VolumeSafetyLimitError(
+            "Geometry Mode Thickened with Wall Thickness {:.6g} mm, Period "
+            "{:.6g} mm, and resolution {} × {} × {} exceeds the volume "
+            "safety policy: {}".format(
+                request.wall_thickness,
+                request.period,
+                request.resolution_x,
+                request.resolution_y,
+                request.resolution_z,
+                error,
+            )
+        ) from error
+    if request.geometry_mode is GeometryMode.THICKENED:
+        effective_samples = estimate.sample_count * 2
+        try:
+            enforce_volume_sample_limit(
+                effective_samples,
+                request.resolution,
+                request.execution_context,
+            )
+        except VolumeSafetyLimitError as error:
+            raise VolumeSafetyLimitError(
+                "Geometry Mode Thickened requires two scalar grids for Wall "
+                "Thickness {:.6g} mm, Period {:.6g} mm, and resolution {} × {} "
+                "× {}: {}".format(
+                    request.wall_thickness,
+                    request.period,
+                    request.resolution_x,
+                    request.resolution_y,
+                    request.resolution_z,
+                    error,
+                )
+            ) from error
+        return VolumeSizeEstimate(
+            estimate.sample_count,
+            estimate.cell_count,
+            estimate.scalar_bytes * 2,
+        )
+    return estimate
 
 
 def estimate_cap_triangles(
@@ -28,15 +111,19 @@ def estimate_cap_triangles(
     )
 
 
-def validate_cap_complexity(
-    resolution_x: int,
-    resolution_y: int,
-    resolution_z: int,
-    context: VolumeExecutionContext,
+def estimate_band_cap_triangles(
+    resolution_x: int, resolution_y: int, resolution_z: int
 ) -> int:
-    predicted = estimate_cap_triangles(
-        resolution_x, resolution_y, resolution_z
+    """Return a conservative bound for a two-inequality wall-band cap."""
+
+    return 6 * (
+        (resolution_x - 1) * (resolution_y - 1)
+        + (resolution_x - 1) * (resolution_z - 1)
+        + (resolution_y - 1) * (resolution_z - 1)
     )
+
+
+def _enforce_cap_complexity(predicted, context, label):
     limit = (
         VOLUME_PREVIEW_MAX_CAP_TRIANGLES
         if context is VolumeExecutionContext.PREVIEW
@@ -49,12 +136,40 @@ def validate_cap_complexity(
             else "Apply"
         )
         raise VolumeSafetyLimitError(
-            "Boundary Cap may require up to {:,} triangles, exceeding the {} "
-            "cap limit of {:,}. Reduce one or more resolution values.".format(
-                predicted, operation, limit
+            "{} may require up to {:,} triangles, exceeding the {} cap limit "
+            "of {:,}. Reduce one or more resolution values.".format(
+                label, predicted, operation, limit
             )
         )
     return predicted
+
+
+def validate_cap_complexity(
+    resolution_x: int,
+    resolution_y: int,
+    resolution_z: int,
+    context: VolumeExecutionContext,
+) -> int:
+    predicted = estimate_cap_triangles(
+        resolution_x, resolution_y, resolution_z
+    )
+    return _enforce_cap_complexity(
+        predicted, context, "Boundary Cap"
+    )
+
+
+def validate_band_cap_complexity(
+    resolution_x: int,
+    resolution_y: int,
+    resolution_z: int,
+    context: VolumeExecutionContext,
+) -> int:
+    predicted = estimate_band_cap_triangles(
+        resolution_x, resolution_y, resolution_z
+    )
+    return _enforce_cap_complexity(
+        predicted, context, "Thickened Boundary Cap"
+    )
 
 
 @dataclass(frozen=True)

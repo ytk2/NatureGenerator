@@ -416,3 +416,145 @@ def close_rectangular_boundary(
             )
         )
     return result
+
+
+def _clip_band_polygon(records, value_index):
+    output = []
+    previous_point, previous_values = records[-1]
+    previous_inside = previous_values[value_index] < 0.0
+    for current_point, current_values in records:
+        current_inside = current_values[value_index] < 0.0
+        if current_inside != previous_inside:
+            previous_value = previous_values[value_index]
+            current_value = current_values[value_index]
+            fraction = -previous_value / (current_value - previous_value)
+            point = tuple(
+                previous_point[axis]
+                + fraction * (current_point[axis] - previous_point[axis])
+                for axis in range(3)
+            )
+            values = tuple(
+                previous_values[index]
+                + fraction
+                * (current_values[index] - previous_values[index])
+                for index in range(2)
+            )
+            output.append((point, values))
+        if current_inside:
+            output.append((current_point, current_values))
+        previous_point, previous_values = current_point, current_values
+        previous_inside = current_inside
+    return output
+
+
+def close_rectangular_band_boundary(
+    mesh: TriangleMesh,
+    upper_grid: VoxelGrid,
+    lower_grid: VoxelGrid,
+) -> TriangleMesh:
+    """Close the intersection of two wall-side fields on the domain faces."""
+
+    if not isinstance(mesh, TriangleMesh):
+        raise TypeError("mesh must be a TriangleMesh")
+    if not isinstance(upper_grid, VoxelGrid) or not isinstance(
+        lower_grid, VoxelGrid
+    ):
+        raise TypeError("band grids must be VoxelGrid values")
+    if (
+        upper_grid.origin != lower_grid.origin
+        or upper_grid.spacing != lower_grid.spacing
+        or upper_grid.shape != lower_grid.shape
+    ):
+        raise ValueError("band grids must share bounds, spacing, and shape")
+    minimum = upper_grid.origin
+    maximum = tuple(
+        upper_grid.origin[axis]
+        + upper_grid.spacing[axis] * (upper_grid.shape[axis] - 1)
+        for axis in range(3)
+    )
+    tolerance = boundary_tolerance(upper_grid)
+    classified = classify_boundary_edges(
+        mesh, minimum, maximum, tolerance
+    )
+    _validate_boundary_topology(
+        mesh, classified, minimum, maximum, tolerance
+    )
+
+    vertices = list(mesh.vertices)
+    faces: List[Face] = list(mesh.faces)
+    cache: Dict[Tuple[int, int, int], List[int]] = defaultdict(list)
+
+    def key(point):
+        return tuple(int(round(value / tolerance)) for value in point)
+
+    for index, point in enumerate(vertices):
+        cache[key(point)].append(index)
+
+    def vertex_index(point):
+        point_key = key(point)
+        for index in cache.get(point_key, ()):
+            if all(
+                abs(vertices[index][axis] - point[axis]) <= tolerance
+                for axis in range(3)
+            ):
+                return index
+        index = len(vertices)
+        vertices.append(tuple(float(value) for value in point))
+        cache[point_key].append(index)
+        return index
+
+    area_epsilon_squared = tolerance ** 4
+    upper_triangles = _face_sample_triangles(upper_grid)
+    lower_triangles = _face_sample_triangles(lower_grid)
+    for upper_triangle, lower_triangle in zip(
+        upper_triangles, lower_triangles
+    ):
+        records = [
+            (
+                upper_item[0],
+                (upper_item[1], lower_item[1]),
+            )
+            for upper_item, lower_item in zip(
+                upper_triangle, lower_triangle
+            )
+        ]
+        polygon = _clip_band_polygon(records, 0)
+        if len(polygon) < 3:
+            continue
+        polygon = _clip_band_polygon(polygon, 1)
+        if len(polygon) < 3:
+            continue
+        indices = tuple(
+            vertex_index(record[0]) for record in polygon
+        )
+        for offset in range(1, len(indices) - 1):
+            face = (indices[0], indices[offset], indices[offset + 1])
+            if len(set(face)) < 3:
+                continue
+            a, b, c = (vertices[index] for index in face)
+            ab = tuple(b[axis] - a[axis] for axis in range(3))
+            ac = tuple(c[axis] - a[axis] for axis in range(3))
+            cross = (
+                ab[1] * ac[2] - ab[2] * ac[1],
+                ab[2] * ac[0] - ab[0] * ac[2],
+                ab[0] * ac[1] - ab[1] * ac[0],
+            )
+            if sum(value * value for value in cross) > area_epsilon_squared:
+                faces.append(face)
+
+    result = TriangleMesh(tuple(vertices), tuple(faces))
+    statistics = result.statistics()
+    if not statistics.is_watertight or not statistics.is_manifold:
+        raise BoundaryClosureError(
+            "rectangular wall-band closure did not produce a clean watertight "
+            "manifold: boundary={}, nonmanifold={}, winding={}, degenerate={}, "
+            "nonmanifold_vertices={}, duplicate_faces={}".format(
+                statistics.boundary_edge_count,
+                statistics.nonmanifold_edge_count,
+                statistics.inconsistent_winding_edge_count,
+                statistics.degenerate_face_count,
+                statistics.nonmanifold_vertex_count,
+                statistics.duplicate_face_count,
+            )
+        )
+    return result

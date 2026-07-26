@@ -26,14 +26,41 @@ class GyroidVolumeField:
             raise ValueError("period must be greater than zero")
 
     def sample(self, x: float, y: float, z: float) -> float:
-        scale = (2.0 * math.pi) / float(self.period)
-        gx = scale * x + float(self.phase_x)
-        gy = scale * y + float(self.phase_y)
-        gz = scale * z + float(self.phase_z)
+        gx, gy, gz = self.gyroid_coordinates(x, y, z)
         return (
             math.sin(gx) * math.cos(gy)
             + math.sin(gy) * math.cos(gz)
             + math.sin(gz) * math.cos(gx)
+        )
+
+    def gyroid_coordinates(self, x: float, y: float, z: float):
+        """Map world millimetres to dimensionless Gyroid coordinates."""
+
+        scale = (2.0 * math.pi) / float(self.period)
+        return (
+            scale * x + float(self.phase_x),
+            scale * y + float(self.phase_y),
+            scale * z + float(self.phase_z),
+        )
+
+    def gradient(self, x: float, y: float, z: float):
+        """Return the analytical world-space gradient in inverse millimetres."""
+
+        gx, gy, gz = self.gyroid_coordinates(x, y, z)
+        scale = (2.0 * math.pi) / float(self.period)
+        return (
+            scale * (
+                math.cos(gx) * math.cos(gy)
+                - math.sin(gz) * math.sin(gx)
+            ),
+            scale * (
+                -math.sin(gx) * math.sin(gy)
+                + math.cos(gy) * math.cos(gz)
+            ),
+            scale * (
+                -math.sin(gy) * math.sin(gz)
+                + math.cos(gz) * math.cos(gx)
+            ),
         )
 
     def __call__(self, x: float, y: float, z: float) -> float:
