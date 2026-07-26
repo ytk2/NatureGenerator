@@ -48,9 +48,11 @@ def run(context):
         _bootstrap_addin_path()
         from fusion.runtime import start
         from fusion.procedural_runtime import start as start_procedural
+        from fusion.gyroid_volume import start as start_volume
 
         start(context)
         start_procedural(context)
+        start_volume(context)
     except Exception:
         details = traceback.format_exc()
         _report_failure("NatureGenerator Startup Error", details)
@@ -63,13 +65,19 @@ def stop(context):
         _bootstrap_addin_path()
         from fusion.runtime import stop
         from fusion.procedural_runtime import stop as stop_procedural
+        from fusion.gyroid_volume import stop as stop_volume
 
         try:
             stop(context)
         finally:
-            # Procedural previews must still be released if teardown of the
-            # independent Nature Library command reports an error.
-            stop_procedural(context)
+            try:
+                # Procedural previews must still be released if teardown of the
+                # independent Nature Library command reports an error.
+                stop_procedural(context)
+            finally:
+                # Volume previews remain independently owned and must always
+                # be released even if another product surface fails to stop.
+                stop_volume(context)
     except Exception:
         details = traceback.format_exc()
         _report_failure("NatureGenerator Stop Error", details)

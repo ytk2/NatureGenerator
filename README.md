@@ -68,6 +68,13 @@ and works in every stack slot. This is not volumetric gyroid infill and does
 not create holes or replace the source volume. See
 [`docs/SPRINT33_DESIGN.md`](docs/SPRINT33_DESIGN.md).
 
+Sprint 34 adds **Gyroid Volume** as a third independent command. It samples the
+analytical Gyroid field inside a centered rectangular voxel domain and extracts
+an indexed iso-surface with deterministic marching tetrahedra. The MVP is an
+open zero-thickness surface clipped at the requested bounds; it is not a
+watertight solid or a deformation of user geometry. See
+[`docs/SPRINT34_DESIGN.md`](docs/SPRINT34_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all
@@ -111,6 +118,8 @@ shutdown diagnostics. Command orchestration delegates to the adapter boundary.
 - `generators/`: procedural form generation algorithms.
 - `procedural/`: Fusion-independent selected-geometry contracts, analytical
   fields, registry-driven operators, and ordered pipeline.
+- `volume/`: Fusion-independent scalar-volume requests, safety policy, Gyroid
+  field sampling, iso-surface extraction, and measured results.
 - `presets/`: user-facing natural-form definitions and availability metadata.
 - `preset_catalog.py`: application composition of presets and optional Family
   registries.

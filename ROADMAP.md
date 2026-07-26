@@ -236,9 +236,21 @@ See [SPRINT32_DESIGN.md](docs/SPRINT32_DESIGN.md).
 
 See [SPRINT33_DESIGN.md](docs/SPRINT33_DESIGN.md).
 
+**Sprint 34 — TPMS Gyroid Volume Foundation**
+
+- add a third independent Gyroid Volume Fusion command
+- sample a deterministic analytical Gyroid field in a rectangular voxel domain
+- extract an indexed surface through the existing marching-tetrahedra core
+- report the MVP accurately as open at the bounds
+- enforce distinct Preview and Apply scalar-sample limits before allocation
+- preserve Gyroid Surface, Procedural Lab, and Nature Library behavior
+
+See [SPRINT34_DESIGN.md](docs/SPRINT34_DESIGN.md).
+
 ## Candidate Future Work
 
 - additional Procedural Lab geometry operators and variable stack workflows
+- watertight capping or thickened-wall TPMS volume generation
 
 - Dedicated Utilities > Nature Generator panel
 - Command icon and resource assets
