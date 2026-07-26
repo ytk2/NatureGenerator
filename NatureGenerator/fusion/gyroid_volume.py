@@ -117,6 +117,35 @@ def _read_parameter_values(parameter_inputs, definitions):
     return values
 
 
+def _selected_enum_value(control, definition):
+    selected = control.selectedItem
+    if selected is None:
+        return None
+    labels = {
+        display_name: value
+        for value, display_name in definition.choices
+    }
+    return labels.get(selected.name)
+
+
+def _update_parameter_visibility(parameter_inputs, definitions):
+    """Apply generic metadata visibility without resetting control values."""
+
+    by_id = {
+        definition.parameter_id: definition for definition in definitions
+    }
+    for definition in definitions:
+        visible = True
+        if definition.visible_when:
+            source_id, allowed_values = definition.visible_when
+            source_definition = by_id[source_id]
+            source_value = _selected_enum_value(
+                parameter_inputs[source_id], source_definition
+            )
+            visible = source_value in allowed_values
+        parameter_inputs[definition.parameter_id].isVisible = visible
+
+
 def _panel(ui, workspace):
     global_panels = getattr(ui, "allToolbarPanels", None)
     found = global_panels.itemById(PANEL_ID) if global_panels else None
@@ -140,6 +169,7 @@ def start(context=None):
     from fusion.volume_mesh_builder import VolumeMeshBuilder
     from volume import (
         BoundaryMode,
+        GeometryMode,
         GyroidVolumeRequest,
         VOLUME_PARAMETER_DEFINITIONS,
         VolumeExecutionContext,
@@ -164,6 +194,7 @@ def start(context=None):
         return GyroidVolumeRequest(
             execution_context=execution_context,
             boundary_mode=BoundaryMode(values.pop("boundary_mode")),
+            geometry_mode=GeometryMode(values.pop("geometry_mode")),
             **values
         )
 
@@ -220,6 +251,9 @@ def start(context=None):
             ):
                 return
             self.controller.cleanup()
+            _update_parameter_visibility(
+                self.parameter_inputs, VOLUME_PARAMETER_DEFINITIONS
+            )
             try:
                 read_request(
                     self.parameter_inputs, VolumeExecutionContext.PREVIEW
@@ -302,6 +336,9 @@ def start(context=None):
             inputs = command.commandInputs
             parameter_inputs = _create_parameter_inputs(
                 inputs, adsk.core, VOLUME_PARAMETER_DEFINITIONS
+            )
+            _update_parameter_visibility(
+                parameter_inputs, VOLUME_PARAMETER_DEFINITIONS
             )
             preview_input = inputs.addBoolValueInput(
                 PREVIEW_INPUT_ID, "Preview", False, "", False

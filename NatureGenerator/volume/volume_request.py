@@ -17,6 +17,11 @@ class BoundaryMode(Enum):
     CAP = "cap"
 
 
+class GeometryMode(Enum):
+    SURFACE = "surface"
+    THICKENED = "thickened"
+
+
 @dataclass(frozen=True)
 class VolumeParameterDefinition:
     parameter_id: str
@@ -27,6 +32,7 @@ class VolumeParameterDefinition:
     maximum: Any = None
     unit: str = ""
     choices: Tuple[Tuple[str, str], ...] = ()
+    visible_when: Tuple[str, Tuple[str, ...]] = ()
 
     def __post_init__(self) -> None:
         if re.fullmatch(r"[a-z][a-z0-9_]*", self.parameter_id) is None:
@@ -37,6 +43,15 @@ class VolumeParameterDefinition:
             raise ValueError("unsupported volume parameter type")
         if self.value_type == "enum" and not self.choices:
             raise ValueError("enum parameters require choices")
+        if self.visible_when:
+            if (
+                len(self.visible_when) != 2
+                or re.fullmatch(
+                    r"[a-z][a-z0-9_]*", self.visible_when[0]
+                ) is None
+                or not self.visible_when[1]
+            ):
+                raise ValueError("visible_when must name a parameter and values")
         self.validate(self.default_value)
 
     def validate(self, value: Any) -> Any:
@@ -77,6 +92,23 @@ class VolumeParameterDefinition:
 
 
 VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
+    VolumeParameterDefinition(
+        "geometry_mode",
+        "Geometry Mode",
+        "enum",
+        "surface",
+        choices=(("surface", "Surface"), ("thickened", "Thickened")),
+    ),
+    VolumeParameterDefinition(
+        "wall_thickness",
+        "Wall Thickness",
+        "length",
+        1.0,
+        0.1,
+        20.0,
+        "mm",
+        visible_when=("geometry_mode", ("thickened",)),
+    ),
     VolumeParameterDefinition("width", "Width", "length", 60.0, 1.0, 500.0, "mm"),
     VolumeParameterDefinition("depth", "Depth", "length", 60.0, 1.0, 500.0, "mm"),
     VolumeParameterDefinition("height", "Height", "length", 60.0, 1.0, 500.0, "mm"),
@@ -100,6 +132,8 @@ VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
 
 @dataclass(frozen=True)
 class GyroidVolumeRequest:
+    geometry_mode: GeometryMode = GeometryMode.SURFACE
+    wall_thickness: float = 1.0
     width: float = 60.0
     depth: float = 60.0
     height: float = 60.0
@@ -118,20 +152,46 @@ class GyroidVolumeRequest:
         values = {}
         for definition in VOLUME_PARAMETER_DEFINITIONS:
             raw = getattr(self, definition.parameter_id)
-            if definition.parameter_id == "boundary_mode":
-                if not isinstance(raw, BoundaryMode):
-                    raise TypeError("boundary_mode must be a BoundaryMode")
+            enum_type = {
+                "geometry_mode": GeometryMode,
+                "boundary_mode": BoundaryMode,
+            }.get(definition.parameter_id)
+            if enum_type is not None:
+                if not isinstance(raw, enum_type):
+                    raise TypeError(
+                        "{} must be a {}".format(
+                            definition.parameter_id, enum_type.__name__
+                        )
+                    )
                 raw = raw.value
-            values[definition.parameter_id] = definition.validate(raw)
+            if (
+                definition.parameter_id == "wall_thickness"
+                and self.geometry_mode is GeometryMode.SURFACE
+            ):
+                if (
+                    isinstance(raw, bool)
+                    or not isinstance(raw, (int, float))
+                    or not math.isfinite(float(raw))
+                ):
+                    raise ValueError(
+                        "Wall Thickness must be a finite number"
+                    )
+                values[definition.parameter_id] = float(raw)
+            else:
+                values[definition.parameter_id] = definition.validate(raw)
         if not isinstance(self.execution_context, VolumeExecutionContext):
             raise TypeError(
                 "execution_context must be a VolumeExecutionContext"
             )
         for name, value in values.items():
+            enum_type = {
+                "geometry_mode": GeometryMode,
+                "boundary_mode": BoundaryMode,
+            }.get(name)
             object.__setattr__(
                 self,
                 name,
-                BoundaryMode(value) if name == "boundary_mode" else value,
+                enum_type(value) if enum_type is not None else value,
             )
 
     @property

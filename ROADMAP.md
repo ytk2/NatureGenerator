@@ -258,10 +258,22 @@ See [SPRINT34_DESIGN.md](docs/SPRINT34_DESIGN.md).
 
 See [SPRINT35_DESIGN.md](docs/SPRINT35_DESIGN.md).
 
+**Sprint 36 — Gyroid Volume Wall Thickness**
+
+- preserve exact Sprint 35 Surface+Open and Surface+Cap output
+- add metadata-driven Surface and Thickened geometry modes
+- map physical Wall Thickness through the analytical world-space gradient
+- extract paired scalar-field wall boundaries without mesh-normal offsets
+- close the Thickened wall region through two-inequality boundary clipping
+- account for paired scalar storage and cap complexity before allocation
+- validate capped output through measured topology and signed volume
+
+See [SPRINT36_DESIGN.md](docs/SPRINT36_DESIGN.md).
+
 ## Candidate Future Work
 
 - additional Procedural Lab geometry operators and variable stack workflows
-- thickened-wall TPMS generation and optional BRep conversion
+- optional TPMS BRep conversion, remeshing, and print analysis
 
 - Dedicated Utilities > Nature Generator panel
 - Command icon and resource assets

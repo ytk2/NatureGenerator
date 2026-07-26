@@ -10,6 +10,7 @@ from commands.gyroid_volume import execute_gyroid_volume
 from fusion.gyroid_volume import (
     _create_parameter_inputs,
     _read_parameter_values,
+    _update_parameter_visibility,
 )
 from fusion.gyroid_volume_preview import GyroidVolumePreviewController
 from fusion import gyroid_volume as volume_runtime
@@ -20,6 +21,7 @@ from tests.test_fusion_integration import (
 )
 from volume import (
     BoundaryMode,
+    GeometryMode,
     GyroidVolumeField,
     GyroidVolumeRequest,
     VOLUME_APPLY_MAX_SAMPLES,
@@ -78,7 +80,19 @@ class GyroidVolumeRequestTests(unittest.TestCase):
             item.parameter_id: item
             for item in VOLUME_PARAMETER_DEFINITIONS
         }
-        self.assertEqual(len(definitions), 12)
+        self.assertEqual(len(definitions), 14)
+        self.assertEqual(
+            definitions["geometry_mode"].choices,
+            (("surface", "Surface"), ("thickened", "Thickened")),
+        )
+        self.assertEqual(definitions["geometry_mode"].default_value, "surface")
+        self.assertEqual(definitions["wall_thickness"].default_value, 1.0)
+        self.assertEqual(definitions["wall_thickness"].minimum, 0.1)
+        self.assertEqual(definitions["wall_thickness"].maximum, 20.0)
+        self.assertEqual(
+            definitions["wall_thickness"].visible_when,
+            ("geometry_mode", ("thickened",)),
+        )
         self.assertEqual(definitions["width"].default_value, 60.0)
         self.assertEqual(definitions["period"].unit, "mm")
         self.assertEqual(definitions["iso_value"].minimum, -1.5)
@@ -96,6 +110,7 @@ class GyroidVolumeRequestTests(unittest.TestCase):
         self.assertEqual(value.maximum, (30.0, 30.0, 30.0))
         self.assertEqual(value.resolution, (40, 40, 40))
         self.assertIs(value.boundary_mode, BoundaryMode.OPEN)
+        self.assertIs(value.geometry_mode, GeometryMode.SURFACE)
         with self.assertRaisesRegex(ValueError, "Width"):
             GyroidVolumeRequest(width=0.0)
         with self.assertRaisesRegex(ValueError, "Resolution X"):
@@ -294,10 +309,24 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
         values = _read_parameter_values(
             controls, VOLUME_PARAMETER_DEFINITIONS
         )
+        _update_parameter_visibility(
+            controls, VOLUME_PARAMETER_DEFINITIONS
+        )
+        self.assertFalse(controls["wall_thickness"].isVisible)
+        controls["geometry_mode"].selectedItem = next(
+            item for item in controls["geometry_mode"].listItems.items
+            if item.name == "Thickened"
+        )
+        _update_parameter_visibility(
+            controls, VOLUME_PARAMETER_DEFINITIONS
+        )
+        self.assertTrue(controls["wall_thickness"].isVisible)
+        self.assertEqual(controls["wall_thickness"].value, 0.1)
         self.assertEqual(values["width"], 60.0)
         self.assertEqual(values["resolution_z"], 40)
         self.assertEqual(values["phase_x"], 0.0)
         self.assertEqual(values["boundary_mode"], "open")
+        self.assertEqual(values["geometry_mode"], "surface")
 
     def test_apply_inserts_exactly_one_final_mesh(self):
         inserted = []
@@ -426,15 +455,53 @@ class VolumeFusionBoundaryTests(unittest.TestCase):
                 self.assertEqual(len(bodies), 2)
                 self.assertTrue(bodies[1].mesh.statistics().is_watertight)
 
-                command.execute.handlers[0].notify(SimpleNamespace())
+                geometry_mode = command.commandInputs.items[
+                    volume_runtime._parameter_input_id("geometry_mode")
+                ]
+                wall_thickness = command.commandInputs.items[
+                    volume_runtime._parameter_input_id("wall_thickness")
+                ]
+                geometry_mode.selectedItem = next(
+                    item for item in geometry_mode.listItems.items
+                    if item.name == "Thickened"
+                )
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=geometry_mode)
+                )
                 self.assertTrue(bodies[1].deleted)
+                self.assertTrue(wall_thickness.isVisible)
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=preview_input)
+                )
+                command.executePreview.handlers[0].notify(
+                    SimpleNamespace(isValidResult=None)
+                )
                 self.assertEqual(len(bodies), 3)
+                self.assertTrue(bodies[2].mesh.statistics().is_watertight)
+
+                wall_thickness.value = 0.15
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=wall_thickness)
+                )
+                self.assertTrue(bodies[2].deleted)
+                command.inputChanged.handlers[0].notify(
+                    SimpleNamespace(input=preview_input)
+                )
+                command.executePreview.handlers[0].notify(
+                    SimpleNamespace(isValidResult=None)
+                )
+                self.assertEqual(len(bodies), 4)
+                self.assertTrue(bodies[3].mesh.statistics().is_watertight)
+
+                command.execute.handlers[0].notify(SimpleNamespace())
+                self.assertTrue(bodies[3].deleted)
+                self.assertEqual(len(bodies), 5)
                 self.assertEqual(
-                    bodies[2].name, "NatureGenerator — Gyroid Volume"
+                    bodies[4].name, "NatureGenerator — Gyroid Volume"
                 )
 
                 command.destroy.handlers[0].notify(SimpleNamespace())
-                self.assertFalse(bodies[2].deleted)
+                self.assertFalse(bodies[4].deleted)
 
                 second_command = FakeCommand()
                 definition.commandCreated.handlers[0].notify(

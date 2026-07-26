@@ -82,6 +82,14 @@ boundary vertices, and returns geometry only when measured as a clean
 watertight manifold. It does not add wall thickness or BRep conversion. See
 [`docs/SPRINT35_DESIGN.md`](docs/SPRINT35_DESIGN.md).
 
+Sprint 36 adds optional **Thickened** Gyroid Volume geometry. It converts Wall
+Thickness in millimetres to paired analytical scalar boundaries using the
+world-space Gyroid gradient, extracts both wall sides, and optionally caps the
+physical band at the rectangular bounds. Surface remains the default and keeps
+the exact Sprint 35 geometry. Output remains a MeshBody rather than an
+automatically converted BRep solid. See
+[`docs/SPRINT36_DESIGN.md`](docs/SPRINT36_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

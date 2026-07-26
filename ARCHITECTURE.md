@@ -102,6 +102,15 @@ inside region with outward winding. It accepts Cap only when `MeshStatistics`
 measures a clean watertight manifold. Boundary, manifold, winding, area, and
 volume claims therefore remain measured rather than inferred.
 
+Sprint 36 adds a `GeometryMode` without changing the Surface path. Thickened
+mode derives paired upper/lower fields from the analytical world-space Gyroid
+gradient, samples both arrays in one coordinate traversal, extracts each wall
+side independently, and combines their indexed meshes. This avoids losing a
+thin band between sample vertices. Its Cap path clips each rectangular-face
+triangle against both scalar inequalities, closing exactly the wall region.
+Metadata carries the Wall Thickness visibility dependency, and the Fusion layer
+applies it generically.
+
 Fusion's `Gyroid Volume` command has a separate definition, metadata-driven
 inputs, Preview owner, final insertion, and stop cleanup. No source body is
 selected or modified.
