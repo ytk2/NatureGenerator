@@ -17,11 +17,12 @@ an STL writer, or another adapter.
 
 ### Product surfaces
 
-The Fusion add-in exposes two independent command lifecycles. **Generate
+The Fusion add-in exposes three independent command lifecycles. **Generate
 Nature** routes a preset request through `GeneratorFactory`. **Procedural Lab**
 adapts one existing Fusion body and routes a `ProceduralRequest` through an
-operator pipeline. Operators are not presets or Families, and Procedural Lab
-does not use `PresetCatalog`.
+operator pipeline. **Gyroid Volume** creates geometry from a sampled scalar
+field without source selection. Operators are not presets or Families, and
+neither Procedural Lab nor Gyroid Volume uses `PresetCatalog`.
 
 ```text
 Fusion BRepBody or MeshBody
@@ -77,6 +78,30 @@ allocation, `subdivision_policy` predicts `input_face_count * (4 ** level)`
 from the mesh entering that stack stage. The centralized policy permits at
 most 500,000 faces for Preview and 1,000,000 for Apply. This keeps the operator
 Fusion-independent while preventing accidental high-density expansion.
+
+### Volume generation (`volume/`)
+
+Sprint 34 adds an independent immutable volume pipeline:
+
+```text
+GyroidVolumeRequest
+    -> centralized volume safety policy
+    -> GyroidVolumeField
+    -> inclusive VoxelGrid sampling
+    -> marching tetrahedra
+    -> TriangleMesh + measured MeshStatistics
+    -> GyroidVolumeResult
+```
+
+The package reuses stable `core/` sampling, extraction, and mesh primitives but
+does not import Fusion, Procedural Lab, presets, or generators. The rectangular
+domain is centered at the origin. The extracted Gyroid sheet is clipped open at
+the bounds, and its boundary, manifold, winding, area, and other claims come
+from `MeshStatistics`.
+
+Fusion's `Gyroid Volume` command has a separate definition, metadata-driven
+inputs, Preview owner, final insertion, and stop cleanup. No source body is
+selected or modified.
 
 ### Nature presets (`presets/`)
 
