@@ -123,6 +123,19 @@ class FakeCommandInputs:
         )
         return result
 
+    def addTextBoxCommandInput(
+        self, input_id, name, text, rows, is_read_only
+    ):
+        result = SimpleNamespace(
+            id=input_id,
+            name=name,
+            text=text,
+            numRows=rows,
+            isReadOnly=is_read_only,
+        )
+        self.items[input_id] = result
+        return result
+
     def addBoolValueInput(self, input_id, name, is_checkbox, resource, initial):
         result = SimpleNamespace(
             id=input_id, name=name, value=initial, isCheckBox=is_checkbox

@@ -105,6 +105,14 @@ released geometry digests. The existing Gyroid Surface deformation operator
 remains separate. See
 [`docs/SPRINT38_DESIGN.md`](docs/SPRINT38_DESIGN.md).
 
+Sprint 39 adds **Dimensions** and **Cell Count** domain sizing. Dimensions
+remains the default and preserves Sprint 38 output exactly. Cell Count derives
+the centered rectangular size as Cells X/Y/Z multiplied by the shared Period,
+while existing Resolution values remain independent. Read-only diagnostics
+show effective cells, calculated size, sample spacing, and approximate
+intervals per cell. See
+[`docs/SPRINT39_DESIGN.md`](docs/SPRINT39_DESIGN.md).
+
 Sprint 15 refactors Rock internally into immutable Macro Shape, Facet Layout,
 and Surface Detail stages, then adds River Stone as a parameter-only proof of
 the family architecture. It preserves the accepted Sprint 14 geometry and all

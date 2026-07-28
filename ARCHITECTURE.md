@@ -133,6 +133,16 @@ result, command, and generation names delegate to this one implementation.
 Type participates in metadata, immutable cost estimates, diagnostics, body
 names, and safety context.
 
+Sprint 39 adds a Fusion-independent `DomainDefinition` before cost estimation.
+`resolve_domain()` is the sole authority converting either exact physical
+Dimensions or integer Cell Count plus Period into resolved Width, Depth, Height,
+effective cells, and centered bounds. Downstream sampling, thickness checks,
+extraction, closure, and result reporting consume only that immutable resolved
+domain. Fusion retains both input banks and changes visibility rather than
+recreating controls; Period is shared. Resolution remains an independent sample
+count, so period-aligned bounds are not claimed to have node-aligned boundary
+tessellation.
+
 ### Nature presets (`presets/`)
 
 Defines the stable user-facing vocabulary of natural forms. Each immutable

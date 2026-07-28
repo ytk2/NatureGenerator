@@ -5,6 +5,7 @@ import math
 
 from core.mesh import MeshStatistics, TriangleMesh
 from .cost_estimate import VolumeCostEstimate
+from .domain_sizing import DomainDefinition
 from .timings import VolumeGenerationTimings
 
 
@@ -20,6 +21,7 @@ class GyroidVolumeResult:
     boundary_behavior: str = "open_at_bounds"
     cost_estimate: VolumeCostEstimate = None
     timings: VolumeGenerationTimings = field(default=None, compare=False)
+    domain: DomainDefinition = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.mesh, TriangleMesh):
@@ -40,6 +42,16 @@ class GyroidVolumeResult:
             and not isinstance(self.timings, VolumeGenerationTimings)
         ):
             raise TypeError("timings must be VolumeGenerationTimings")
+        if self.domain is not None and not isinstance(
+            self.domain, DomainDefinition
+        ):
+            raise TypeError("domain must be a DomainDefinition")
+        if (
+            self.cost_estimate is not None
+            and self.domain is not None
+            and self.cost_estimate.domain != self.domain
+        ):
+            raise ValueError("domain must match cost estimate")
 
 
 TPMSVolumeResult = GyroidVolumeResult

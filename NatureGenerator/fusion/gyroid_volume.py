@@ -13,6 +13,16 @@ PARAMETER_PREFIX = "gyroidVolume_"
 PREVIEW_INPUT_ID = "gyroidVolumePreview"
 PREVIEW_NAME = "NatureGenerator Preview — TPMS — Gyroid"
 FINAL_NAME = "NatureGenerator — TPMS — Gyroid"
+DOMAIN_DIAGNOSTIC_PREFIX = "gyroidVolumeDomainDiagnostic_"
+
+_DOMAIN_DIAGNOSTIC_DEFINITIONS = (
+    ("effective_cells_x", "Effective Cells X", "dimensions"),
+    ("effective_cells_y", "Effective Cells Y", "dimensions"),
+    ("effective_cells_z", "Effective Cells Z", "dimensions"),
+    ("calculated_width", "Calculated Width", "cell_count"),
+    ("calculated_depth", "Calculated Depth", "cell_count"),
+    ("calculated_height", "Calculated Height", "cell_count"),
+)
 
 _TYPE_DISPLAY_NAMES = {
     "gyroid": "Gyroid",
@@ -42,6 +52,10 @@ class GyroidVolumeFusionError(RuntimeError):
 
 def _parameter_input_id(parameter_id):
     return "{}{}".format(PARAMETER_PREFIX, parameter_id)
+
+
+def _domain_diagnostic_input_id(diagnostic_id):
+    return "{}{}".format(DOMAIN_DIAGNOSTIC_PREFIX, diagnostic_id)
 
 
 def _create_parameter_inputs(inputs, adsk_core, definitions):
@@ -144,6 +158,65 @@ def _selected_enum_value(control, definition):
     return labels.get(selected.name)
 
 
+def _create_domain_diagnostic_inputs(inputs):
+    created = {}
+    for diagnostic_id, display_name, _ in _DOMAIN_DIAGNOSTIC_DEFINITIONS:
+        created[diagnostic_id] = inputs.addTextBoxCommandInput(
+            _domain_diagnostic_input_id(diagnostic_id),
+            display_name,
+            "",
+            1,
+            True,
+        )
+    return created
+
+
+def _format_diagnostic(value):
+    return "{:.6g}".format(value)
+
+
+def _update_domain_diagnostics(
+    parameter_inputs, diagnostic_inputs, definitions
+):
+    """Update read-only resolved values without mutating either input bank."""
+
+    from volume import DomainMode, resolve_domain
+
+    values = _read_parameter_values(parameter_inputs, definitions)
+    mode = DomainMode(values["domain_mode"])
+    domain = resolve_domain(
+        mode,
+        values["width"],
+        values["depth"],
+        values["height"],
+        values["cells_x"],
+        values["cells_y"],
+        values["cells_z"],
+        values["period"],
+    )
+    effective = domain.effective_cell_counts
+    dimensions = domain.resolved_dimensions
+    diagnostic_values = {
+        "effective_cells_x": _format_diagnostic(effective[0]),
+        "effective_cells_y": _format_diagnostic(effective[1]),
+        "effective_cells_z": _format_diagnostic(effective[2]),
+        "calculated_width": "{} mm".format(
+            _format_diagnostic(dimensions[0])
+        ),
+        "calculated_depth": "{} mm".format(
+            _format_diagnostic(dimensions[1])
+        ),
+        "calculated_height": "{} mm".format(
+            _format_diagnostic(dimensions[2])
+        ),
+    }
+    for diagnostic_id, _, visible_mode in _DOMAIN_DIAGNOSTIC_DEFINITIONS:
+        control = diagnostic_inputs[diagnostic_id]
+        control.text = diagnostic_values[diagnostic_id]
+        control.isVisible = mode.value == visible_mode
+    return domain
+
+
 def _update_parameter_visibility(parameter_inputs, definitions):
     """Apply generic metadata visibility without resetting control values."""
 
@@ -185,6 +258,7 @@ def start(context=None):
     from fusion.volume_mesh_builder import VolumeMeshBuilder
     from volume import (
         BoundaryMode,
+        DomainMode,
         GeometryMode,
         GyroidVolumeRequest,
         PreviewQuality,
@@ -212,6 +286,7 @@ def start(context=None):
         return GyroidVolumeRequest(
             execution_context=execution_context,
             boundary_mode=BoundaryMode(values.pop("boundary_mode")),
+            domain_mode=DomainMode(values.pop("domain_mode")),
             geometry_mode=GeometryMode(values.pop("geometry_mode")),
             preview_quality=PreviewQuality(values.pop("preview_quality")),
             tpms_type=TPMSType(values.pop("tpms_type")),
@@ -221,6 +296,7 @@ def start(context=None):
     def log_completion(label, result, insertion_time):
         estimate = result.cost_estimate
         resolution = estimate.effective_resolution
+        domain = estimate.domain
         quality = (
             "\nQuality: {}".format(
                 estimate.preview_quality.value.title()
@@ -229,15 +305,22 @@ def start(context=None):
             else ""
         )
         app.log(
-            "{}\nType: {}{}\nResolution: {} × {} × {}\nSamples: {:,}\n"
-            "Faces: {:,}\nCore generation: {:.3f}s\n"
+            "{}\nType: {}{}\nDomain Mode: {}\nResolved Size: {:.6g} × "
+            "{:.6g} × {:.6g} mm\nResolution: {} × {} × {}\n"
+            "Spacing: {:.6g} × {:.6g} × {:.6g} mm\nIntervals/Cell: "
+            "{:.6g} × {:.6g} × {:.6g}\nSamples: {:,}\nFaces: {:,}\n"
+            "Core generation: {:.3f}s\n"
             "Fusion insertion: {:.3f}s\nTotal: {:.3f}s".format(
                 label,
                 _TYPE_DISPLAY_NAMES[estimate.tpms_type.value],
                 quality,
+                domain.mode.value,
+                *domain.resolved_dimensions,
                 resolution[0],
                 resolution[1],
                 resolution[2],
+                *estimate.sample_spacing,
+                *estimate.intervals_per_cell,
                 estimate.total_scalar_samples,
                 result.statistics.face_count,
                 result.timings.total_core,
@@ -280,10 +363,16 @@ def start(context=None):
 
     class InputChangedHandler(adsk.core.InputChangedEventHandler):
         def __init__(
-            self, parameter_inputs, preview_input, controller, trigger
+            self,
+            parameter_inputs,
+            diagnostic_inputs,
+            preview_input,
+            controller,
+            trigger,
         ):
             super().__init__()
             self.parameter_inputs = parameter_inputs
+            self.diagnostic_inputs = diagnostic_inputs
             self.preview_input = preview_input
             self.controller = controller
             self.trigger = trigger
@@ -303,6 +392,11 @@ def start(context=None):
                 self.parameter_inputs, VOLUME_PARAMETER_DEFINITIONS
             )
             try:
+                _update_domain_diagnostics(
+                    self.parameter_inputs,
+                    self.diagnostic_inputs,
+                    VOLUME_PARAMETER_DEFINITIONS,
+                )
                 read_request(
                     self.parameter_inputs, VolumeExecutionContext.PREVIEW
                 )
@@ -384,8 +478,14 @@ def start(context=None):
             parameter_inputs = _create_parameter_inputs(
                 inputs, adsk.core, VOLUME_PARAMETER_DEFINITIONS
             )
+            diagnostic_inputs = _create_domain_diagnostic_inputs(inputs)
             _update_parameter_visibility(
                 parameter_inputs, VOLUME_PARAMETER_DEFINITIONS
+            )
+            _update_domain_diagnostics(
+                parameter_inputs,
+                diagnostic_inputs,
+                VOLUME_PARAMETER_DEFINITIONS,
             )
             preview_input = inputs.addBoolValueInput(
                 PREVIEW_INPUT_ID, "Preview", False, "", False
@@ -396,7 +496,11 @@ def start(context=None):
             retained = []
             execute = ExecuteHandler(parameter_inputs, controller)
             changed = InputChangedHandler(
-                parameter_inputs, preview_input, controller, trigger
+                parameter_inputs,
+                diagnostic_inputs,
+                preview_input,
+                controller,
+                trigger,
             )
             preview = PreviewHandler(
                 parameter_inputs, controller, trigger

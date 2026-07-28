@@ -5,6 +5,16 @@ import math
 import time
 
 from .cost_estimate import VolumeCostEstimate, estimate_volume_cost
+from .domain_sizing import (
+    DOMAIN_CELL_COUNT_MAX,
+    DOMAIN_CELL_COUNT_MIN,
+    DOMAIN_DIMENSION_MAX_MM,
+    DOMAIN_DIMENSION_MIN_MM,
+    DomainDefinition,
+    DomainMode,
+    DomainSizingError,
+    resolve_domain,
+)
 from .gyroid_field import GyroidVolumeField
 from .thickened_field import (
     ThickenedGyroidField,
@@ -233,6 +243,7 @@ def generate_tpms_volume(request: TPMSVolumeRequest) -> TPMSVolumeResult:
         boundary_behavior=boundary_behavior,
         cost_estimate=estimate,
         timings=timings,
+        domain=request.domain,
     )
 
 
@@ -247,6 +258,9 @@ __all__ = [
     "BoundaryClosureError",
     "BoundaryMode",
     "GeometryMode",
+    "DomainMode",
+    "DomainDefinition",
+    "DomainSizingError",
     "PreviewQuality",
     "TPMSType",
     "TPMSVolumeRequest",
@@ -267,6 +281,10 @@ __all__ = [
     "VOLUME_PARAMETER_DEFINITIONS",
     "VOLUME_PREVIEW_MAX_SAMPLES",
     "VOLUME_PREVIEW_MAX_CAP_TRIANGLES",
+    "DOMAIN_CELL_COUNT_MAX",
+    "DOMAIN_CELL_COUNT_MIN",
+    "DOMAIN_DIMENSION_MAX_MM",
+    "DOMAIN_DIMENSION_MIN_MM",
     "VolumeExecutionContext",
     "VolumeParameterDefinition",
     "VolumeSafetyLimitError",
@@ -301,4 +319,5 @@ __all__ = [
     "sample_thickened_band_grids",
     "PREVIEW_QUALITY_SCALES",
     "select_volume_resolution",
+    "resolve_domain",
 ]

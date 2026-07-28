@@ -25,7 +25,7 @@ def validate_wall_thickness_resolution(request, estimate) -> float:
     spacing = tuple(
         dimension / (axis - 1)
         for dimension, axis in zip(
-            (request.width, request.depth, request.height), resolution
+            request.resolved_dimensions, resolution
         )
     )
     minimum_reliable = max(spacing) / 16.0
@@ -82,11 +82,26 @@ def validate_volume_cost(request, estimate):
         if request.execution_context is VolumeExecutionContext.PREVIEW
         else ""
     )
+    domain = estimate.domain
+    if domain.requested_cell_counts is not None:
+        requested_domain = "Cells {} × {} × {}".format(
+            *domain.requested_cell_counts
+        )
+    else:
+        requested_domain = "Dimensions {:.6g} × {:.6g} × {:.6g} mm".format(
+            *domain.requested_dimensions
+        )
     context = (
-        "TPMS Type {}, Geometry Mode {}, Boundary Mode {}".format(
+        "TPMS Type {}, Geometry Mode {}, Boundary Mode {}, Domain Mode {}, "
+        "{}, Period {:.6g} mm, resolved size {:.6g} × {:.6g} × {:.6g} mm"
+        .format(
             request.tpms_type.value,
             request.geometry_mode.value,
             request.boundary_mode.value,
+            domain.mode.value,
+            requested_domain,
+            request.period,
+            *domain.resolved_dimensions
         )
         + (
             ", Wall Thickness {:.6g} mm".format(request.wall_thickness)
