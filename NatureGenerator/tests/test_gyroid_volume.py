@@ -81,7 +81,7 @@ class GyroidVolumeRequestTests(unittest.TestCase):
             item.parameter_id: item
             for item in VOLUME_PARAMETER_DEFINITIONS
         }
-        self.assertEqual(len(definitions), 16)
+        self.assertEqual(len(definitions), 20)
         self.assertEqual(
             definitions["preview_quality"].choices,
             (
@@ -116,6 +116,21 @@ class GyroidVolumeRequestTests(unittest.TestCase):
             ("geometry_mode", ("thickened",)),
         )
         self.assertEqual(definitions["width"].default_value, 60.0)
+        self.assertEqual(
+            definitions["domain_mode"].choices,
+            (("dimensions", "Dimensions"), ("cell_count", "Cell Count")),
+        )
+        self.assertEqual(
+            definitions["width"].visible_when,
+            ("domain_mode", ("dimensions",)),
+        )
+        self.assertEqual(definitions["cells_x"].default_value, 1)
+        self.assertEqual(definitions["cells_x"].minimum, 1)
+        self.assertEqual(definitions["cells_x"].maximum, 50)
+        self.assertEqual(
+            definitions["cells_x"].visible_when,
+            ("domain_mode", ("cell_count",)),
+        )
         self.assertEqual(definitions["period"].unit, "mm")
         self.assertEqual(definitions["iso_value"].minimum, -1.5)
         self.assertEqual(definitions["resolution_x"].minimum, 8)
@@ -302,6 +317,19 @@ class FakeParameterInputs:
             return item
 
         control.listItems = SimpleNamespace(add=add, items=items)
+        self.created[input_id] = control
+        return control
+
+    def addTextBoxCommandInput(
+        self, input_id, name, text, rows, is_read_only
+    ):
+        control = SimpleNamespace(
+            id=input_id,
+            name=name,
+            text=text,
+            numRows=rows,
+            isReadOnly=is_read_only,
+        )
         self.created[input_id] = control
         return control
 

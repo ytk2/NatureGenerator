@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+from .domain_sizing import DomainDefinition
 from .resolution_policy import select_volume_resolution
 from .volume_request import (
     BoundaryMode,
@@ -36,6 +37,9 @@ class VolumeCostEstimate:
     active_sample_limit: int
     active_cap_triangle_limit: int
     tpms_type: TPMSType
+    domain: DomainDefinition
+    sample_spacing: Tuple[float, float, float]
+    intervals_per_cell: Tuple[float, float, float]
 
     @property
     def estimated_known_bytes(self) -> int:
@@ -70,6 +74,7 @@ def estimate_volume_cost(request: GyroidVolumeRequest) -> VolumeCostEstimate:
         )
         cap_estimate = estimator(rx, ry, rz)
     preview = request.execution_context is VolumeExecutionContext.PREVIEW
+    domain = request.domain
     return VolumeCostEstimate(
         final_resolution=selection.final_resolution,
         effective_resolution=selection.effective_resolution,
@@ -93,4 +98,11 @@ def estimate_volume_cost(request: GyroidVolumeRequest) -> VolumeCostEstimate:
             else VOLUME_APPLY_MAX_CAP_TRIANGLES
         ),
         tpms_type=request.tpms_type,
+        domain=domain,
+        sample_spacing=domain.sample_spacing(
+            selection.effective_resolution
+        ),
+        intervals_per_cell=domain.intervals_per_cell(
+            selection.effective_resolution
+        ),
     )

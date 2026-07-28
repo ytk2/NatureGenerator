@@ -292,6 +292,17 @@ See [SPRINT37_DESIGN.md](docs/SPRINT37_DESIGN.md).
 
 See [SPRINT38_DESIGN.md](docs/SPRINT38_DESIGN.md).
 
+**Sprint 39 — TPMS Domain Sizing Modes**
+
+- add Dimensions and Cell Count rectangular-domain modes
+- preserve exact Sprint 38 Dimensions geometry and canonical digests
+- derive Cell Count size through Cells X/Y/Z multiplied by shared Period
+- centralize resolved dimensions, centered bounds, provenance, and diagnostics
+- preserve independent Resolution semantics and all existing safety limits
+- defer Selected Body clipping and Samples per Cell resolution policy
+
+See [SPRINT39_DESIGN.md](docs/SPRINT39_DESIGN.md).
+
 ## Candidate Future Work
 
 - additional Procedural Lab geometry operators and variable stack workflows

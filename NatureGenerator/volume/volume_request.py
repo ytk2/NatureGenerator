@@ -1,10 +1,20 @@
 """Validated immutable request and metadata for TPMS Volume generation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import math
 import re
 from typing import Any, Tuple
+
+from .domain_sizing import (
+    DOMAIN_CELL_COUNT_MAX,
+    DOMAIN_CELL_COUNT_MIN,
+    DOMAIN_DIMENSION_MAX_MM,
+    DOMAIN_DIMENSION_MIN_MM,
+    DomainDefinition,
+    DomainMode,
+    resolve_domain,
+)
 
 
 class VolumeExecutionContext(Enum):
@@ -145,9 +155,73 @@ VOLUME_PARAMETER_DEFINITIONS: Tuple[VolumeParameterDefinition, ...] = (
         "mm",
         visible_when=("geometry_mode", ("thickened",)),
     ),
-    VolumeParameterDefinition("width", "Width", "length", 60.0, 1.0, 500.0, "mm"),
-    VolumeParameterDefinition("depth", "Depth", "length", 60.0, 1.0, 500.0, "mm"),
-    VolumeParameterDefinition("height", "Height", "length", 60.0, 1.0, 500.0, "mm"),
+    VolumeParameterDefinition(
+        "domain_mode",
+        "Domain Mode",
+        "enum",
+        "dimensions",
+        choices=(
+            ("dimensions", "Dimensions"),
+            ("cell_count", "Cell Count"),
+        ),
+    ),
+    VolumeParameterDefinition(
+        "width",
+        "Width",
+        "length",
+        60.0,
+        DOMAIN_DIMENSION_MIN_MM,
+        DOMAIN_DIMENSION_MAX_MM,
+        "mm",
+        visible_when=("domain_mode", ("dimensions",)),
+    ),
+    VolumeParameterDefinition(
+        "depth",
+        "Depth",
+        "length",
+        60.0,
+        DOMAIN_DIMENSION_MIN_MM,
+        DOMAIN_DIMENSION_MAX_MM,
+        "mm",
+        visible_when=("domain_mode", ("dimensions",)),
+    ),
+    VolumeParameterDefinition(
+        "height",
+        "Height",
+        "length",
+        60.0,
+        DOMAIN_DIMENSION_MIN_MM,
+        DOMAIN_DIMENSION_MAX_MM,
+        "mm",
+        visible_when=("domain_mode", ("dimensions",)),
+    ),
+    VolumeParameterDefinition(
+        "cells_x",
+        "Cells X",
+        "integer",
+        1,
+        DOMAIN_CELL_COUNT_MIN,
+        DOMAIN_CELL_COUNT_MAX,
+        visible_when=("domain_mode", ("cell_count",)),
+    ),
+    VolumeParameterDefinition(
+        "cells_y",
+        "Cells Y",
+        "integer",
+        1,
+        DOMAIN_CELL_COUNT_MIN,
+        DOMAIN_CELL_COUNT_MAX,
+        visible_when=("domain_mode", ("cell_count",)),
+    ),
+    VolumeParameterDefinition(
+        "cells_z",
+        "Cells Z",
+        "integer",
+        1,
+        DOMAIN_CELL_COUNT_MIN,
+        DOMAIN_CELL_COUNT_MAX,
+        visible_when=("domain_mode", ("cell_count",)),
+    ),
     VolumeParameterDefinition("period", "Period", "length", 20.0, 1.0, 500.0, "mm"),
     VolumeParameterDefinition("iso_value", "Iso Value", "float", 0.0, -1.5, 1.5),
     VolumeParameterDefinition("resolution_x", "Resolution X", "integer", 40, 8, 160),
@@ -185,6 +259,11 @@ class GyroidVolumeRequest:
     phase_z: float = 0.0
     boundary_mode: BoundaryMode = BoundaryMode.OPEN
     execution_context: VolumeExecutionContext = VolumeExecutionContext.APPLY
+    domain_mode: DomainMode = DomainMode.DIMENSIONS
+    cells_x: int = 1
+    cells_y: int = 1
+    cells_z: int = 1
+    _domain: DomainDefinition = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         values = {}
@@ -194,6 +273,7 @@ class GyroidVolumeRequest:
                 "preview_quality": PreviewQuality,
                 "tpms_type": TPMSType,
                 "geometry_mode": GeometryMode,
+                "domain_mode": DomainMode,
                 "boundary_mode": BoundaryMode,
             }.get(definition.parameter_id)
             if enum_type is not None:
@@ -217,6 +297,15 @@ class GyroidVolumeRequest:
                         "Wall Thickness must be a finite number"
                     )
                 values[definition.parameter_id] = float(raw)
+            elif definition.parameter_id in (
+                "width",
+                "depth",
+                "height",
+                "cells_x",
+                "cells_y",
+                "cells_z",
+            ):
+                values[definition.parameter_id] = raw
             else:
                 values[definition.parameter_id] = definition.validate(raw)
         if not isinstance(self.execution_context, VolumeExecutionContext):
@@ -228,6 +317,7 @@ class GyroidVolumeRequest:
                 "preview_quality": PreviewQuality,
                 "tpms_type": TPMSType,
                 "geometry_mode": GeometryMode,
+                "domain_mode": DomainMode,
                 "boundary_mode": BoundaryMode,
             }.get(name)
             object.__setattr__(
@@ -235,18 +325,70 @@ class GyroidVolumeRequest:
                 name,
                 enum_type(value) if enum_type is not None else value,
             )
+        domain = resolve_domain(
+            self.domain_mode,
+            self.width,
+            self.depth,
+            self.height,
+            self.cells_x,
+            self.cells_y,
+            self.cells_z,
+            self.period,
+        )
+        object.__setattr__(self, "_domain", domain)
+        if self.domain_mode is DomainMode.DIMENSIONS:
+            for name, value in zip(
+                ("width", "depth", "height"),
+                domain.resolved_dimensions,
+            ):
+                object.__setattr__(self, name, value)
+            for name in ("cells_x", "cells_y", "cells_z"):
+                raw = getattr(self, name)
+                if isinstance(raw, bool) or not isinstance(raw, int):
+                    raise TypeError("{} must be an integer".format(
+                        name.replace("_", " ").title()
+                    ))
+        else:
+            for name, value in zip(
+                ("cells_x", "cells_y", "cells_z"),
+                domain.requested_cell_counts,
+            ):
+                object.__setattr__(self, name, value)
+            for name in ("width", "depth", "height"):
+                raw = getattr(self, name)
+                if (
+                    isinstance(raw, bool)
+                    or not isinstance(raw, (int, float))
+                    or not math.isfinite(float(raw))
+                ):
+                    raise ValueError("{} must be a finite number".format(
+                        name.title()
+                    ))
+                object.__setattr__(self, name, float(raw))
 
     @property
     def resolution(self) -> Tuple[int, int, int]:
         return (self.resolution_x, self.resolution_y, self.resolution_z)
 
     @property
+    def domain(self) -> DomainDefinition:
+        return self._domain
+
+    @property
+    def resolved_dimensions(self) -> Tuple[float, float, float]:
+        return self.domain.resolved_dimensions
+
+    @property
+    def effective_cell_counts(self) -> Tuple[float, float, float]:
+        return self.domain.effective_cell_counts
+
+    @property
     def minimum(self) -> Tuple[float, float, float]:
-        return (-self.width * 0.5, -self.depth * 0.5, -self.height * 0.5)
+        return self.domain.minimum
 
     @property
     def maximum(self) -> Tuple[float, float, float]:
-        return (self.width * 0.5, self.depth * 0.5, self.height * 0.5)
+        return self.domain.maximum
 
 
 # Backward-compatible default-Gyroid request name and generalized TPMS name
